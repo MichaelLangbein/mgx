@@ -1,4 +1,4 @@
-import { isPowerOf, flatten3 } from '../utils/math';
+import { isPowerOf, flatten3 } from '../../utils/math';
 
 
 

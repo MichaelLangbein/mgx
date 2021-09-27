@@ -1,6 +1,6 @@
 {
   "name": "@mgx/engine1",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Simple API for WebGL-1",
   "main": "dist/engine1.js",
   "homepage": "https://github.com/MichaelLangbein/mgx/tree/main/engine1",

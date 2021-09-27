@@ -1,0 +1,29 @@
+{
+  "name": "@mgx/bicubic-interpolation",
+  "version": "0.1.2",
+  "description": "Simple bicubic interpolation implemented as a WebGL shader",
+  "main": "dist/bicubic-interpolation.js",
+  "types": "dist/bicubic-interpolation/src/index.d.ts",
+  "homepage": "https://github.com/MichaelLangbein/mgx/tree/main/bicubic-interpolation",
+  "scripts": {
+    "build": "webpack",
+    "publish": "npm publish --access public"
+  },
+  "keywords": [
+    "WebGL",
+    "API"
+  ],
+  "author": "Michael Langbein <michael_langbein@hotmail.de> (https://michaellangbein.github.io/)",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "ts-loader": "^9.2.6",
+    "typescript": "^4.4.3",
+    "webpack": "^5.54.0",
+    "webpack-cli": "^4.8.0"
+  },
+  "dependencies": {
+    "@mgx/engine2": "^0.1.2",
+    "delaunator": "^5.0.0",
+    "geojson": "^0.5.0"
+  }
+}

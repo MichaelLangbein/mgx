@@ -1,8 +1,9 @@
 {
   "name": "@mgx/engine1",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Simple API for WebGL-1",
   "main": "dist/engine1.js",
+  "types": "dist/engine1/src/index.d.ts",
   "homepage": "https://github.com/MichaelLangbein/mgx/tree/main/engine1",
   "scripts": {
     "build": "webpack",

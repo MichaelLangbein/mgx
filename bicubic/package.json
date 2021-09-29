@@ -1,9 +1,9 @@
 {
   "name": "@mgx/bicubic-interpolation",
   "version": "0.1.2",
-  "description": "Simple bicubic interpolation implemented as a WebGL shader",
+  "description": "Simple bicubic interpolation implemented as a WebGL2 shader",
   "main": "dist/bicubic-interpolation.js",
-  "types": "dist/bicubic-interpolation/src/index.d.ts",
+  "types": "dist/bicubic/src/index.d.ts",
   "homepage": "https://github.com/MichaelLangbein/mgx/tree/main/bicubic-interpolation",
   "scripts": {
     "build": "webpack",

@@ -3,6 +3,8 @@ import { FeatureCollection, Point } from 'geojson';
 import Delaunator from 'delaunator';
 
 
+// cmp https://github.com/dlr-eoc/ukis-frontend-libraries/blob/master/projects/utils-maps/src/lib/ol/customRenderers/particle_renderer.ts
+
 export class ParticleFlow {
     private bundle: ArrayBundle;
     private context: Context;
@@ -47,7 +49,7 @@ export class ParticleFlow {
             }, {
                 'u_geoBbox': new UniformData('vec4', bbox)
             }, {
-                
+
             }, 'triangles', triangles.length
         );
 
@@ -61,5 +63,9 @@ export class ParticleFlow {
 
     public render(tDelta: number) {
         this.bundle.draw(this.context);
+    }
+
+    public updateBbox(bbox: number[]) {
+        this.bundle.updateUniformData(this.context, 'u_geoBbox', bbox);
     }
 }

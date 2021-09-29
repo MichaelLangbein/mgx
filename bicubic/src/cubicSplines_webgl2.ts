@@ -6,7 +6,6 @@
  */
 
 
-
 import Delaunator from 'delaunator';
 import { Program, AttributeData, UniformData, TextureData, Context, ElementsBundle, Index, Bundle } from '@mgx/engine2';
 import { FeatureCollection, Point } from 'geojson';
@@ -20,23 +19,12 @@ export interface GridPointProps {
 }
 
 
-
 export class SplineRenderer {
 
-    private canvas: HTMLCanvasElement;
     private bundle: Bundle;
     private context: Context;
 
-    constructor(data: FeatureCollection<Point, GridPointProps>) {
-
-        this.canvas = document.createElement('canvas') as HTMLCanvasElement;
-        this.canvas.width = 600;
-        this.canvas.height = 600;
-        this.canvas.style.setProperty('position', 'absolute');
-        this.canvas.style.setProperty('left', '0px');
-        this.canvas.style.setProperty('top', '0px');
-        this.canvas.style.setProperty('width', '100%');
-        this.canvas.style.setProperty('height', '100%');
+    constructor(webgl2Context: WebGL2RenderingContext, data: FeatureCollection<Point, GridPointProps>, bbox: number[]) {
 
         const features = data.features;
         const coordinates = features.map(f => f.geometry.coordinates);
@@ -63,7 +51,7 @@ export class SplineRenderer {
             colsAndRows.push(col, row);
         }
 
-        this.context = new Context(this.canvas.getContext('webgl2') as WebGL2RenderingContext, false);
+        this.context = new Context(webgl2Context, false);
         const program = new Program(
             `
                 precision mediump float;
@@ -215,7 +203,7 @@ export class SplineRenderer {
             'a_geoPosition': new AttributeData(new Float32Array(flatten2(coordinates)), 'vec2', false),
             'a_texturePosition': new AttributeData(new Float32Array(colsAndRows), 'vec2', false),
         }, {
-            'u_geoBbox': new UniformData('vec4', [0, 0, 360, 180]),
+            'u_geoBbox': new UniformData('vec4', bbox),
             'u_valueBounds': new UniformData('vec2', valueBounds),
             'u_textureSize': new UniformData('vec2', [nrCols, nrRows])
         }, {
@@ -237,14 +225,8 @@ export class SplineRenderer {
         return true;
     }
 
-    setCanvasSize(width: number, height: number): void {
-        if (this.canvas.width !== width) this.canvas.width = width;
-        if (this.canvas.height !== height) this.canvas.height = height;
-    }
-
-    renderFrame(): HTMLCanvasElement {
+    render() {
         this.bundle.draw(this.context, [0, 0, 0, 0]);
-        return this.canvas;
     }
 
 }

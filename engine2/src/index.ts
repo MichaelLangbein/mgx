@@ -1,7 +1,6 @@
-export {
-    ArrayBundle, AttributeData, Bundle, Context, ElementsBundle, Index, InstancedArrayBundle, 
-    InstancedAttributeData, InstancedElementsBundle, Program, TextureData, UniformData
-} from './engine.core';
+export * from './engine.core';
+
+export * from './webgl2';
 
 export {
     renderLoop

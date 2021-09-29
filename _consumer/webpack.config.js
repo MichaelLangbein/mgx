@@ -24,7 +24,7 @@ module.exports = {
     entry: entries,
     output: {
         filename: '[name].js',
-        path: path.resolve(__dirname, 'demopage'),
+        path: path.resolve(__dirname, '..', 'docs'),
     },
     module: {
         rules: [
@@ -51,6 +51,6 @@ module.exports = {
     // Section 2: dev-tools
     devtool: 'inline-source-map',
     devServer: {
-        static: './demopage',
+        static: './../docs',
     },
 };

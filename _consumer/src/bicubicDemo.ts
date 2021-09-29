@@ -1,1 +1,1 @@
-console.log('HI from bicubic')
+console.log('Hi from bicubic')

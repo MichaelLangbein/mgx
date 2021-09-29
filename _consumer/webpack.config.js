@@ -2,17 +2,30 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 
+const demos = ['bicubicDemo', 'engine1Demo'];
+
+const entries = {};
+const pageHtmlConfigs = [];
+for (const demo of demos) {
+    entries[demo] = `./src/${demo}.ts`;
+    pageHtmlConfigs.push(new HtmlWebpackPlugin({
+        inject: true,
+        template: `./src/${demo}.html`,
+        filename: `${demo}.html`,
+        chunks: [`${demo}`]
+    }));
+}
+
+
 module.exports = {
     mode: 'development',
-    entry: {
-        engine1Demo: './src/engine1Demo.ts',
-        bicubicDemo: './src/bicubicDemo.ts'
-    },
+
+    // Section 1: compilation
+    entry: entries,
     output: {
         filename: '[name].js',
         path: path.resolve(__dirname, 'dist'),
     },
-    devtool: 'inline-source-map',
     module: {
         rules: [
             {
@@ -31,19 +44,12 @@ module.exports = {
             filename: 'index.html',
             inject: false
         }),
-        new HtmlWebpackPlugin({
-            inject: true,
-            template: './src/engine1Demo.html',
-            filename: 'engine1Demo.html',
-            chunks: ['engine1Demo']
-        }),
-        new HtmlWebpackPlugin({
-            inject: true,
-            template: './src/bicubicDemo.html',
-            filename: 'bicubicDemo.html',
-            chunks: ['bicubicDemo']
-        }),
+        ... pageHtmlConfigs
     ],
+
+
+    // Section 2: dev-tools
+    devtool: 'inline-source-map',
     devServer: {
         static: './dist',
     },

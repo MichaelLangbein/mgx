@@ -6,35 +6,26 @@
  */
 
 
-
 import { FeatureCollection, Point } from 'geojson';
 import { Bundle, ArrayBundle, UniformData, Program, Context, AttributeData, TextureData } from '@mgx/engine1';
 import { rectangleA } from '../../utils/shapes';
 import { nextPowerOf, flatten2 } from '../../utils/math';
 
 
-
  export class InterpolationRenderer {
 
-    private webGlCanvas: HTMLCanvasElement;
     private context: Context;
     private shader: Bundle;
 
-    constructor(data: FeatureCollection<Point>,
+    constructor(
+        gl: WebGLRenderingContext,    
+        private data: FeatureCollection<Point>,
         private power: number,
         private valueProperty: string,
-        private maxEdgeLength: number) {
+        private maxEdgeLength: number
+    ) {
 
-        // setting up HTML element
-        this.webGlCanvas = document.createElement('canvas');
-        this.webGlCanvas.style.setProperty('position', 'absolute');
-        this.webGlCanvas.style.setProperty('left', '0px');
-        this.webGlCanvas.style.setProperty('top', '0px');
-        this.webGlCanvas.style.setProperty('width', '100%');
-        this.webGlCanvas.style.setProperty('height', '100%');
-        this.webGlCanvas.width = 500;
-        this.webGlCanvas.height = 500;
-        this.context = new Context(this.webGlCanvas.getContext('webgl'), false);
+        this.context = new Context(gl, false);
 
         // preparing data
         const currentViewPortBbox = [0, 0, 360, 180];
@@ -52,20 +43,12 @@ import { nextPowerOf, flatten2 } from '../../utils/math';
 
     }
 
-    draw(): HTMLCanvasElement {
+    draw() {
         this.shader.draw(this.context, [0, 0, 0, 0]);
-        return this.webGlCanvas;
     }
 
     setBbox(extent: [number, number, number, number]) {
         this.shader.updateUniformData(this.context, 'u_currentGeoBbox', extent);
-    }
-
-    setCanvasSize(width: number, height: number) {
-        if (width !== this.webGlCanvas.width || height !== this.webGlCanvas.height) {
-            this.webGlCanvas.width = width;
-            this.webGlCanvas.height = height;
-        }
     }
 
     setPower(power: number) {
@@ -76,7 +59,6 @@ import { nextPowerOf, flatten2 } from '../../utils/math';
     }
 
 }
-
 
 function data2TextureRelativeToClipSpace(geoBbox: number[], coords: number[][], values: number[], maxVal: number, maxEdgeLength: number) {
     const dataRel2ClipSpace = zip(coords, values).map(o => {
@@ -94,7 +76,6 @@ function data2TextureRelativeToClipSpace(geoBbox: number[], coords: number[][], 
     }
     return dataRel2ClipSpace;
 }
-
 
 const createShader = (
     currentViewPortBbox: number[], observationsBbox: number[],
@@ -185,7 +166,6 @@ const createShader = (
 
     return inverseDistanceShader;
 };
-
 
 const getBbox = (obs: number[][]): number[] => {
     const xs = obs.map(p => p[0]);

@@ -1,13 +1,16 @@
-import { ArrayBundle, AttributeData, Context, Program, TextureData, UniformData } from '@mgx/engine1';
+import { ArrayBundle, AttributeData, Context, Program, TextureData, UniformData, createEmptyFramebufferObject, FramebufferObject } from '@mgx/engine1';
+import { rectangleA } from '../../utils/shapes';
 import { FeatureCollection, Point } from 'geojson';
 import Delaunator from 'delaunator';
-import { createEmptyFramebufferObject } from '@mgx/engine1/dist/engine1/src/webgl';
-
 
 
 export class ParticleFlow {
-    private bundle: ArrayBundle;
+    private forceTextureBundle: ArrayBundle;
     private context: Context;
+    private particleBundle: ArrayBundle;
+    private particleFb1: FramebufferObject;
+    private particleFb2: FramebufferObject;
+    private i: number;
 
     constructor(gl: WebGLRenderingContext, data: FeatureCollection<Point>, bbox: number[]) {
 
@@ -17,7 +20,7 @@ export class ParticleFlow {
 
         const context = new Context(gl, false);
 
-        const program = new Program(`
+        const forceTextureProgram = new Program(`
             precision mediump float;
             attribute vec2 a_geoPosition;
             uniform vec4 u_geoBbox;
@@ -42,8 +45,8 @@ export class ParticleFlow {
             }
         `);
 
-        const bundle = new ArrayBundle(
-            program,
+        const forceTextureBundle = new ArrayBundle(
+            forceTextureProgram,
             {
                 'a_geoPosition': new AttributeData(new Float32Array(triangles), 'vec2', false)
             }, {
@@ -53,9 +56,11 @@ export class ParticleFlow {
             }, 'triangles', triangles.length
         );
 
-        bundle.upload(context);
-        bundle.initVertexArray(context);
-        bundle.bind(context);
+        const forceTextureFb = createEmptyFramebufferObject(gl, 900, 900, 'data');
+        forceTextureBundle.upload(context);
+        forceTextureBundle.initVertexArray(context);
+        forceTextureBundle.bind(context);
+        forceTextureBundle.draw(context, [0, 0, 0, 0], forceTextureFb);
 
 
         
@@ -108,29 +113,41 @@ export class ParticleFlow {
             }
         `);
 
+        const frame = rectangleA(2.0, 2.0);
         const particleBundle = new ArrayBundle(
             particleProgram, 
             {
-                'a_vertex': new AttributeData(),
-                'a_textureCoord': new AttributeData()
+                'a_vertex': new AttributeData(new Float32Array(frame.vertices.flat()), 'vec3', false),
+                'a_textureCoord': new AttributeData(new Float32Array(), 'vec2', true)
             }, {
-                'u_deltaT': new UniformData()
+                'u_deltaT': new UniformData('float', [0.01])
             }, {
-                'u_forceTexture': new TextureData(),
-                'u_particleTexture': new TextureData()
-            }, 'triangles', nrAttributes
+                'u_forceTexture': new TextureData(forceTextureFb.texture, 'ubyte4'),
+                'u_particleTexture': new TextureData(particleFb1.texture, 'ubyte4')
+            }, 'triangles', frame.vertices.length
         );
 
-
-        this.bundle = bundle;
+        this.i = 0;
+        this.particleFb1 = particleFb1;
+        this.particleFb2 = particleFb2;
+        this.forceTextureBundle = forceTextureBundle;
+        this.particleBundle = particleBundle;
         this.context = context;
     }
 
     public render(tDelta: number) {
-        this.bundle.draw(this.context);
+        this.particleBundle.updateUniformData(this.context, 'u_deltaT', [tDelta]);
+        if (this.i % 2 === 0) {
+            this.particleBundle.updateTextureData(this.context, 'u_particleTexture', this.particleFb2.texture);
+            this.forceTextureBundle.draw(this.context, [0, 0, 0, 0], this.particleFb1);
+        } else {
+            this.particleBundle.updateTextureData(this.context, 'u_particleTexture', this.particleFb1);
+            this.forceTextureBundle.draw(this.context, [0, 0, 0, 0], this.particleFb2);
+        }
+        this.i += 1;
     }
 
     public updateBbox(bbox: number[]) {
-        this.bundle.updateUniformData(this.context, 'u_geoBbox', bbox);
+        this.forceTextureBundle.updateUniformData(this.context, 'u_geoBbox', bbox);
     }
 }

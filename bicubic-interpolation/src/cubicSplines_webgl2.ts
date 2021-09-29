@@ -1,7 +1,14 @@
+/**
+ * This code was first developed [here](https://github.com/michaellangbein/webglexperiments)
+ * It has been further developed [here](https://github.com/dlr-eoc/ukis-frontend-libraries) 
+ * Since then, modifications have been made to the code. (with this we comply with Apache-2.0 $4.b)
+ * The original license from https://github.com/dlr-eoc/ukis-frontend-libraries can be found in this repo as `license.orig.txt` (with this we comply with Apache-2.0 $4.a)
+ */
+
+
+
 import Delaunator from 'delaunator';
 import { Program, AttributeData, UniformData, TextureData, Context, ElementsBundle, Index, Bundle } from '@mgx/engine2';
-import { ImageCanvas } from 'ol/source';
-import Projection from 'ol/proj/Projection';
 import { FeatureCollection, Point } from 'geojson';
 import { flatten2 } from '../../utils/math';
 
@@ -12,30 +19,9 @@ export interface GridPointProps {
     value: number;
 }
 
-export function createSplineSource(data: FeatureCollection<Point, GridPointProps>): ImageCanvas {
-
-    const splineRenderer = new SplineRenderer(data);
-
-    const splineSource = new ImageCanvas({
-        canvasFunction: (extent, imageResolution, devicePixelRatio, imageSize, projection) => {
-            splineRenderer.setCanvasSize(imageSize[0], imageSize[1]);
-            splineRenderer.setBbox(extent);
-            const canvas = splineRenderer.renderFrame();
-            return canvas;
-        },
-        projection: 'EPSG:4326',
-        ratio: 1,
-    });
-
-    return splineSource;
-}
 
 
-
-
-
-
-class SplineRenderer {
+export class SplineRenderer {
 
     private canvas: HTMLCanvasElement;
     private bundle: Bundle;

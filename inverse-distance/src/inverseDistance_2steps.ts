@@ -1,34 +1,23 @@
-import ImageSource from 'ol/source/Image';
+/**
+ * This code was first developed [here](https://github.com/michaellangbein/webglexperiments)
+ * It has been further developed [here](https://github.com/dlr-eoc/ukis-frontend-libraries) 
+ * Since then, modifications have been made to the code. (with this we comply with Apache-2.0 $4.b)
+ * The original license from https://github.com/dlr-eoc/ukis-frontend-libraries can be found in this repo as `license.orig.txt` (with this we comply with Apache-2.0 $4.a)
+ */
+
+
+
 import { FeatureCollection, Point } from 'geojson';
-import { ImageCanvas } from 'ol/source';
-import { FramebufferObject, createFramebuffer, createDataTexture, getCurrentFramebuffersPixels, createEmptyFramebufferObject } from '../../../engine2/webgl2';
-import { Bundle, ArrayBundle, UniformData, Program, Context, AttributeData, TextureData } from '@mgx/engine2';
+import { Bundle, ArrayBundle, UniformData, Program, Context, AttributeData, TextureData } from '@mgx/engine1';
 import { rectangleA } from '../../utils/shapes';
 import { nextPowerOf, flatten2 } from '../../utils/math';
+import { ColorRamp } from './interpolationLayerPureWebGL';
 
 
 
 
 
-export function createInterpolationSource(data: FeatureCollection<Point>, projection: string, power: number, valueProperty: string, maxEdgeLength: number): ImageSource {
-    const interpolationRenderer = new InterpolationRenderer(data, power, valueProperty, maxEdgeLength, false);
-
-    const interpolationSource = new ImageCanvas({
-        canvasFunction: (extent, imageResolution, devicePixelRatio, imageSize, projection) => {
-            interpolationRenderer.setCanvasSize(imageSize[0], imageSize[1]);
-            interpolationRenderer.setBbox(extent as [number, number, number, number]);
-            const canvas = interpolationRenderer.renderFrame();
-            return canvas;
-        },
-        projection: projection,
-        ratio: 1
-    });
-
-    return interpolationSource;
-}
-
-
- export class InterpolationRenderer {
+export class InterpolationRenderer {
 
     private webGlCanvas: HTMLCanvasElement;
     private context: Context;
@@ -39,10 +28,12 @@ export function createInterpolationSource(data: FeatureCollection<Point>, projec
     private interpolatedValues: Uint8Array;
 
     constructor(data: FeatureCollection<Point>,
-        private power: number,
-        private valueProperty: string,
-        private maxEdgeLength: number,
-        private storeInterpolatedPixelData: boolean) {
+                private power: number,
+                private smooth: boolean,
+                private valueProperty: string,
+                private maxEdgeLength: number,
+                private colorRamp: ColorRamp,
+                private storeInterpolatedPixelData: boolean) {
 
         // setting up HTML element
         this.webGlCanvas = document.createElement('canvas');
@@ -51,9 +42,9 @@ export function createInterpolationSource(data: FeatureCollection<Point>, projec
         this.webGlCanvas.style.setProperty('top', '0px');
         this.webGlCanvas.style.setProperty('width', '100%');
         this.webGlCanvas.style.setProperty('height', '100%');
-        this.webGlCanvas.width = 1000;  // <-- make smaller for better performance
-        this.webGlCanvas.height = 1000;  // <-- make smaller for better performance
-        this.context = new Context(this.webGlCanvas.getContext('webgl2') as WebGL2RenderingContext, false);
+        this.webGlCanvas.width = 500;  // <-- make smaller for better performance
+        this.webGlCanvas.height = 500;  // <-- make smaller for better performance
+        this.context = new Context(this.webGlCanvas.getContext('webgl', {preserveDrawingBuffer: true}), false);
 
         // preparing data
         const { coords, values, bboxWithPadding, maxVal } = parseData(data, this.valueProperty, this.maxEdgeLength);
@@ -63,9 +54,9 @@ export function createInterpolationSource(data: FeatureCollection<Point>, projec
         this.interpolationShader = createInverseDistanceInterpolationShader(dataRel2ClipSpace, maxVal, this.power, maxEdgeLengthBbox);
         this.interpolationShader.upload(this.context);
         this.interpolationShader.initVertexArray(this.context);
-        this.interpolationFb = createEmptyFramebufferObject(this.context.gl, this.webGlCanvas.width, this.webGlCanvas.height, 'ubyte4', 'display');
+        this.interpolationFb = createEmptyFramebufferObject(this.context.gl, this.webGlCanvas.width, this.webGlCanvas.height, 'display');
         this.runInterpolationShader(this.interpolationFb);
-        this.arrangementShader = createArrangementShader([0, 0, 360, 180], bboxWithPadding, this.interpolationFb);
+        this.arrangementShader = createArrangementShader([0, 0, 360, 180], bboxWithPadding, maxVal, this.smooth, this.interpolationFb, this.colorRamp);
         this.arrangementShader.upload(this.context);
         this.arrangementShader.initVertexArray(this.context);
 
@@ -101,6 +92,18 @@ export function createInterpolationSource(data: FeatureCollection<Point>, projec
         }
     }
 
+    setSmooth(smooth: boolean) {
+        if (smooth !== this.smooth) {
+            this.smooth = smooth;
+            this.arrangementShader.bind(this.context);
+            this.arrangementShader.updateUniformData(this.context, 'u_smooth', [smooth ? 1 : 0]);
+            this.runArrangementShader();
+        }
+    }
+
+    getPower(): number {
+        return this.power;
+    }
 
     /**
      * Called at every renderFrame. Fast.
@@ -185,28 +188,27 @@ function parseDataRelativeToClipSpace(geoBbox: number[], coords: number[][], val
 const createInverseDistanceInterpolationShader = (observationDataRel2ClipSpace: number[][], maxValue: number, power: number, maxEdgeLengthBbox: number): Bundle => {
 
     const maxObservations = 10000;
-    const inverseDistanceProgram = new Program(`#version 300 es
+    const inverseDistanceProgram = new Program(`
             precision mediump float;
-            in vec4 a_position;
-            in vec2 a_texturePosition;
-            out vec2 v_position;
-            out vec2 v_texturePosition;
+            attribute vec4 a_position;
+            attribute vec2 a_texturePosition;
+            varying vec2 v_position;
+            varying vec2 v_texturePosition;
 
             void main() {
                 v_position = a_position.xy;
                 v_texturePosition = a_texturePosition;
                 gl_Position = vec4(a_position.xy, 0.0, 1.0);
             }
-        `, `#version 300 es
+        `, `
             precision mediump float;
             uniform float u_power;
             uniform sampler2D u_dataTexture;
             uniform int u_nrDataPoints;
             uniform float u_maxValue;
             uniform float u_maxDistance;
-            in vec2 v_position;
-            in vec2 v_texturePosition;
-            out vec4 outputColor;
+            varying vec2 v_position;
+            varying vec2 v_texturePosition;
 
             void main() {
 
@@ -217,7 +219,7 @@ const createInverseDistanceInterpolationShader = (observationDataRel2ClipSpace: 
                     if (i > u_nrDataPoints) {
                         break;
                     }
-                    vec4 dataPoint = texture(u_dataTexture, vec2(float(i) / float(u_nrDataPoints), 0.5));
+                    vec4 dataPoint = texture2D(u_dataTexture, vec2(float(i) / float(u_nrDataPoints), 0.5));
                     if (dataPoint.w > 0.0) {  // texture is padded to next power of two with transparent 0-values.
                         vec2 coords = dataPoint.xy * 2.0 - 1.0;  // transforming coords from [0, 1] to [-1, 1]
                         float value = dataPoint.z * u_maxValue;  // transforming value from [0, 1] to [0, maxValue]
@@ -238,7 +240,7 @@ const createInverseDistanceInterpolationShader = (observationDataRel2ClipSpace: 
                 }
                 vec4 color = vec4(interpolatedValue / u_maxValue, 0.0, 0.0, alpha);
 
-                outputColor = color;
+                gl_FragColor = color;
             }
         `);
 
@@ -246,16 +248,16 @@ const createInverseDistanceInterpolationShader = (observationDataRel2ClipSpace: 
     const viewPort = rectangleA(2, 2);
     const inverseDistanceShader = new ArrayBundle(
         inverseDistanceProgram, {
-            'a_position': new AttributeData(new Float32Array(flatten2(viewPort.vertices)), 'vec4', false),
-            'a_texturePosition': new AttributeData(new Float32Array(flatten2(viewPort.texturePositions)), 'vec2', false),
-        }, {
-            'u_power': new UniformData('float', [power]),
-            'u_nrDataPoints': new UniformData('int', [observationDataRel2ClipSpace.length]),
-            'u_maxValue': new UniformData('float', [maxValue]),
-            'u_maxDistance': new UniformData('float', [maxEdgeLengthBbox])
-        }, {
-            'u_dataTexture': new TextureData([observationDataRel2ClipSpace], 'float4')
-        },
+        'a_position': new AttributeData(new Float32Array(flatten2(viewPort.vertices)), 'vec4', false),
+        'a_texturePosition': new AttributeData(new Float32Array(flatten2(viewPort.texturePositions)), 'vec2', false),
+    }, {
+        'u_power': new UniformData('float', [power]),
+        'u_nrDataPoints': new UniformData('int', [observationDataRel2ClipSpace.length]),
+        'u_maxValue': new UniformData('float', [maxValue]),
+        'u_maxDistance': new UniformData('float', [maxEdgeLengthBbox])
+    }, {
+        'u_dataTexture': new TextureData([observationDataRel2ClipSpace])
+    },
         'triangles',
         viewPort.vertices.length
     );
@@ -263,14 +265,19 @@ const createInverseDistanceInterpolationShader = (observationDataRel2ClipSpace: 
     return inverseDistanceShader;
 };
 
-const createArrangementShader = (currentBbox: number[], interpolationDataGeoBbox: number[], colorFb: FramebufferObject): Bundle => {
+const createArrangementShader = (
+    currentBbox: number[], interpolationDataGeoBbox: number[],
+    maxValue: number, smooth: boolean,
+    colorFb: FramebufferObject, colorRamp: ColorRamp): Bundle => {
 
-    const arrangementProgram = new Program(`#version 300 es
+    const colorRampLength = colorRamp.length;
+
+    const arrangementProgram = new Program(`
             precision mediump float;
-            in vec4 a_viewPortPosition;
+            attribute vec4 a_viewPortPosition;
             uniform vec4 u_currentBbox;
             uniform vec4 u_textureBbox;
-            out vec2 v_texturePosition;
+            varying vec2 v_texturePosition;
 
             vec2 clipSpace2geoPos(vec4 clipPos, vec4 geoBbox) {
                 float xRel = (clipPos[0] + 1.0) / 2.0;
@@ -291,24 +298,91 @@ const createArrangementShader = (currentBbox: number[], interpolationDataGeoBbox
                 v_texturePosition = geoPos2TexturePos(geoPosition, u_textureBbox);
                 gl_Position = a_viewPortPosition;
             }
-        `, `#version 300 es
-            precision mediump float;
-            uniform sampler2D u_texture;
-            in vec2 v_texturePosition;
-            out vec4 outputColor;
+        `, `
+        precision mediump float;
+        uniform sampler2D u_texture;
+        varying vec2 v_texturePosition;
+        uniform float u_xs[${colorRampLength}];
+        uniform float u_maxValue;
+        uniform float u_ysR[${colorRampLength}];
+        uniform float u_ysG[${colorRampLength}];
+        uniform float u_ysB[${colorRampLength}];
+        uniform int u_smooth;
 
-            void main() {
-                vec4 texData = texture(u_texture, v_texturePosition);
-                outputColor = texData;
+        float interpolate(float x0,float y0,float x1,float y1,float x){
+            float degree=(x-x0)/(x1-x0);
+            float interp=degree*(y1-y0)+y0;
+            return interp;
+        }
+
+        vec3 interpolateRangewise(float x){
+            if(x<u_xs[0]){
+                float r=u_ysR[0];
+                float g=u_ysG[0];
+                float b=u_ysB[0];
+                return vec3(r,g,b);
             }
+            for(int i=0;i<${colorRampLength - 1};i++){
+                if(u_xs[i]<=x&&x<u_xs[i+1]){
+                    float r=interpolate(u_xs[i],u_ysR[i],u_xs[i+1],u_ysR[i+1],x);
+                    float g=interpolate(u_xs[i],u_ysG[i],u_xs[i+1],u_ysG[i+1],x);
+                    float b=interpolate(u_xs[i],u_ysB[i],u_xs[i+1],u_ysB[i+1],x);
+                    return vec3(r,g,b);
+                }
+            }
+            float r=u_ysR[${colorRampLength - 1}];
+            float g=u_ysG[${colorRampLength - 1}];
+            float b=u_ysB[${colorRampLength - 1}];
+            return vec3(r,g,b);
+        }
+
+        vec3 interpolateStepwise(float x){
+            if(x<u_xs[0]){
+                float r=u_ysR[0];
+                float g=u_ysG[0];
+                float b=u_ysB[0];
+                return vec3(r,g,b);
+            }
+            for(int i=0;i<${colorRampLength - 1};i++){
+                if(u_xs[i]<=x&&x<u_xs[i+1]){
+                    float r=u_ysR[i+1];
+                    float g=u_ysG[i+1];
+                    float b=u_ysB[i+1];
+                    return vec3(r,g,b);
+                }
+            }
+            float r=u_ysR[${colorRampLength - 1}];
+            float g=u_ysG[${colorRampLength - 1}];
+            float b=u_ysB[${colorRampLength - 1}];
+            return vec3(r,g,b);
+        }
+
+        void main(){
+            vec4 texData=texture2D(u_texture,v_texturePosition);
+            float val=texData[0] * u_maxValue;
+            float alpha=texData[3];
+            vec3 rgb;
+            if(u_smooth==1){
+                rgb = interpolateRangewise(val) / 255.0;
+            }else{
+                rgb = interpolateStepwise(val) / 255.0;
+            }
+            gl_FragColor=vec4(rgb.xyz * alpha, alpha); // I think openlayers requires pre-multiplied alpha.
+        }
         `);
 
     const viewPort = rectangleA(2, 2);
     const arrangementShader = new ArrayBundle(arrangementProgram, {
         'a_viewPortPosition': new AttributeData(new Float32Array(flatten2(viewPort.vertices)), 'vec4', false),
     }, {
-        'u_textureBbox': new UniformData('vec4', interpolationDataGeoBbox),
-        'u_currentBbox': new UniformData('vec4', currentBbox)
+        'u_textureBbox': new UniformData('vec4',     interpolationDataGeoBbox),
+        'u_currentBbox': new UniformData('vec4',     currentBbox),
+        'u_xs':          new UniformData('float[]',  colorRamp.map(e => e.val)),
+        'u_maxValue':    new UniformData('float',    [maxValue]),
+        'u_ysR':         new UniformData('float[]',  colorRamp.map(e => e.rgb[0])),
+        'u_ysG':         new UniformData('float[]',  colorRamp.map(e => e.rgb[1])),
+        'u_ysB':         new UniformData('float[]',  colorRamp.map(e => e.rgb[2])),
+        'u_smooth':      new UniformData('int',      [smooth ? 1 : 0]),
     }, {
         'u_texture': new TextureData(colorFb.texture)
     }, 'triangles', viewPort.vertices.length);

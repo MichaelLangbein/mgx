@@ -105,9 +105,9 @@ export class ParticleFlow {
                 return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
             }
 
-            float SPEEDFACTOR = 1.0;
-            float FADERATE = 0.95;
-            float SPAWNCHANCE = 0.005;
+            float SPEEDFACTOR = 0.1;
+            float FADERATE = 0.96;
+            float SPAWNCHANCE = 0.002;
             
             void main() {
                 // moving particles
@@ -124,9 +124,13 @@ export class ParticleFlow {
                 }
 
                 // spawn new ones
-                float randVal = rand(v_textureCoord * abs(sin(u_deltaT)) * 0.01);
+                float randVal = rand(v_textureCoord * abs(sin(u_deltaT * 10.0)) * 0.01);
                 if (randVal > (1. - SPAWNCHANCE)) {  // spawn
                     gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+                }
+
+                if (gl_FragColor.x == 0.0) {
+                    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
                 }
 
                 // no particles outside texture
@@ -153,7 +157,9 @@ export class ParticleFlow {
         particleBundle.upload(context);
         particleBundle.initVertexArray(context);
         particleBundle.bind(context);
-        particleBundle.draw(context);
+        particleBundle.draw(context, [0, 0, 0, 0], particleFb1);
+        particleBundle.updateTextureData(context, 'u_particleTexture', particleFb1.texture);
+        particleBundle.draw(context, [0, 0, 0, 0], particleFb2);
 
 
         this.i = 0;

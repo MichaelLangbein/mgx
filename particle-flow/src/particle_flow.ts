@@ -1,4 +1,7 @@
-import { Index, ArrayBundle, ElementsBundle, AttributeData, Context, Program, TextureData, UniformData, createEmptyFramebufferObject, FramebufferObject } from '@mgx/engine1';
+import { 
+    Index, ArrayBundle, ElementsBundle, AttributeData, Context, Program,
+    TextureData, UniformData, createEmptyFramebufferObject, FramebufferObject 
+} from '@mgx/engine1';
 import { rectangleA } from '../../utils/shapes';
 import { FeatureCollection, Point } from 'geojson';
 import Delaunator from 'delaunator';
@@ -99,38 +102,31 @@ export class ParticleFlow {
             uniform sampler2D u_forceTexture;
             uniform sampler2D u_particleTexture;
             uniform float u_deltaT;
+            uniform float u_rand;
             varying vec2 v_textureCoord;
 
             float rand(vec2 co){
                 return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
             }
 
-            float SPEEDFACTOR = 0.1;
-            float FADERATE = 0.96;
-            float SPAWNCHANCE = 0.002;
+            float SPEEDFACTOR = 0.0002;
+            float FADERATE = 0.9999;
+            float SPAWNCHANCE = 0.0003;
             
             void main() {
                 // moving particles
                 vec2 speed = ((texture2D(u_forceTexture, v_textureCoord) - 0.5 ) * 2.0).xy;
                 vec2 samplePoint = v_textureCoord - speed * u_deltaT * SPEEDFACTOR;
-                samplePoint = mod(samplePoint, 1.0);
+                samplePoint = mod(samplePoint, 1.0);  // if on edge: sampling from other side of texture
                 gl_FragColor = texture2D(u_particleTexture, samplePoint);
 
                 // fade out
-                if (gl_FragColor.x != 1.0) {
-                    vec4 lastColor = texture2D(u_particleTexture, v_textureCoord);
-                    vec4 fadedColor = lastColor * FADERATE;
-                    gl_FragColor = fadedColor;
-                }
+                gl_FragColor = gl_FragColor * FADERATE;
 
                 // spawn new ones
-                float randVal = rand(v_textureCoord * abs(sin(u_deltaT * 10.0)) * 0.01);
+                float randVal = rand(v_textureCoord * abs(sin(u_rand)) * 0.01);
                 if (randVal > (1. - SPAWNCHANCE)) {  // spawn
                     gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-                }
-
-                if (gl_FragColor.x == 0.0) {
-                    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
                 }
 
                 // no particles outside texture
@@ -147,7 +143,8 @@ export class ParticleFlow {
                 'a_vertex': new AttributeData(new Float32Array(frame.vertices.flat()), 'vec4', false),
                 'a_textureCoord': new AttributeData(new Float32Array(frame.texturePositions.flat()), 'vec2', true)
             }, {
-                'u_deltaT': new UniformData('float', [0.01])
+                'u_deltaT': new UniformData('float', [0.01]),
+                'u_rand': new UniformData('float', [Math.random()])
             }, {
                 'u_forceTexture': new TextureData(forceTextureFb.texture, 'ubyte4'),
                 'u_particleTexture': new TextureData(particleFb1.texture, 'ubyte4')
@@ -173,6 +170,7 @@ export class ParticleFlow {
 
     public render(tDelta: number) {
         this.particleBundle.updateUniformData(this.context, 'u_deltaT', [tDelta]);
+        this.particleBundle.updateUniformData(this.context, 'u_rand', [Math.random()]);
         if (this.i % 2 === 0) {
             this.particleBundle.updateTextureData(this.context, 'u_particleTexture', this.particleFb2.texture);
             this.particleBundle.draw(this.context, [0, 0, 0, 0], this.particleFb1);

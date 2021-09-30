@@ -1,4 +1,4 @@
-import { renderLoop } from '@mgx/engine1';
+import { renderLoop } from '../../utils/general';
 import { ParticleFlow, ParticleFlowProps } from '../src/particle_flow';
 import { FeatureCollection, Point } from 'geojson';
 

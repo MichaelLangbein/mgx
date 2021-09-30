@@ -16,7 +16,7 @@ export function renderLoop(fps: number, renderFunction: (tDelta: number) => void
     const render = () => {
         tStart = window.performance.now();
 
-        renderFunction(tDelta);
+        renderFunction(tDelta + tSleep);
 
         tNow = window.performance.now();
         tDelta = tNow - tStart;

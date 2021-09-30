@@ -111,7 +111,7 @@ interface IAttributeData {
  * Data container.
  * Abstracts all webgl-calls to attribute-api.
  * Maintains copy of data locally, so it can be up- and unloaded by context
- * without loosing the original data.
+ * without losing the original data.
  */
 export class AttributeData implements IAttributeData {
 
@@ -190,7 +190,7 @@ export class InstancedAttributeData implements IAttributeData {
  * Data container.
  * Abstracts all webgl-calls to uniform-api.
  * Maintains copy of data locally, so it can be up- and unloaded by context
- * without loosing the original data.
+ * without losing the original data.
  */
 export class UniformData {
 
@@ -218,20 +218,21 @@ export class UniformData {
     }
 }
 
+export type TextureDataValue = TextureObject | HTMLImageElement | HTMLCanvasElement | number[][][];
 
 /**
  * Data container.
  * Abstracts all webgl-calls to texture-api.
  * Maintains copy of data locally, so it can be up- and unloaded by context
- * without loosing the original data.
+ * without losing the original data.
  */
 export class TextureData {
 
     hash: string;
-    data: TextureObject | HTMLImageElement | HTMLCanvasElement | number[][][];  // raw data, user-provided
-    texture: TextureObject;                                                     // buffer on gpu
+    data: TextureDataValue;            // raw data, user-provided
+    texture: TextureObject;                      // buffer on gpu
     textureDataType: TextureType;
-    constructor(im: HTMLImageElement | HTMLCanvasElement | TextureObject | number[][][], textureDataType?: TextureType) {
+    constructor(im: TextureDataValue, textureDataType?: TextureType) {
         this.data = im;
         this.hash = hash(Math.random() * 1000 + ''); // @TODO: how do you hash textures?
         this.textureDataType = textureDataType;
@@ -254,9 +255,18 @@ export class TextureData {
         bindTextureToUniform(gl, this.texture.texture, bindPoint, location);
     }
 
-    update(gl: WebGL2RenderingContext, newData: HTMLImageElement | HTMLCanvasElement | number[][][]) {
+    /**
+     * In case you're passing a new `TextureObject`: don't forget to call `TextureData.bind(gl, location, bp)`
+     */
+     update(gl: WebGL2RenderingContext, newData: TextureDataValue): TextureObject {
         this.data = newData;
-        this.texture = updateTexture(gl, this.texture, newData);
+        const oldTo = this.texture;
+        if ((newData as TextureObject).texture) { // if (newData instanceof TextureObject) {
+            this.texture = newData as TextureObject;
+        } else {
+            this.texture = updateTexture(gl, this.texture, newData as HTMLImageElement | HTMLCanvasElement | number[][][]);
+        }
+        return oldTo;
     }
 }
 
@@ -264,7 +274,7 @@ export class TextureData {
  * Data container.
  * Abstracts all webgl-calls to index-api.
  * Maintains copy of data locally, so it can be up- and unloaded by context
- * without loosing the original data.
+ * without losing the original data.
  */
 export class Index {
 
@@ -499,12 +509,13 @@ export abstract class Bundle {
         uniform.update(context.gl, newData, location);
     }
 
-    public updateTextureData(context: Context, variableName: string, newImage: HTMLImageElement | HTMLCanvasElement | number[][][]): void {
+    public updateTextureData(context: Context, variableName: string, newImage: TextureDataValue): void {
         const original = this.textures[variableName];
         if (!original) {
             throw new Error(`No such texture ${variableName} to be updated.`);
         }
         original.update(context.gl, newImage);
+        this.bind(context);   // @TODO: not sure if this is required here.
     }
 
     public draw (context: Context, background?: number[], frameBuffer?: FramebufferObject, viewport?: [number, number, number, number]): void {

@@ -1,4 +1,6 @@
-# mgx: Michael's geo-toolbox
+
+<h1><img src="./logo.svg" width="30">mgx: Michael's geo-toolbox</h1>
+
 
 This is a mono-repo containing all code related to Michael's geo-toolbox.
 

@@ -19,9 +19,9 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'engine2.js',
+        filename: 'bicubic.js',
         library: {
-            name: 'engine2',
+            name: 'bicubic',
             type: 'umd',
         },
     },

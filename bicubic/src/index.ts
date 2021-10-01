@@ -1,2 +1,2 @@
-export { GridPointProps, SplineRenderer } from './cubicSplines_webgl2';
-export { gridFit } from './lineSweeping';
+export * from './cubicSplines_webgl2';
+export * from './lineSweeping';

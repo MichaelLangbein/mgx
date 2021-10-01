@@ -10,7 +10,7 @@ const demoData: FeatureCollection<Point, ParticleFlowProps> = {
     features: [{
         type: 'Feature',
         properties: {
-            speed: [0.32 * 255, 0.8 * 255]
+            speed: [0.7, 0.7]
         },
         geometry: {
             type: 'Point',
@@ -19,7 +19,7 @@ const demoData: FeatureCollection<Point, ParticleFlowProps> = {
     }, {
         type: 'Feature',
         properties: {
-            speed: [0.018 * 255, 0.4 * 2553]
+            speed: [0.7, -0.7]
         },
         geometry: {
             type: 'Point',
@@ -28,7 +28,7 @@ const demoData: FeatureCollection<Point, ParticleFlowProps> = {
     }, {
         type: 'Feature',
         properties: {
-            speed: [-0.14 * 255, 0.0 * 2552]
+            speed: [0, -0.5]
         },
         geometry: {
             type: 'Point',
@@ -37,7 +37,7 @@ const demoData: FeatureCollection<Point, ParticleFlowProps> = {
     }, {
         type: 'Feature',
         properties: {
-            speed: [0.87 * 255, 0.9 * 2555]
+            speed: [0.87, 0.1]
         },
         geometry: {
             type: 'Point',

@@ -31,10 +31,18 @@ export class ParticleFlow {
 
         const coords = data.features.map(f => f.geometry.coordinates).flat();
         const speeds = data.features.map(f => f.properties.speed);
+        const minSpeed = Math.min(...speeds.flat());
+        const maxSpeed = Math.max(...speeds.flat());
         const d = new Delaunator(coords);
         const triangleIndices = d.triangles;
         const speedsPerIndex: [number, number][] = [];
         triangleIndices.forEach(ti => speedsPerIndex.push(speeds[ti]) );
+        const speedsNormalized = speedsPerIndex.map(speed => {
+            return [
+                255.0 * (speed[0] - minSpeed) / (maxSpeed - minSpeed),
+                255.0 * (speed[1] - minSpeed) / (maxSpeed - minSpeed)
+            ];
+        });
 
 
         const context = new Context(gl, false);
@@ -71,7 +79,7 @@ export class ParticleFlow {
         const forceTextureBundle = new ElementsBundle(
             forceTextureProgram, {
                 'a_geoPosition': new AttributeData(new Float32Array(coords), 'vec2', false),
-                'a_speed': new AttributeData(new Float32Array(speedsPerIndex.flat()), 'vec2', false)
+                'a_speed': new AttributeData(new Float32Array(speedsNormalized.flat()), 'vec2', false)
             }, {
                 'u_geoBbox': new UniformData('vec4', bbox)
             }, {}, 'triangles', new Index(new Uint16Array(triangleIndices))

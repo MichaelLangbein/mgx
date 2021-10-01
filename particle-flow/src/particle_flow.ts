@@ -168,7 +168,8 @@ export class ParticleFlow {
         this.context = context;
     }
 
-    public render(tDelta: number) {
+    public render(tDelta: number, frameBuffer?: FramebufferObject) {
+
         this.particleBundle.updateUniformData(this.context, 'u_deltaT', [tDelta]);
         this.particleBundle.updateUniformData(this.context, 'u_rand', [Math.random()]);
         if (this.i % 2 === 0) {
@@ -178,8 +179,13 @@ export class ParticleFlow {
             this.particleBundle.updateTextureData(this.context, 'u_particleTexture', this.particleFb1.texture);
             this.particleBundle.draw(this.context, [0, 0, 0, 0], this.particleFb2);
         }
-        this.particleBundle.draw(this.context);
         this.i += 1;
+
+        if (frameBuffer) {
+            this.particleBundle.draw(this.context, [0, 0, 0, 0], frameBuffer);
+        } else {
+            this.particleBundle.draw(this.context);
+        }
     }
 
     public updateBbox(bbox: number[]) {

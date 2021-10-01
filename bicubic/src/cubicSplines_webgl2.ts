@@ -10,6 +10,7 @@ import Delaunator from 'delaunator';
 import { Program, AttributeData, UniformData, TextureData, Context, ElementsBundle, Index, Bundle } from '@mgx/engine2';
 import { FeatureCollection, Point } from 'geojson';
 import { flatten2 } from '../../utils/math';
+import { FramebufferObject } from '@mgx/engine2/dist/engine2/src/webgl2';
 
 
 export interface GridPointProps {
@@ -225,8 +226,8 @@ export class SplineRenderer {
         return true;
     }
 
-    render() {
-        this.bundle.draw(this.context, [0, 0, 0, 0]);
+    render(frameBuffer?: FramebufferObject) {
+        this.bundle.draw(this.context, [0, 0, 0, 0], frameBuffer);
     }
 
 }

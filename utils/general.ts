@@ -7,20 +7,25 @@
 
 
 
+
 export function renderLoop(fps: number, renderFunction: (tDelta: number) => void): void {
 
-    const tDeltaTarget = 1000 * 1.0 / fps;
-    let tDelta = tDeltaTarget;
-    let tStart, tNow, tSleep: number;
+    const tTarget = 1000 * 1.0 / fps;
+    let tCalculation = 0;
+    let tSleep = tTarget;
+    let tStart = 0.0;
+    let tNow = 0.0;
+    let timeSinceLastRenderCall = 0.0;
 
     const render = () => {
         tStart = window.performance.now();
 
-        renderFunction(tDelta + tSleep);
+        timeSinceLastRenderCall = tCalculation + tSleep;
+        renderFunction(timeSinceLastRenderCall);
 
         tNow = window.performance.now();
-        tDelta = tNow - tStart;
-        tSleep = Math.max(tDeltaTarget - tDelta, 0);
+        tCalculation = tNow - tStart;
+        tSleep = Math.max(tTarget - tCalculation, 0);
         setTimeout(() => {
             requestAnimationFrame(render);
         }, tSleep);

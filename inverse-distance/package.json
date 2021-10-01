@@ -1,9 +1,9 @@
 {
   "name": "@mgx/inverse-distance-interpolation",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Simple inverse-distance interpolation implemented as a WebGL shader",
-  "main": "dist/inverse-distance-interpolation.js",
-  "types": "dist/inverse-distance-interpolation/src/index.d.ts",
+  "main": "dist/inverse-distance.js",
+  "types": "dist/inverse-distance/src/index.d.ts",
   "homepage": "https://github.com/MichaelLangbein/mgx/tree/main/inverse-distance",
   "scripts": {
     "build": "webpack",
@@ -11,8 +11,9 @@
     "start": "webpack serve --config webpack.dev.config.js"
   },
   "keywords": [
-    "WebGL",
-    "API"
+    "interpolation",
+    "inverse distance",
+    "WebGL"
   ],
   "author": "Michael Langbein <michael_langbein@hotmail.de> (https://michaellangbein.github.io/)",
   "license": "Apache-2.0",

@@ -1,2 +1,2 @@
-# mgx/engine2
+# mgx/inverse-distance
 

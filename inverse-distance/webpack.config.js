@@ -19,9 +19,9 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'engine2.js',
+        filename: 'inverse-distance.js',
         library: {
-            name: 'engine2',
+            name: 'inverse-distance',
             type: 'umd',
         },
     },

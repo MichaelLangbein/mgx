@@ -19,10 +19,10 @@ export interface ParticleFlowProps {
 }
 
 export class ParticleFlow {
-    private forceTextureBundle: ElementsBundle;
+    private speedTextureBundle: ElementsBundle;
     private context: Context;
     private particleBundle: ArrayBundle;
-    private forceTextureFb: FramebufferObject;
+    private speedTextureFb: FramebufferObject;
     private particleFb1: FramebufferObject;
     private particleFb2: FramebufferObject;
     private i: number;
@@ -39,15 +39,15 @@ export class ParticleFlow {
         triangleIndices.forEach(ti => speedsPerIndex.push(speeds[ti]) );
         const speedsNormalized = speedsPerIndex.map(speed => {
             return [
-                255.0 * (speed[0] - minSpeed) / (maxSpeed - minSpeed),
-                255.0 * (speed[1] - minSpeed) / (maxSpeed - minSpeed)
+                (speed[0] - minSpeed) / (maxSpeed - minSpeed),
+                (speed[1] - minSpeed) / (maxSpeed - minSpeed)
             ];
         });
 
 
         const context = new Context(gl, false);
 
-        const forceTextureProgram = new Program(`
+        const speedTextureProgram = new Program(`
             precision mediump float;
             attribute vec2 a_geoPosition;
             attribute vec2 a_speed;
@@ -76,8 +76,8 @@ export class ParticleFlow {
             }
         `);
 
-        const forceTextureBundle = new ElementsBundle(
-            forceTextureProgram, {
+        const speedTextureBundle = new ElementsBundle(
+            speedTextureProgram, {
                 'a_geoPosition': new AttributeData(new Float32Array(coords), 'vec2', false),
                 'a_speed': new AttributeData(new Float32Array(speedsNormalized.flat()), 'vec2', false)
             }, {
@@ -85,11 +85,11 @@ export class ParticleFlow {
             }, {}, 'triangles', new Index(new Uint16Array(triangleIndices))
         );
 
-        const forceTextureFb = createEmptyFramebufferObject(gl, 900, 900, 'data');
-        forceTextureBundle.upload(context);
-        forceTextureBundle.initVertexArray(context);
-        forceTextureBundle.bind(context);
-        forceTextureBundle.draw(context, [0, 0, 0, 0], forceTextureFb);
+        const speedTextureFb = createEmptyFramebufferObject(gl, 900, 900, 'data');
+        speedTextureBundle.upload(context);
+        speedTextureBundle.initVertexArray(context);
+        speedTextureBundle.bind(context);
+        speedTextureBundle.draw(context, [0, 0, 0, 0], speedTextureFb);
 
 
         
@@ -107,7 +107,7 @@ export class ParticleFlow {
             }
         `, `
             precision mediump float;
-            uniform sampler2D u_forceTexture;
+            uniform sampler2D u_speedTexture;
             uniform sampler2D u_particleTexture;
             uniform float u_deltaT;
             uniform float u_rand;
@@ -118,12 +118,12 @@ export class ParticleFlow {
             }
 
             float SPEEDFACTOR = 0.0002;
-            float FADERATE = 0.9999;
-            float SPAWNCHANCE = 0.0003;
+            float FADERATE = 0.99999;
+            float SPAWNCHANCE = 0.0006;
             
             void main() {
                 // moving particles
-                vec2 speed = ((texture2D(u_forceTexture, v_textureCoord) - 0.5 ) * 2.0).xy;
+                vec2 speed = ((texture2D(u_speedTexture, v_textureCoord) - 0.5 ) * 2.0).xy;
                 vec2 samplePoint = v_textureCoord - speed * u_deltaT * SPEEDFACTOR;
                 samplePoint = mod(samplePoint, 1.0);  // if on edge: sampling from other side of texture
                 gl_FragColor = texture2D(u_particleTexture, samplePoint);
@@ -138,7 +138,7 @@ export class ParticleFlow {
                 }
 
                 // no particles outside texture
-                if (texture2D(u_forceTexture, v_textureCoord) == vec4(0.0, 0.0, 0.0, 0.0)) {
+                if (texture2D(u_speedTexture, v_textureCoord) == vec4(0.0, 0.0, 0.0, 0.0)) {
                     gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
                 }
             }
@@ -154,7 +154,7 @@ export class ParticleFlow {
                 'u_deltaT': new UniformData('float', [0.01]),
                 'u_rand': new UniformData('float', [Math.random()])
             }, {
-                'u_forceTexture': new TextureData(forceTextureFb.texture, 'ubyte4'),
+                'u_speedTexture': new TextureData(speedTextureFb.texture, 'ubyte4'),
                 'u_particleTexture': new TextureData(particleFb1.texture, 'ubyte4')
             }, 'triangles', frame.vertices.length
         );
@@ -168,10 +168,10 @@ export class ParticleFlow {
 
 
         this.i = 0;
-        this.forceTextureFb = forceTextureFb;
+        this.speedTextureFb = speedTextureFb;
+        this.speedTextureBundle = speedTextureBundle;
         this.particleFb1 = particleFb1;
         this.particleFb2 = particleFb2;
-        this.forceTextureBundle = forceTextureBundle;
         this.particleBundle = particleBundle;
         this.context = context;
     }
@@ -197,10 +197,10 @@ export class ParticleFlow {
     }
 
     public updateBbox(bbox: number[]) {
-        this.forceTextureBundle.updateUniformData(this.context, 'u_geoBbox', bbox);
-        this.forceTextureBundle.bind(this.context);
-        this.forceTextureBundle.draw(this.context, [0, 0, 0, 0], this.forceTextureFb);
-        // this.particleBundle.updateTextureData(this.context, 'u_forceTexture', this.forceTextureFb.texture);  <-- is this required?
+        this.speedTextureBundle.updateUniformData(this.context, 'u_geoBbox', bbox);
+        this.speedTextureBundle.bind(this.context);
+        this.speedTextureBundle.draw(this.context, [0, 0, 0, 0], this.speedTextureFb);
+        // this.particleBundle.updateTextureData(this.context, 'u_speedTexture', this.forceTextureFb.texture);  <-- is this required?
         this.particleBundle.bind(this.context);
     }
 }

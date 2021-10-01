@@ -7,9 +7,13 @@
 
 
 import { FeatureCollection, Point } from 'geojson';
-import { Bundle, ArrayBundle, UniformData, Program, Context, AttributeData, TextureData } from '@mgx/engine1';
+import { 
+    Bundle, ArrayBundle, UniformData, Program, 
+    Context, AttributeData, TextureData, FramebufferObject
+} from '@mgx/engine1';
 import { rectangleA } from '../../utils/shapes';
 import { nextPowerOf, flatten2 } from '../../utils/math';
+import { InterpolationValue } from './interfaces';
 
 
  export class InterpolationRenderer {
@@ -19,9 +23,8 @@ import { nextPowerOf, flatten2 } from '../../utils/math';
 
     constructor(
         gl: WebGLRenderingContext,    
-        private data: FeatureCollection<Point>,
+        private data: FeatureCollection<Point, InterpolationValue>,
         private power: number,
-        private valueProperty: string,
         private maxEdgeLength: number
     ) {
 
@@ -30,7 +33,7 @@ import { nextPowerOf, flatten2 } from '../../utils/math';
         // preparing data
         const currentViewPortBbox = [0, 0, 360, 180];
         const coords = data.features.map(f => f.geometry.coordinates);
-        const values = data.features.map(f => parseFloat(f.properties[this.valueProperty]));
+        const values = data.features.map(f => f.properties.value);
         const dataBbox = getBbox(coords);
         const maxVal = Math.max(... values);
         const dataRel2ClipSpace = data2TextureRelativeToClipSpace(dataBbox, coords, values, maxVal, this.maxEdgeLength);
@@ -43,8 +46,8 @@ import { nextPowerOf, flatten2 } from '../../utils/math';
 
     }
 
-    draw() {
-        this.shader.draw(this.context, [0, 0, 0, 0]);
+    render(frameBuffer?: FramebufferObject) {
+        this.shader.draw(this.context, [0, 0, 0, 0], frameBuffer);
     }
 
     setBbox(extent: [number, number, number, number]) {

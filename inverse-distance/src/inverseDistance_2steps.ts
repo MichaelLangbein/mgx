@@ -8,18 +8,16 @@
 
 
 import { FeatureCollection, Point } from 'geojson';
-import { Bundle, ArrayBundle, UniformData, Program, Context, AttributeData, TextureData } from '@mgx/engine1';
+import { Bundle, ArrayBundle, UniformData, Program, Context, AttributeData, TextureData, FramebufferObject, createEmptyFramebufferObject, getCurrentFramebuffersPixels } from '@mgx/engine1';
 import { rectangleA } from '../../utils/shapes';
 import { nextPowerOf, flatten2 } from '../../utils/math';
-import { ColorRamp } from './interpolationLayerPureWebGL';
-
+import { ColorRamp, InterpolationValue } from './interfaces';
 
 
 
 
 export class InterpolationRenderer {
 
-    private webGlCanvas: HTMLCanvasElement;
     private context: Context;
     private interpolationShader: Bundle;
     private interpolationFb: FramebufferObject;
@@ -27,34 +25,26 @@ export class InterpolationRenderer {
 
     private interpolatedValues: Uint8Array;
 
-    constructor(data: FeatureCollection<Point>,
+    constructor(
+                gl: WebGLRenderingContext,
+                data: FeatureCollection<Point, InterpolationValue>,
                 private power: number,
                 private smooth: boolean,
-                private valueProperty: string,
                 private maxEdgeLength: number,
                 private colorRamp: ColorRamp,
                 private storeInterpolatedPixelData: boolean) {
 
-        // setting up HTML element
-        this.webGlCanvas = document.createElement('canvas');
-        this.webGlCanvas.style.setProperty('position', 'absolute');
-        this.webGlCanvas.style.setProperty('left', '0px');
-        this.webGlCanvas.style.setProperty('top', '0px');
-        this.webGlCanvas.style.setProperty('width', '100%');
-        this.webGlCanvas.style.setProperty('height', '100%');
-        this.webGlCanvas.width = 500;  // <-- make smaller for better performance
-        this.webGlCanvas.height = 500;  // <-- make smaller for better performance
-        this.context = new Context(this.webGlCanvas.getContext('webgl', {preserveDrawingBuffer: true}), false);
+        this.context = new Context(gl, false);
 
         // preparing data
-        const { coords, values, bboxWithPadding, maxVal } = parseData(data, this.valueProperty, this.maxEdgeLength);
+        const { coords, values, bboxWithPadding, maxVal } = parseData(data, this.maxEdgeLength);
         const { dataRel2ClipSpace, maxEdgeLengthBbox } = parseDataRelativeToClipSpace(bboxWithPadding, coords, values, maxVal, this.maxEdgeLength);
 
         // setting up shaders
         this.interpolationShader = createInverseDistanceInterpolationShader(dataRel2ClipSpace, maxVal, this.power, maxEdgeLengthBbox);
         this.interpolationShader.upload(this.context);
         this.interpolationShader.initVertexArray(this.context);
-        this.interpolationFb = createEmptyFramebufferObject(this.context.gl, this.webGlCanvas.width, this.webGlCanvas.height, 'display');
+        this.interpolationFb = createEmptyFramebufferObject(this.context.gl, gl.canvas.width, gl.canvas.height, 'display');
         this.runInterpolationShader(this.interpolationFb);
         this.arrangementShader = createArrangementShader([0, 0, 360, 180], bboxWithPadding, maxVal, this.smooth, this.interpolationFb, this.colorRamp);
         this.arrangementShader.upload(this.context);
@@ -62,21 +52,12 @@ export class InterpolationRenderer {
 
     }
 
-    renderFrame(): HTMLCanvasElement {
-        this.runArrangementShader();
-        return this.webGlCanvas;
+    render(frameBuffer?: FramebufferObject) {
+        this.runArrangementShader(frameBuffer);
     }
 
     setBbox(extent: [number, number, number, number]) {
         this.updateArrangementShader(extent);
-    }
-
-    setCanvasSize(width: number, height: number) {
-        if (width !== this.webGlCanvas.width || height !== this.webGlCanvas.height) {
-            this.webGlCanvas.width = width;
-            this.webGlCanvas.height = height;
-            this.runInterpolationShader(this.interpolationFb);
-        }
     }
 
     setStoreInterpolatedValue(doStore: boolean) {
@@ -128,15 +109,15 @@ export class InterpolationRenderer {
         this.interpolationShader.bind(this.context);
         this.interpolationShader.draw(this.context, [0, 0, 0, 0], target);
         if (this.storeInterpolatedPixelData) {
-            this.interpolatedValues = getCurrentFramebuffersPixels(this.webGlCanvas) as Uint8Array;
+            this.interpolatedValues = getCurrentFramebuffersPixels(this.context.gl.canvas) as Uint8Array;
         }
     }
 }
 
-function parseData(source: FeatureCollection<Point>, valueProperty: string, maxEdgeLength: number) {
+function parseData(source: FeatureCollection<Point, InterpolationValue>, maxEdgeLength: number) {
     const features = source.features;
     const coords = features.map(f => f.geometry.coordinates);
-    const values = features.map(f => parseFloat(f.properties[valueProperty]));
+    const values = features.map(f => f.properties.value);
 
     const bbox = getBbox(coords);
     const deltaX = bbox[2] - bbox[0];

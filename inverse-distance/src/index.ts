@@ -1,3 +1,2 @@
-export {
-    InterpolationRenderer
-} from './inverseDistance_1step';
+export * from './inverseDistance_2steps';
+export * from './interfaces';

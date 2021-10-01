@@ -1,10 +1,14 @@
 const path = require('path');
 
 module.exports = {
-    mode: 'production',
+    mode: 'development',
 
-    entry: './src/index.ts',
-    devtool: 'source-map',
+    entry: './dev/demo.ts',
+    devtool: 'inline-source-map',
+    devServer: {
+        static: './dev',
+    },
+
     module: {
         rules: [
             {
@@ -19,13 +23,6 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'ol-tools.js',
-        library: {
-            name: 'ol-tools',
-            type: 'umd',
-        },
+        filename: 'bundle.js',
     },
-    externals: [
-        /^ol\/.+$/
-    ]
 };

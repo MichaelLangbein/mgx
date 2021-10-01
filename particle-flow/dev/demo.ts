@@ -107,3 +107,7 @@ const pf = new ParticleFlow(canvas.getContext('webgl'), demoData, [3.515625, 18.
 renderLoop(60, (tDelta: number) => {
     pf.render(tDelta);
 });
+
+setTimeout(() => {
+  pf.updateBbox([0, 15, 70, 70]);
+}, 5000);

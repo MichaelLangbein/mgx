@@ -263,7 +263,7 @@ const demoData: FeatureCollection<Point, InterpolationValue> = {
 
 const power = 2.0;
 const smooth = true;
-const maxEdgeLength = 20;
+const maxEdgeLength = 18;
 const storeIntp = false;
 const colorRamp: ColorRamp = [
     {val: 3.0, rgb: [252,141,89]},
@@ -275,5 +275,5 @@ const cs = new InterpolationRenderer(
     canvas.getContext('webgl', {preserveDrawingBuffer: true}),
     demoData, power, smooth, maxEdgeLength, colorRamp, storeIntp
 );
-
+cs.setBbox([45, 45, 125, 75]);
 cs.render();

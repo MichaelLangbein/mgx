@@ -2,6 +2,8 @@
 
 Inverse distance interpolation between GeoJSON points using WebGL.
 
+<img src="https://raw.githubusercontent.com/MichaelLangbein/mgx/main/inverse-distance/example.png" width="200">
+
 ## Installation
 
 ```

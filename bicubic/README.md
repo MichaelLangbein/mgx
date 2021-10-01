@@ -2,6 +2,8 @@
 
 Simple interpolation library that uses WebGL-2 to do bicubic interpolation.
 
+<img src="https://raw.githubusercontent.com/MichaelLangbein/mgx/main/bicubic/example.png" width="200">
+
 ## Installation
 ```
 npm i @mgx/bicubic-interpolation

@@ -1,6 +1,6 @@
 {
   "name": "@mgx/particle-flow",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Simple particle simulation between a field of points with `speed` values (given as GeoJSON)",
   "main": "dist/particle-flow.js",
   "types": "dist/particle-flow/src/index.d.ts",

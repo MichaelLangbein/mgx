@@ -117,9 +117,9 @@ export class ParticleFlow {
                 return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
             }
 
-            float SPEEDFACTOR = 0.0002;
-            float FADERATE = 0.99999;
-            float SPAWNCHANCE = 0.0006;
+            float SPEEDFACTOR = 0.0003;
+            float FADERATE = 0.999999;
+            float SPAWNCHANCE = 0.0004;
             
             void main() {
                 // moving particles
@@ -130,6 +130,11 @@ export class ParticleFlow {
 
                 // fade out
                 gl_FragColor = gl_FragColor * FADERATE;
+
+                // making streaks disappear after a while
+                if (gl_FragColor.x < 0.0001) {  
+                    gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+                }
 
                 // spawn new ones
                 float randVal = rand(v_textureCoord * abs(sin(u_rand)) * 0.01);
@@ -197,8 +202,8 @@ export class ParticleFlow {
     }
 
     public updateBbox(bbox: number[]) {
-        this.speedTextureBundle.updateUniformData(this.context, 'u_geoBbox', bbox);
         this.speedTextureBundle.bind(this.context);
+        this.speedTextureBundle.updateUniformData(this.context, 'u_geoBbox', bbox);
         this.speedTextureBundle.draw(this.context, [0, 0, 0, 0], this.speedTextureFb);
         // this.particleBundle.updateTextureData(this.context, 'u_speedTexture', this.forceTextureFb.texture);  <-- is this required?
         this.particleBundle.bind(this.context);

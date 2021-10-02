@@ -82,6 +82,11 @@ export class InterpolationRenderer {
         }
     }
 
+    setCanvasSize(width: number, height: number): void {
+        if (this.context.gl.canvas.width !== width) this.context.gl.canvas.width = width;
+        if (this.context.gl.canvas.height !== height) this.context.gl.canvas.height = height;
+    }
+    
     getPower(): number {
         return this.power;
     }

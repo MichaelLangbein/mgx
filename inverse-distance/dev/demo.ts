@@ -276,4 +276,5 @@ const cs = new InterpolationRenderer(
     demoData, power, smooth, maxEdgeLength, colorRamp, storeIntp
 );
 cs.setBbox([45, 45, 125, 75]);
+cs.setCanvasSize(canvas.clientWidth, canvas.clientHeight);
 cs.render();

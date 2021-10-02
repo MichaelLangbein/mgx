@@ -44,6 +44,7 @@ export class InverseDistanceWrapper {
         );
         this.olSource = new ImageCanvas({
             canvasFunction: (extent: Extent, resolution: number, pixelRatio: number, size: Size, projection: Projection) => {
+                this.renderer.setCanvasSize(size[0], size[1]);
                 this.renderer.setBbox(extent as [number, number, number, number]);
                 this.renderer.render();
                 return this.canvas;

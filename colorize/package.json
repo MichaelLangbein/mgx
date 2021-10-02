@@ -1,27 +1,23 @@
 {
-  "name": "@mgx/ol-tools",
-  "version": "0.1.2",
-  "description": "Simple API for WebGL-1",
-  "main": "dist/ol-tools.js",
-  "types": "dist/ol-tools/src/index.d.ts",
-  "homepage": "https://github.com/MichaelLangbein/mgx/tree/main/ol-tools",
+  "name": "@mgx/colorize",
+  "version": "0.1.6",
+  "description": "Simple colorization of an input-framebuffer",
+  "main": "dist/colorize.js",
+  "types": "dist/colorize/src/index.d.ts",
+  "homepage": "https://github.com/MichaelLangbein/mgx/tree/main/colorize",
   "scripts": {
     "build": "webpack",
     "publish": "npm publish --access public",
     "start": "webpack serve --config webpack.dev.config.js"
   },
   "keywords": [
-    "WebGL",
-    "openlayers",
-    "interpolation"
+    "colorization",
+    "WebGL"
   ],
   "author": "Michael Langbein <michael_langbein@hotmail.de> (https://michaellangbein.github.io/)",
   "license": "Apache-2.0",
   "devDependencies": {
     "@types/geojson": "^7946.0.8",
-    "css-loader": "^6.3.0",
-    "ol": "^6.8.1",
-    "style-loader": "^3.3.0",
     "ts-loader": "^9.2.6",
     "typescript": "^4.4.3",
     "webpack": "^5.54.0",
@@ -29,9 +25,7 @@
     "webpack-dev-server": "^4.3.0"
   },
   "dependencies": {
-    "@mgx/bicubic-interpolation": "^0.1.3",
-    "@mgx/inverse-distance-interpolation": "^0.1.6",
-    "@mgx/particle-flow": "^0.1.5",
+    "@mgx/engine1": "^0.1.4",
     "geojson": "^0.5.0"
   }
 }

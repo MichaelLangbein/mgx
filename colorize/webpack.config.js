@@ -1,14 +1,10 @@
 const path = require('path');
 
 module.exports = {
-    mode: 'development',
+    mode: 'production',
 
-    entry: './dev/demo.ts',
-    devtool: 'inline-source-map',
-    devServer: {
-        static: './dev',
-    },
-
+    entry: './src/index.ts',
+    devtool: 'source-map',
     module: {
         rules: [
             {
@@ -16,10 +12,6 @@ module.exports = {
                 use: 'ts-loader',
                 exclude: /node_modules/,
             },
-            {
-                test: /\.css$/i,
-                use: ["style-loader", "css-loader"],
-            }
         ],
     },
     resolve: {
@@ -27,6 +19,10 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'bundle.js',
+        filename: 'colorize.js',
+        library: {
+            name: 'colorize',
+            type: 'umd',
+        },
     },
 };

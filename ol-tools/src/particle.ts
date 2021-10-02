@@ -7,6 +7,4 @@
 
 import { ImageCanvas } from 'ol/source';
 
-export function createParticleSource() {
-    
-}
+export class ParticleWrapper {}

@@ -9,15 +9,63 @@
 import { ImageCanvas } from 'ol/source';
 import { InterpolationRenderer, InterpolationValue, ColorRamp } from '@mgx/inverse-distance-interpolation';
 import { FeatureCollection, Point } from 'geojson';
+import { Size } from 'ol/size';
+import { Extent } from 'ol/extent';
+import Projection from 'ol/proj/Projection';
 
-export function createInverseDistanceSource(gl, data: FeatureCollection<Point, InterpolationValue>, power: number, smooth: boolean, maxEdgeLength: number, colorRamp: ColorRamp) {
-     
-    const idr = new InterpolationRenderer(gl, data, power, smooth, maxEdgeLength, colorRamp, false);
+
+export class InverseDistanceWrapper {
     
-    const ics = new ImageCanvas({
-        canvasFunction: () => {},
-        imageSmoothing: true,
-        ratio: 1,
+    private renderer: InterpolationRenderer;
+    private olSource: ImageCanvas;
+    private canvas: HTMLCanvasElement;
 
-    })
+    constructor(
+        canvas: HTMLCanvasElement,
+        data: FeatureCollection<Point,
+        InterpolationValue>,
+        power: number,
+        smooth: boolean,
+        maxEdgeLength: number,
+        colorRamp: ColorRamp
+    ) {
+
+        this.canvas = canvas;
+        this.canvas.width = 500;  // <-- make smaller for better performance
+        this.canvas.height = 500;  // <-- make smaller for better performance
+        this.renderer = new InterpolationRenderer(
+            this.canvas.getContext('webgl'),
+            data,
+            power,
+            smooth,
+            maxEdgeLength,
+            colorRamp,
+            false
+        );
+        this.olSource = new ImageCanvas({
+            canvasFunction: (extent: Extent, resolution: number, pixelRatio: number, size: Size, projection: Projection) => {
+                this.renderer.setBbox(extent as [number, number, number, number]);
+                this.renderer.render();
+                return this.canvas;
+            },
+            imageSmoothing: true,
+            ratio: 1,
+        });
+    }
+
+    public getOlSource() {
+        return this.olSource;
+    }
+
+    public setPower(power: number) {
+        this.renderer.setPower(power);
+        this.renderer.render();
+        this.olSource.changed();
+    }
+
+    public setSmoothing(smoothing: boolean) {
+        this.renderer.setSmooth(smoothing);
+        this.renderer.render();
+        this.olSource.changed();
+    }
 }

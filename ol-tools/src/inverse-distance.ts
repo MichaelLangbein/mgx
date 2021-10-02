@@ -22,8 +22,7 @@ export class InverseDistanceWrapper {
 
     constructor(
         canvas: HTMLCanvasElement,
-        data: FeatureCollection<Point,
-        InterpolationValue>,
+        data: FeatureCollection<Point, InterpolationValue>,
         power: number,
         smooth: boolean,
         maxEdgeLength: number,
@@ -31,8 +30,6 @@ export class InverseDistanceWrapper {
     ) {
 
         this.canvas = canvas;
-        this.canvas.width = 500;  // <-- make smaller for better performance
-        this.canvas.height = 500;  // <-- make smaller for better performance
         this.renderer = new InterpolationRenderer(
             this.canvas.getContext('webgl'),
             data,

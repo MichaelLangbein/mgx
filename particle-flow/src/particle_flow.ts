@@ -27,7 +27,7 @@ export class ParticleFlow {
     private particleFb2: FramebufferObject;
     private i: number;
 
-    constructor(gl: WebGLRenderingContext, data: FeatureCollection<Point, ParticleFlowProps>, bbox: number[]) {
+    constructor(gl: WebGLRenderingContext, data: FeatureCollection<Point, ParticleFlowProps>, particleColor: [number, number, number], bbox: number[]) {
 
         const coords = data.features.map(f => f.geometry.coordinates).flat();
         const speeds = data.features.map(f => f.properties.speed);
@@ -111,6 +111,7 @@ export class ParticleFlow {
             uniform sampler2D u_particleTexture;
             uniform float u_deltaT;
             uniform float u_rand;
+            uniform vec3 u_particleColor;
             varying vec2 v_textureCoord;
 
             float rand(vec2 co){
@@ -139,7 +140,7 @@ export class ParticleFlow {
                 // spawn new ones
                 float randVal = rand(v_textureCoord * abs(sin(u_rand)) * 0.01);
                 if (randVal > (1. - SPAWNCHANCE)) {  // spawn
-                    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+                    gl_FragColor = vec4(u_particleColor.xyz, 1.0);
                 }
 
                 // no particles outside texture
@@ -157,7 +158,8 @@ export class ParticleFlow {
                 'a_textureCoord': new AttributeData(new Float32Array(frame.texturePositions.flat()), 'vec2', true)
             }, {
                 'u_deltaT': new UniformData('float', [0.01]),
-                'u_rand': new UniformData('float', [Math.random()])
+                'u_rand': new UniformData('float', [Math.random()]),
+                'u_particleColor': new UniformData('vec3', particleColor.map(c => c/255))
             }, {
                 'u_speedTexture': new TextureData(speedTextureFb.texture, 'ubyte4'),
                 'u_particleTexture': new TextureData(particleFb1.texture, 'ubyte4')
@@ -207,5 +209,14 @@ export class ParticleFlow {
         this.speedTextureBundle.draw(this.context, [0, 0, 0, 0], this.speedTextureFb);
         // this.particleBundle.updateTextureData(this.context, 'u_speedTexture', this.forceTextureFb.texture);  <-- is this required?
         this.particleBundle.bind(this.context);
+    }
+
+    public setCanvasSize(width: number, height: number): void {
+        if (this.context.gl.canvas.width !== width) this.context.gl.canvas.width = width;
+        if (this.context.gl.canvas.height !== height) this.context.gl.canvas.height = height;
+    }
+
+    public setParticleColor(color: [number, number, number]) {
+        this.particleBundle.updateUniformData(this.context, 'u_particleColor', color.map(c => c/255));
     }
 }

@@ -117,10 +117,21 @@ const demoData: FeatureCollection<Point, ParticleFlowProps> = {
     ]
   };
 
-const pf = new ParticleFlow(canvas.getContext('webgl'), demoData, [3.515625, 18.979025953255267, 64.3359375, 62.103882522897855]);
+const particleColor: [number, number, number] = [66, 245, 182];
+const bbox = [3.515625, 18.979025953255267, 64.3359375, 62.103882522897855];
+const pf = new ParticleFlow(canvas.getContext('webgl'), demoData, particleColor, bbox);
 
 renderLoop(60, (tDelta: number) => {
     pf.render(tDelta);
 });
+
+setTimeout(() => {
+  pf.updateBbox([0, 15, 70, 70]);
+  pf.setParticleColor([255, 0, 0]);
+}, 2500);
+
+setTimeout(() => {
+  pf.setParticleColor([125, 125, 0]);
+}, 5000);
 
 ```

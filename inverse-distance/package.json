@@ -1,6 +1,6 @@
 {
   "name": "@mgx/inverse-distance-interpolation",
-  "version": "0.1.6",
+  "version": "0.1.8",
   "description": "Simple inverse-distance interpolation implemented as a WebGL shader",
   "main": "dist/inverse-distance.js",
   "types": "dist/inverse-distance/src/index.d.ts",

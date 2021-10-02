@@ -15,7 +15,7 @@ npm i @mgx/engine1
 
 This demo draws a few moving cubes and adds a blur on top of them.
 
-![Demo animation](https://raw.githubusercontent.com/MichaelLangbein/mgx/main/media/engine1_demo.gif)
+<img src="https://raw.githubusercontent.com/MichaelLangbein/mgx/main/media/engine1_demo.gif" width="150" />
 
 ```ts
 import { bindTextureToFramebuffer, createEmptyTexture, createFramebuffer, FramebufferObject } from '../src/webgl';

@@ -10,6 +10,9 @@ npm i @mgx/particle-flow
 
 ## Example usage
 
+<img src="https://raw.githubusercontent.com/MichaelLangbein/mgx/main/media/particle_demo.gif" width="150" />
+
+
 ```js
 import { ParticleFlow, ParticleFlowProps, renderLoop } from '@mgx/particle_flow';
 import { FeatureCollection, Point } from 'geojson';

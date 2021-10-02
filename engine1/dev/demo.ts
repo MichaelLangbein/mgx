@@ -1,23 +1,3 @@
-<h1><img src="https://raw.githubusercontent.com/MichaelLangbein/mgx/main/logo.svg" width="30">@mgx/engine1</h1>
-
-Very basic WebGL engine. Does as good as no abstraction - only intended to make the whole WebGL API a little less verbose.
-
-
-## Installation
-
-```
-npm i @mgx/engine1
-```
-
-
-## Example usage
-
-
-This demo draws a few moving cubes and adds a blur on top of them.
-
-![Demo animation](https://raw.githubusercontent.com/MichaelLangbein/mgx/main/media/engine1_demo.gif)
-
-```ts
 import { bindTextureToFramebuffer, createEmptyTexture, createFramebuffer, FramebufferObject } from '../src/webgl';
 import { Context, InstancedElementsBundle, Index, Program, AttributeData,
     ElementsBundle, InstancedAttributeData, UniformData, ArrayBundle, TextureData } from '../src/engine.core';
@@ -25,7 +5,6 @@ import { boxE, gaussianKernel, rectangleA } from '../../utils/shapes';
 import { projectionMatrix, identityMatrix, matrixMultiplyList, rotateXMatrix,
     rotateYMatrix, rotateZMatrix, translateMatrix, transposeMatrix, flatten2, flatten3 } from '../../utils/math';
 import { renderLoop } from '../../utils/general';
-
 
 
 const body = document.getElementById('container') as HTMLDivElement;
@@ -163,5 +142,3 @@ renderLoop(60, (tDelta: number) => {
     blurBundle.bind(context);
     blurBundle.draw(context);
 });
-
-```

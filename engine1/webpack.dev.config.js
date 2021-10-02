@@ -1,17 +1,21 @@
 const path = require('path');
 
 module.exports = {
-    mode: 'production',
+    mode: 'development',
 
-    entry: './src/index.ts',
-    devtool: 'source-map',
+    entry: './dev/demo.ts',
+    devtool: 'inline-source-map',
+    devServer: {
+        static: './dev',
+    },
+
     module: {
         rules: [
             {
                 test: /\.tsx?$/,
                 use: 'ts-loader',
                 exclude: /node_modules/,
-            },
+            }
         ],
     },
     resolve: {
@@ -19,10 +23,6 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'engine1.js',
-        library: {
-            name: 'engine1',
-            type: 'umd',
-        },
-    }
+        filename: 'bundle.js',
+    },
 };

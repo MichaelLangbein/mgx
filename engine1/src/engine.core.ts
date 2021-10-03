@@ -143,6 +143,10 @@ export class AttributeData implements IAttributeData {
 
 }
 
+/**
+ * Like `AttributeData`, but expects there to be `nrInstances` times as many values.
+ * That is, for a `vec2` with `nrInstances=4`, you'd pass 4 * 2 = 8 values.
+ */
 export class InstancedAttributeData implements IAttributeData {
 
     readonly hash: string;
@@ -301,7 +305,9 @@ export class Index {
 
 
 
-
+/**
+ * Container for a WebGLProgram - contains the vertex- and the fragment-shader-code.
+ */
 export class Program {
 
     program: WebGLProgram;
@@ -415,7 +421,10 @@ export class Context {
 }
 
 
-
+/**
+ * Container for a Program together with all related attribute-, uniform-, and texture-data.
+ * Handles uploading of all data to the GPU, the binding of that data to the right slots, and the actual rendering.
+ */
 export abstract class Bundle {
     program: Program;
     attributes: {[k: string]: IAttributeData};
@@ -529,6 +538,10 @@ export abstract class Bundle {
 
 }
 
+/**
+ * Use this type of bundle for `gl.drawArrays`-style drawing.
+ * Simple, but requires you to keep multiple copies of a vertex if the vertex forms part of more than one triangle.
+ */
 export class ArrayBundle extends Bundle {
     constructor(
         program: Program,
@@ -548,6 +561,13 @@ export class ArrayBundle extends Bundle {
     }
 }
 
+/**
+ * Use this type of bundle for `gl.drawElements`-style drawing.
+ * Instead of duplicating vertices that are used in multiple objects (like `ArrayBundle` does),
+ * it relies on a `Index` to tell the GPU which vertex to pick next.
+ * This way, the GPU doesn't loop a single time through the array of given vertices,
+ * but jumps around according to the index. A bit more memory-efficient.
+ */
 export class ElementsBundle extends Bundle {
     constructor(
         program: Program,
@@ -583,6 +603,15 @@ export class ElementsBundle extends Bundle {
     }
 }
 
+/**
+ * Like `ArrayBundle`, but for `drawArraysInstancedANGLE`-style drawing.
+ * Loops through the given vertices `nrInstances` times.
+ * Efficient when you want to draw many instances of the same object,
+ * such as hundreds of trees, only with variations in location.
+ * Expects that every attribute is also given `nrInstances` times.
+ * That is, when using a `attribute mat4` and `nrInstances=3`,
+ * requires you to pass in the data for 3 `mat4`-matrices (so, 3 * 16 = 48 values).
+ */
 export class InstancedArrayBundle extends Bundle {
     constructor(
         program: Program,
@@ -602,6 +631,15 @@ export class InstancedArrayBundle extends Bundle {
     }
 }
 
+/**
+ * Like `ElementsBundle`, but for `drawElementsInstancedANGLE`-style drawing.
+ * Loops through the given vertices `nrInstances` times.
+ * Efficient when you want to draw many instances of the same object,
+ * such as hundreds of trees, only with variations in location.
+ * Expects that every attribute is also given `nrInstances` times.
+ * That is, when using a `attribute mat4` and `nrInstances=3`,
+ * requires you to pass in the data for 3 `mat4`-matrices (so, 3 * 16 = 48 values).
+ */
 export class InstancedElementsBundle extends Bundle {
     constructor(
         program: Program,

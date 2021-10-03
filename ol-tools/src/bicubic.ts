@@ -6,5 +6,6 @@
  */
 
 import { ImageCanvas } from 'ol/source';
+import { SplineRenderer, GridPointProps } from '@mgx/bicubic-interpolation';
 
 export class BicubicWrapper {}

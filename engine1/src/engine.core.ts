@@ -608,9 +608,11 @@ export class ElementsBundle extends Bundle {
  * Loops through the given vertices `nrInstances` times.
  * Efficient when you want to draw many instances of the same object,
  * such as hundreds of trees, only with variations in location.
- * Expects that every attribute is also given `nrInstances` times.
- * That is, when using a `attribute mat4` and `nrInstances=3`,
+ * Expects every *instanced* attribute to contain `nrInstances` times as many values.
+ * That is, when using an instanced `attribute mat4` and `nrInstances=3`,
  * requires you to pass in the data for 3 `mat4`-matrices (so, 3 * 16 = 48 values).
+ * Use ordinary `AttributeData` for data that doesn't change between instances,
+ * and `InstancedAttributeData` for data that *does*.
  */
 export class InstancedArrayBundle extends Bundle {
     constructor(
@@ -636,9 +638,11 @@ export class InstancedArrayBundle extends Bundle {
  * Loops through the given vertices `nrInstances` times.
  * Efficient when you want to draw many instances of the same object,
  * such as hundreds of trees, only with variations in location.
- * Expects that every attribute is also given `nrInstances` times.
- * That is, when using a `attribute mat4` and `nrInstances=3`,
+ * Expects every *instanced* attribute to contain `nrInstances` times as many values.
+ * That is, when using an instanced `attribute mat4` and `nrInstances=3`,
  * requires you to pass in the data for 3 `mat4`-matrices (so, 3 * 16 = 48 values).
+ * Use ordinary `AttributeData` for data that doesn't change between instances,
+ * and `InstancedAttributeData` for data that *does*.
  */
 export class InstancedElementsBundle extends Bundle {
     constructor(

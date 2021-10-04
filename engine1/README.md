@@ -13,7 +13,7 @@ npm i @mgx/engine1
 ## Example usage
 
 
-This demo draws a few moving cubes and adds a blur on top of them.
+This demo draws a few moving cubes and adds some blur on top of them.
 
 <img src="https://raw.githubusercontent.com/MichaelLangbein/mgx/main/media/engine1_demo.gif" width="150" />
 
@@ -172,12 +172,12 @@ renderLoop(60, (tDelta: number) => {
  - `Program`: Container for a WebGLProgram - contains the vertex- and the fragment-shader-code.
  - `Bundle`: Container for a Program together with all related attribute-, uniform-, and texture-data. Handles uploading of all data to the GPU, the binding of that data to the right slots, and the actual rendering.
    - `ArrayBundle`: Use this type of bundle for `gl.drawArrays`-style drawing. Simple, but requires you to keep multiple copies of a vertex if the vertex forms part of more than one triangle.
-   - `ElementsBundle`: Use this type of bundle for `gl.drawElements`-style drawing. Instead of duplicating vertices that are used in multiple objects (like `ArrayBundle` does), it relies on a `Index` to tell the GPU which vertex to pick next. This way, the GPU doesn't loop a single time through the array of given vertices, but jumps around according to the index. A bit more memory-efficient.
-   - `InstancedArrayBundle`: Like `ArrayBundle`, but for `drawArraysInstancedANGLE`-style drawing. Loops through the given vertices `nrInstances` times. Efficient when you want to draw many instances of the same object, such as hundreds of trees, only with variations in location. Expects that every attribute is also given `nrInstances` times. That is, when using a `attribute mat4` and `nrInstances=3`, requires you to pass in the data for 3 `mat4`-matrices (so, 3 * 16 = 48 values).
-   - `InstancedElementsBundle`: Like `ElementsBundle`, but for `drawElementsInstancedANGLE`-style drawing. Loops through the given vertices `nrInstances` times. Efficient when you want to draw many instances of the same object, such as hundreds of trees, only with variations in location. Expects that every attribute is also given `nrInstances` times. That is, when using a `attribute mat4` and `nrInstances=3`, requires you to pass in the data for 3 `mat4`-matrices (so, 3 * 16 = 48 values).
+   - `ElementsBundle`: Use this type of bundle for `gl.drawElements`-style drawing. Instead of duplicating vertices that are used in multiple objects (like `ArrayBundle` does), it relies on an `Index` to tell the GPU which vertex to pick next. This way, the GPU doesn't loop a single time through the array of given vertices, but jumps around according to the index. A bit more memory-efficient.
+   - `InstancedArrayBundle`: Like `ArrayBundle`, but for `drawArraysInstancedANGLE`-style drawing. Loops through the given vertices `nrInstances` times. Efficient when you want to draw many instances of the same object, such as hundreds of trees, only with variations in location. Expects every *instanced* attribute to contain `nrInstances` times as many values. That is, when using an instanced `attribute mat4` and `nrInstances=3`, requires you to pass in the data for 3 `mat4`-matrices (so, 3 * 16 = 48 values). Use ordinary `AttributeData` for data that doesn't change between instances, and `InstancedAttributeData` for data that *does*.
+   - `InstancedElementsBundle`: Like `ElementsBundle`, but for `drawElementsInstancedANGLE`-style drawing. Loops through the given vertices `nrInstances` times. Efficient when you want to draw many instances of the same object, such as hundreds of trees, only with variations in location. Expects every *instanced* attribute to contain `nrInstances` times as many values. That is, when using an instanced `attribute mat4` and `nrInstances=3`, requires you to pass in the data for 3 `mat4`-matrices (so, 3 * 16 = 48 values). Use ordinary `AttributeData` for data that doesn't change between instances, and `InstancedAttributeData` for data that *does*.
  - `IAttributeData`
    - `AttributeData`: Container for attribute-data. A copy of the data is kept locally even after uploading the data to the GPU, so that it can later be re-uploaded, if required.
-   - `InstancedAttributeData`: Like `AttributeData`, but expects there to be `nrInstances` times as many values. That is, for a `vec2` with `nrInstances=4`, you'd pass 4 * 2 = 8 values.
+   - `InstancedAttributeData`: Like `AttributeData`, but expects there to be `nrInstances` times as many values. That is, for a `vec2` with `nrInstances=4`, you'd pass 4 * 2 = 8 values. Can only be used in an `InstancedArrayBundle` or an `InstancedElementsBundle`.
  - `UniformData`: Container for uniform-data. A copy of the data is kept locally even after uploading the data to the GPU, so that it can later be re-uploaded, if required. 
  - `TextureData`: Container for texture-data. A copy of the data is kept locally even after uploading the data to the GPU, so that it can later be re-uploaded, if required.
  - `FramebufferObject`: Every bundle can optionally render to a framebuffer instead of to the canvas. This way, the data now inside the framebuffer can be used as the input for another shader.

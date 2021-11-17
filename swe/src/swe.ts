@@ -89,8 +89,8 @@ export class SweRenderer {
             'u_b': new UniformData('float', [0.001]),   // https://en.wikipedia.org/wiki/Drag_(physics)
             'u_f': new UniformData('float', [0.00528]), // https://www.google.com/search?q=correolis+coefficient+at+45+degrees&rlz=1C1GCEU_deDE869DE869&oq=correolis+coefficient+at+45+degrees&aqs=chrome..69i57j33i22i29i30.12278j0j4&sourceid=chrome&ie=UTF-8
             'u_dt': new UniformData('float', [0.001]),
-            'u_dx': new UniformData('float', [0.01]),
-            'u_dy': new UniformData('float', [0.01]),
+            'u_dx': new UniformData('float', [1.0 / huv.width]),
+            'u_dy': new UniformData('float', [1.0 / huv.height]),
         }, {
             'u_huvTexture': new TextureData(huv),
             'u_HTexture': new TextureData(H)

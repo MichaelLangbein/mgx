@@ -52,12 +52,12 @@ renderer.setAnimationLoop((time) => {
   sweRenderer.render();
 
   t += 1;
-  if (t % 4 === 0) {
+  if (t % 8 === 0) {
     const sweData = sweRenderer.getImageData() as Uint8Array;
     const oldPositions = plane.geometry.getAttribute('position');
     for (let i = 0; i < oldPositions.count; i++) {  
       const h = sweData[i * 4];
-      oldPositions.setZ(i, h / 100);
+      oldPositions.setZ(i, 1.0 * (h/255 - 0.5) * 2);
     }
     oldPositions.needsUpdate = true;
     plane.geometry.computeVertexNormals();

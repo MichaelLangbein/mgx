@@ -40,12 +40,12 @@ const program = new Program(`
         float deltaX = 1.0 / u_textureSize[0];
         float deltaY = 1.0 / u_textureSize[1];
         // @TODO: implement mirroring/sameval edge-conditions here
-        vec4 huv   = texture2D( u_huvTexture, v_textureCoord                   );
-        vec4 huvpx = texture2D( u_huvTexture, v_textureCoord + vec2(deltaX, 0) );
-        vec4 huvmx = texture2D( u_huvTexture, v_textureCoord - vec2(deltaX, 0) );
-        vec4 huvpy = texture2D( u_huvTexture, v_textureCoord + vec2(0, deltaY) );
-        vec4 huvmy = texture2D( u_huvTexture, v_textureCoord - vec2(0, deltaY) );
-        vec4 H00   = texture2D( u_HTexture,   v_textureCoord                   );
+        vec4 huv   = texture2D( u_huvTexture, v_textureCoord                     );
+        vec4 huvpx = texture2D( u_huvTexture, v_textureCoord + vec2(deltaX, 0.0) );
+        vec4 huvmx = texture2D( u_huvTexture, v_textureCoord - vec2(deltaX, 0.0) );
+        vec4 huvpy = texture2D( u_huvTexture, v_textureCoord - vec2(0.0, deltaY) );
+        vec4 huvmy = texture2D( u_huvTexture, v_textureCoord + vec2(0.0, deltaY) );
+        vec4 H00   = texture2D( u_HTexture,   v_textureCoord                     );
         //---------------------------------------------------------------------------------
 
 
@@ -85,9 +85,15 @@ const program = new Program(`
         float hNew =      - H * ( dudx + dvdy ) * dt + h;
         float uNew = ( + f*v - b*u - g * dhdx ) * dt + u;
         float vNew = ( - f*u - b*v - g * dhdy ) * dt + v;
-        // @TODO: playing around with uNew, hNew and vNew to figure out where things go wrong. Maybe try the same thing with a data-texture in webgl2?
-        // uNew = v_textureCoord[0];
-        // vNew = v_textureCoord[1];
+        // @TODO: playing around with uNew, hNew and vNew to figure out where things go wrong.
+        // Maybe try the same thing with a data-texture in webgl2?
+        // my suspicion: there is some numeric explosion. 
+        // What's hinting to that hypothesis is that my water-height shows a tight high/low pattern ...
+        // as if there as a value overflowing over and over again.
+
+        // Oh, interesting. Abs does make the wave change direction.
+        // uNew = abs(uNew);
+        // vNew = abs(vNew);
         //---------------------------------------------------------------------------------
 
 
@@ -100,8 +106,13 @@ const program = new Program(`
         vTex = max(min(vTex, 1.0), 0.0);
         //---------------------------------------------------------------------------------
 
+        // gl_FragColor expects values in [0, 1]^4
+        // higher/lower values don't rotate,
+        // but are truncated instead.
+        // Thus: 
+        // r=1.5  => r=1.0
+        // r=-0.3 => r=0.0
         gl_FragColor = vec4(hTex, uTex, vTex, 1.0);
-        // gl_FragColor = vec4(v_textureCoord.x, 0.0, 0.0, 1.0);
     }
 `);
 
@@ -132,13 +143,13 @@ export class SweRenderer {
             'u_g': new UniformData('float', [9.8]),     // https://www.google.com/search?q=gravitational+acceleration+constant&rlz=1C1GCEU_deDE869DE869&sxsrf=AOaemvKhOiXVsEX5hXOYDIVhCqvaO51Ekw%3A1637142341924&ei=Rc-UYa7qN8OyqtsP6fC-4As&oq=gravitational+acc&gs_lcp=Cgdnd3Mtd2l6EAMYATIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQyBQgAEMsBMgUIABCABDIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQ6BwgAEEcQsAM6BwgAELADEEM6BQgAEJECOgUILhDLAUoECEEYAFDiBFj9B2DuHGgCcAJ4AIABZIgB9wGSAQMyLjGYAQCgAQHIAQrAAQE&sclient=gws-wiz
             'u_b': new UniformData('float', [0.001]),   // https://en.wikipedia.org/wiki/Drag_(physics)
             'u_f': new UniformData('float', [0.00528]), // https://www.google.com/search?q=correolis+coefficient+at+45+degrees&rlz=1C1GCEU_deDE869DE869&oq=correolis+coefficient+at+45+degrees&aqs=chrome..69i57j33i22i29i30.12278j0j4&sourceid=chrome&ie=UTF-8
-            'u_dt': new UniformData('float', [0.001]),
-            'u_dx': new UniformData('float', [1.0 / huv.width]),
-            'u_dy': new UniformData('float', [1.0 / huv.height]),
-            'u_hRange': new UniformData('vec2', [-100, 100]),
-            'u_uRange': new UniformData('vec2', [-100, 100]),
-            'u_vRange': new UniformData('vec2', [-100, 100]),
-            'u_HMax': new UniformData('float', [10])
+            'u_dt': new UniformData('float', [0.2]),
+            'u_dx': new UniformData('float', [10000 / huv.width]),
+            'u_dy': new UniformData('float', [10000 / huv.height]),
+            'u_hRange': new UniformData('vec2', [-1, 1]),
+            'u_uRange': new UniformData('vec2', [-1, 1]),
+            'u_vRange': new UniformData('vec2', [-1, 1]),
+            'u_HMax': new UniformData('float', [1000])
         }, {
             'u_huvTexture': new TextureData(huv),
             'u_HTexture': new TextureData(H)

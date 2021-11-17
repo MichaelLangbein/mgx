@@ -49,9 +49,13 @@ const program = new Program(`
         float dx = u_dx;
         float dy = u_dy;
 
-        float hNew = h + (  - H * ( ((ux1 - u)/dx) + ((vy1 - v)/dy) )    ) * dt;
-        float uNew = u + (  + f*v - b*u - g * ((hx1 - h)/dx)             ) * dt;
-        float vNew = v + (  - f*u - b*v - g * ((hy1 - h)/dy)             ) * dt;
+        float dudx = (ux1 - u) / dx;
+        float dvdy = (vy1 - v) / dy;
+        float dhdx = (hx1 - h) / dx;
+        float dhdy = (hy1 - h) / dy; 
+        float hNew =      - H * ( dudx + dvdy ) * dt + h;
+        float uNew = ( + f*v - b*u - g * dhdx ) * dt + u;
+        float vNew = ( - f*u - b*v - g * dhdy ) * dt + v;
 
         gl_FragColor = vec4(hNew, uNew, vNew, 1.0);
     }

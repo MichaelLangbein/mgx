@@ -24,40 +24,73 @@ const program = new Program(`
     uniform float u_dt;
     uniform float u_dx;
     uniform float u_dy;
+    uniform vec2 u_hRange;
+    uniform vec2 u_uRange;
+    uniform vec2 u_vRange;
     
     void main() {
+        
+        //---------------- accessing data from textures ----------------------------------
         float deltaX = 1.0 / u_textureSize[0];
         float deltaY = 1.0 / u_textureSize[1];
-
         vec4 huv = texture2D(u_huvTexture, v_textureCoord);
-        vec4 huvx1 = texture2D(u_huvTexture, v_textureCoord + vec2(deltaX, 0));
-        vec4 huvy1 = texture2D(u_huvTexture, v_textureCoord + vec2(0, deltaY));
+        vec4 huvpx = texture2D(u_huvTexture, v_textureCoord + vec2(deltaX, 0));
+        vec4 huvpy = texture2D(u_huvTexture, v_textureCoord + vec2(0, deltaY));
+        vec4 huvmx = texture2D(u_huvTexture, v_textureCoord - vec2(deltaX, 0));
+        vec4 huvmy = texture2D(u_huvTexture, v_textureCoord - vec2(0, deltaY));
         vec4 H00 = texture2D(u_HTexture, v_textureCoord);
+        //---------------------------------------------------------------------------------
 
-        float h = huv[0];
-        float u = huv[1];
-        float v = huv[2];
-        float hx1 = huvx1[0];
-        float hy1 = huvy1[0];
-        float ux1 = huvx1[1];
-        float vy1 = huvy1[2];
-        float H = H00[0];
-        float g = u_g;
-        float b = u_b;
-        float f = u_f;
-        float dt = u_dt;
-        float dx = u_dx;
-        float dy = u_dy;
 
-        float dudx = (ux1 - u) / dx;
-        float dvdy = (vy1 - v) / dy;
-        float dhdx = (hx1 - h) / dx;
-        float dhdy = (hy1 - h) / dy; 
+        //---------------- stretching texture values to data-range ------------------------
+        float hMin = u_hRange[0];
+        float hMax = u_hRange[1];
+        float uMin = u_uRange[0];
+        float uMax = u_uRange[1];
+        float vMin = u_vRange[0];
+        float vMax = u_vRange[1];
+        float h   = (hMax - hMin) * huv[0]   + hMin;
+        float u   = (uMax - uMin) * huv[1]   + uMin;
+        float v   = (vMax - vMin) * huv[2]   + vMin;
+        float hxp = (hMax - hMin) * huvpx[0] + hMin;
+        float hyp = (hMax - hMin) * huvpy[0] + hMin;
+        float uxp = (uMax - uMin) * huvpx[1] + uMin;
+        float vyp = (vMax - vMin) * huvpy[2] + vMin;
+        float hxm = (hMax - hMin) * huvmx[0] + hMin;
+        float hym = (hMax - hMin) * huvmy[0] + hMin;
+        float uxm = (uMax - uMin) * huvmx[1] + uMin;
+        float vym = (vMax - vMin) * huvmy[2] + vMin;
+        float H   = H00[0];
+        float g   = u_g;
+        float b   = u_b;
+        float f   = u_f;
+        float dt  = u_dt;
+        float dx  = u_dx;
+        float dy  = u_dy;
+        //---------------------------------------------------------------------------------
+
+
+        //---------------- actual calculations ------------------------------------------
+        float dudx = (uxp - uxm) / (2.0 * dx);
+        float dvdy = (vyp - vym) / (2.0 * dy);
+        float dhdx = (hxp - hxm) / (2.0 * dx);
+        float dhdy = (hyp - hym) / (2.0 * dy); 
         float hNew =      - H * ( dudx + dvdy ) * dt + h;
         float uNew = ( + f*v - b*u - g * dhdx ) * dt + u;
         float vNew = ( - f*u - b*v - g * dhdy ) * dt + v;
+        //---------------------------------------------------------------------------------
 
-        gl_FragColor = vec4(hNew, uNew, vNew, 1.0);
+
+        //---------------- compressing values down to texture-value-range ----------------
+        float hTex = (hNew - hMin) / (hMax - hMin);
+        float uTex = (uNew - uMin) / (uMax - uMin);
+        float vTex = (vNew - vMin) / (vMax - vMin);
+        hTex = max(min(hTex, 1.0), 0.0); 
+        uTex = max(min(uTex, 1.0), 0.0);
+        vTex = max(min(vTex, 1.0), 0.0);
+        //---------------------------------------------------------------------------------
+
+        gl_FragColor = vec4(hTex, uTex, vTex, 1.0);
     }
 `);
 
@@ -91,6 +124,9 @@ export class SweRenderer {
             'u_dt': new UniformData('float', [0.001]),
             'u_dx': new UniformData('float', [1.0 / huv.width]),
             'u_dy': new UniformData('float', [1.0 / huv.height]),
+            'u_hRange': new UniformData('vec2', [-10, 10]),
+            'u_uRange': new UniformData('vec2', [-10, 10]),
+            'u_vRange': new UniformData('vec2', [-10, 10]),
         }, {
             'u_huvTexture': new TextureData(huv),
             'u_HTexture': new TextureData(H)

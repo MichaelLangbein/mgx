@@ -14,7 +14,7 @@ function renderLoop() {
 
   setTimeout(() => {
     renderLoop();
-  }, 100);
+  }, 10);
 }
 
 renderLoop();

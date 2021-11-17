@@ -3,42 +3,52 @@ import numpy as np
 
 
 #%%
-Xvl = 10
-Yvl = 10
-Tvl = 0.1
+Xvl = 1.0
+Yvl = 1.0
+Tvl = 1.0
 
-dx = Xvl / 255
-dy = Yvl / 255
-dt = Tvl / 30
+X = 64
+Y = 64
+T = 200
 
-X = int(Xvl / dx)
-Y = int(Yvl / dy)
-T = int(Tvl / dt)
+dx = Xvl / X
+dy = Yvl / Y
+dt = Tvl / T
+
 
 f = 0.001
 b = 0.0052
 g = 9.8
 
 H00 = np.zeros((X, Y))
-H00[:, 75:125] = 100
 h = np.zeros((T, X, Y))
 u = np.zeros((T, X, Y))
 v = np.zeros((T, X, Y))
+
+cx = int(X/2)
+cy = int(Y/2)
+cr = int(X/4)
 for x in range(X):
     for y in range(Y):
-        r = np.sqrt((x - 100)**2 + (y - 100)**2)
-        if r < 10:
-            h[0, x, y] = 3.0
+        r = np.sqrt((x - cx)**2 + (y - cy)**2)
+        if r < cr:
+            h[0, x, y] = 50.0
+        
+        H00[x, y] = max(min((3 * y - 10), (-3 * y + 100)), 0)
 
+
+plt.imshow(h[0])
+plt.imshow(H00)
+print(dx, dy, dt)
 
 #%%
-for t, tvl in enumerate(np.arange(0, Tvl - dt, dt)):
+for t, tvl in enumerate(np.arange(0, Tvl - 2*dt, dt)):
     print("t = ", t)
     for x, xvl in enumerate(np.arange(0, Xvl - dx, dx)):
         for y, yvl in enumerate(np.arange(0, Yvl - dy, dy)):
 
             xp = min(x+1, X - 1)
-            yp = min(x+1, Y - 1)
+            yp = min(y+1, Y - 1)
 
             dudx = (u[t, xp, y] - u[t, x, y]) / dx
             dvdy = (v[t, x, yp] - v[t, x, y]) / dy
@@ -81,6 +91,22 @@ def createAnimation(data):
 
     return ani
 
+def createAnimationNonnorm(data):
+    t, r, c = data.shape
+    
+    fig, axes = plt.subplots()
+
+    def init():
+        axes.imshow(data[0, :, :])
+
+    def update(i):
+        print(f"frame {i} = {100 * i/t}% ...")
+        axes.imshow(data[i, :, :])
+
+    ani = FuncAnimation(fig, update, frames=t, init_func=init, interval=200)
+
+    return ani
+
 
 def displayAnimationInNotebook(animation):
     HTML(animation.to_jshtml())
@@ -92,7 +118,11 @@ def saveAnimation(animation, target):
 
 
 # %%
-plt.imshow(h[10, :, :])
+fig, axs = plt.subplots(1, 3)
+t = 1
+axs[0].imshow(h[t], vmin=np.min(h), vmax=np.max(h))
+axs[1].imshow(u[t], vmin=np.min(u), vmax=np.max(u))
+axs[2].imshow(v[t], vmin=np.min(v), vmax=np.max(v))
 
 
 ani = createAnimation(h)

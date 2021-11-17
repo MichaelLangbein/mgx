@@ -86,8 +86,8 @@ const program = new Program(`
         float uNew = ( + f*v - b*u - g * dhdx ) * dt + u;
         float vNew = ( - f*u - b*v - g * dhdy ) * dt + v;
         // @TODO: playing around with uNew, hNew and vNew to figure out where things go wrong. Maybe try the same thing with a data-texture in webgl2?
-        // uNew = -1.0;
-        // vNew = -1.0;
+        // uNew = v_textureCoord[0];
+        // vNew = v_textureCoord[1];
         //---------------------------------------------------------------------------------
 
 
@@ -101,6 +101,7 @@ const program = new Program(`
         //---------------------------------------------------------------------------------
 
         gl_FragColor = vec4(hTex, uTex, vTex, 1.0);
+        // gl_FragColor = vec4(v_textureCoord.x, 0.0, 0.0, 1.0);
     }
 `);
 

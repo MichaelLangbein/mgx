@@ -36,12 +36,10 @@ renderer.setSize(threejs_canvas.clientWidth, threejs_canvas.clientHeight);
 
 const controls = new OrbitControls(camera, threejs_canvas);
 
-const geometry = new PlaneGeometry(10, 10, huvImage.width, huvImage.height);
+const geometry = new PlaneGeometry(10, 10, huvImage.width - 1, huvImage.height - 1);
 const material = new MeshPhongMaterial({ color: 'rgb(20, 125, 125)' });
 const plane = new Mesh(geometry, material);
-plane.position.x = 0;
-plane.position.y = 0.1;
-plane.position.z = 0;
+plane.position.set(0, 0.1, 0);
 plane.lookAt(0, 1, 0);
 scene.add(plane);
 
@@ -57,12 +55,9 @@ renderer.setAnimationLoop((time) => {
   if (t % 4 === 0) {
     const sweData = sweRenderer.getImageData() as Uint8Array;
     const oldPositions = plane.geometry.getAttribute('position');
-    for (let i = 0; i < sweData.length - 4; i += 4) {
-      const h = sweData[i];
-      const j = i / 4;
-      const x = oldPositions.getX(j);
-      const y = oldPositions.getY(j);
-      oldPositions.setXYZ(j, x, y, h / 100);
+    for (let i = 0; i < oldPositions.count; i++) {  
+      const h = sweData[i * 4];
+      oldPositions.setZ(i, h / 100);
     }
     oldPositions.needsUpdate = true;
     plane.geometry.computeVertexNormals();

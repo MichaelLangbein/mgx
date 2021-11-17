@@ -10,7 +10,6 @@ renderer.init();
 
 
 function renderLoop() {
-  console.log('drawing ...')
   renderer.render();
 
   setTimeout(() => {
@@ -18,6 +17,5 @@ function renderLoop() {
   }, 100);
 }
 
-// renderLoop();
-renderer.render();
-renderer.render();
+renderLoop();
+

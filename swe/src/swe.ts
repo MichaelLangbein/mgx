@@ -63,7 +63,9 @@ export class SweRenderer {
 
     private bundle: Bundle;
     private context: Context;
-    private fb: FramebufferObject;
+    private fb1: FramebufferObject;
+    private fb2: FramebufferObject;
+    private i = 0;
 
     constructor(
         private outputCanvas: HTMLCanvasElement, 
@@ -91,7 +93,8 @@ export class SweRenderer {
         }, 'triangles', rect.vertices.length);
 
         this.context = new Context(this.outputCanvas.getContext('webgl'), true);
-        this.fb = createEmptyFramebufferObject(this.context.gl, huv.width, huv.height, 'display');
+        this.fb1 = createEmptyFramebufferObject(this.context.gl, huv.width, huv.height, 'display');
+        this.fb2 = createEmptyFramebufferObject(this.context.gl, huv.width, huv.height, 'display');
     }
 
     public init() {
@@ -102,10 +105,18 @@ export class SweRenderer {
     
     public render() {
         // first draw: to fb, as to update the source texture for next iteration
-        this.bundle.draw(this.context, [0, 0, 0, 0], this.fb);
-        this.bundle.updateTextureData(this.context, 'u_huvTexture', this.fb.texture);
+        if (this.i % 2 === 0) {
+            this.bundle.updateTextureData(this.context, 'u_huvTexture', this.fb1.texture);
+            this.bundle.draw(this.context, [0, 0, 0, 0], this.fb2);
+        } else {
+            this.bundle.updateTextureData(this.context, 'u_huvTexture', this.fb2.texture);
+            this.bundle.draw(this.context, [0, 0, 0, 0], this.fb1);
+        }
+        this.i += 1;
+
         // second draw: to output-canvas, for visualization
         this.bundle.draw(this.context, [0, 0, 0, 0]);
+
     }
 }
 

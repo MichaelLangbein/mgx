@@ -81,7 +81,7 @@ const program = new Program(`
         float dudx = (upx - umx) / (2.0 * dx);
         float dvdy = (vpy - vmy) / (2.0 * dy);
         float dhdx = (hpx - hmx) / (2.0 * dx);
-        float dhdy = (hpy - hmy) / (2.0 * dy); 
+        float dhdy = (hpy - hmy) / (2.0 * dy);
         float hNew =      - H * ( dudx + dvdy ) * dt + h;
         float uNew = ( + f*v - b*u - g * dhdx ) * dt + u;
         float vNew = ( - f*u - b*v - g * dhdy ) * dt + v;
@@ -134,9 +134,9 @@ export class SweRenderer {
             'u_dt': new UniformData('float', [0.001]),
             'u_dx': new UniformData('float', [1.0 / huv.width]),
             'u_dy': new UniformData('float', [1.0 / huv.height]),
-            'u_hRange': new UniformData('vec2', [-1, 1]),
-            'u_uRange': new UniformData('vec2', [-1, 1]),
-            'u_vRange': new UniformData('vec2', [-1, 1]),
+            'u_hRange': new UniformData('vec2', [-100, 100]),
+            'u_uRange': new UniformData('vec2', [-100, 100]),
+            'u_vRange': new UniformData('vec2', [-100, 100]),
             'u_HMax': new UniformData('float', [10])
         }, {
             'u_huvTexture': new TextureData(huv),

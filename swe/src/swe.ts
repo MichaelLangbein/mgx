@@ -1,4 +1,9 @@
-import { ArrayBundle, AttributeData, Bundle, Context, createEmptyFramebufferObject, FramebufferObject, Program, TextureData, UniformData,  } from '@mgx/engine1';
+import {
+    ArrayBundle, AttributeData, Bundle, Context,
+    createEmptyFramebufferObject, FramebufferObject,
+    getCurrentFramebuffersPixels, Program, TextureData,
+    UniformData 
+} from '../../engine1/src/index';
 import { rectangleA } from '../../utils/shapes';
 
 
@@ -81,6 +86,8 @@ const program = new Program(`
         float uNew = ( + f*v - b*u - g * dhdx ) * dt + u;
         float vNew = ( - f*u - b*v - g * dhdy ) * dt + v;
         // @TODO: playing around with uNew, hNew and vNew to figure out where things go wrong. Maybe try the same thing with a data-texture in webgl2?
+        // uNew = -1.0;
+        // vNew = -1.0;
         //---------------------------------------------------------------------------------
 
 
@@ -136,9 +143,9 @@ export class SweRenderer {
             'u_HTexture': new TextureData(H)
         }, 'triangles', rect.vertices.length);
 
-        this.context = new Context(this.outputCanvas.getContext('webgl'), true);
-        this.fb1 = createEmptyFramebufferObject(this.context.gl, huv.width, huv.height, 'display');
-        this.fb2 = createEmptyFramebufferObject(this.context.gl, huv.width, huv.height, 'display');
+        this.context = new Context(this.outputCanvas.getContext('webgl', {preserveDrawingBuffer: true}), true);
+        this.fb1 = createEmptyFramebufferObject(this.context.gl, huv.width, huv.height, 'data');
+        this.fb2 = createEmptyFramebufferObject(this.context.gl, huv.width, huv.height, 'data');
     }
 
     public init() {
@@ -163,6 +170,10 @@ export class SweRenderer {
         // second draw: to output-canvas, for visualization
         this.bundle.draw(this.context, [0, 0, 0, 0]);
 
+    }
+
+    public getImageData() {
+        return getCurrentFramebuffersPixels(this.context.gl.canvas);
     }
 }
 

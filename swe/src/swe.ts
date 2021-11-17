@@ -49,9 +49,9 @@ const program = new Program(`
         float dx = u_dx;
         float dy = u_dy;
 
-        float hNew = (    h - H * ( ((ux1 - u)/dx) + ((vy1 - v)/dy) )    ) * dt;
-        float uNew = (    u + f*v - b*u - g * ((hx1 - h)/dx)             ) * dt;
-        float vNew = (    v - f*u - b*v - g * ((hy1 - h)/dy)             ) * dt;
+        float hNew = h + (  - H * ( ((ux1 - u)/dx) + ((vy1 - v)/dy) )    ) * dt;
+        float uNew = u + (  + f*v - b*u - g * ((hx1 - h)/dx)             ) * dt;
+        float vNew = v + (  - f*u - b*v - g * ((hy1 - h)/dy)             ) * dt;
 
         gl_FragColor = vec4(hNew, uNew, vNew, 1.0);
     }
@@ -101,6 +101,8 @@ export class SweRenderer {
         this.bundle.upload(this.context);
         this.bundle.initVertexArray(this.context);
         this.bundle.bind(this.context);
+        // 0th draw: preparing data on fb1
+        this.bundle.draw(this.context, [0, 0, 0, 0], this.fb1);
     }
     
     public render() {

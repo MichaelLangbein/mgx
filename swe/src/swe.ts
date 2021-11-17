@@ -1,4 +1,4 @@
-import { ArrayBundle, AttributeData, Bundle, Context, Program, TextureData, UniformData,  } from '@mgx/engine1';
+import { ArrayBundle, AttributeData, Bundle, Context, createEmptyFramebufferObject, FramebufferObject, Program, TextureData, UniformData,  } from '@mgx/engine1';
 import { rectangleA } from '../../utils/shapes';
 
 
@@ -49,9 +49,9 @@ const program = new Program(`
         float dx = u_dx;
         float dy = u_dy;
 
-        float hNew = ( h - H * ( ((ux1 - u)/dx) + ((vy1 - v)/dy) ) ) * dt;
-        float uNew = (  f*v - b*u - g*((hx1 - h)/dx) + u ) * dt;
-        float vNew = ( -f*u - b*v - g*((hy1 - h)/dy) + v ) * dt;
+        float hNew = (    h - H * ( ((ux1 - u)/dx) + ((vy1 - v)/dy) )    ) * dt;
+        float uNew = (    u + f*v - b*u - g * ((hx1 - h)/dx)             ) * dt;
+        float vNew = (    v - f*u - b*v - g * ((hy1 - h)/dy)             ) * dt;
 
         gl_FragColor = vec4(hNew, uNew, vNew, 1.0);
     }
@@ -63,6 +63,7 @@ export class SweRenderer {
 
     private bundle: Bundle;
     private context: Context;
+    private fb: FramebufferObject;
 
     constructor(
         private outputCanvas: HTMLCanvasElement, 
@@ -70,14 +71,16 @@ export class SweRenderer {
         H: HTMLImageElement
     ) {
         const rect = rectangleA(2, 2);
+        this.outputCanvas.width = huv.width;
+        this.outputCanvas.height = huv.height;
         
         this.bundle = new ArrayBundle(program, {
             'a_vertex': new AttributeData(new Float32Array(rect.vertices.flat()), 'vec4', false),
             'a_textureCoord': new AttributeData(new Float32Array(rect.texturePositions.flat()), 'vec2', false)
         }, {
             'u_textureSize': new UniformData('vec2', [huv.width, huv.height]),
-            'u_g': new UniformData('float', [9.8]), // https://www.google.com/search?q=gravitational+acceleration+constant&rlz=1C1GCEU_deDE869DE869&sxsrf=AOaemvKhOiXVsEX5hXOYDIVhCqvaO51Ekw%3A1637142341924&ei=Rc-UYa7qN8OyqtsP6fC-4As&oq=gravitational+acc&gs_lcp=Cgdnd3Mtd2l6EAMYATIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQyBQgAEMsBMgUIABCABDIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQ6BwgAEEcQsAM6BwgAELADEEM6BQgAEJECOgUILhDLAUoECEEYAFDiBFj9B2DuHGgCcAJ4AIABZIgB9wGSAQMyLjGYAQCgAQHIAQrAAQE&sclient=gws-wiz
-            'u_b': new UniformData('float', [0.001]), // https://en.wikipedia.org/wiki/Drag_(physics)
+            'u_g': new UniformData('float', [9.8]),     // https://www.google.com/search?q=gravitational+acceleration+constant&rlz=1C1GCEU_deDE869DE869&sxsrf=AOaemvKhOiXVsEX5hXOYDIVhCqvaO51Ekw%3A1637142341924&ei=Rc-UYa7qN8OyqtsP6fC-4As&oq=gravitational+acc&gs_lcp=Cgdnd3Mtd2l6EAMYATIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQyBQgAEMsBMgUIABCABDIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQ6BwgAEEcQsAM6BwgAELADEEM6BQgAEJECOgUILhDLAUoECEEYAFDiBFj9B2DuHGgCcAJ4AIABZIgB9wGSAQMyLjGYAQCgAQHIAQrAAQE&sclient=gws-wiz
+            'u_b': new UniformData('float', [0.001]),   // https://en.wikipedia.org/wiki/Drag_(physics)
             'u_f': new UniformData('float', [0.00528]), // https://www.google.com/search?q=correolis+coefficient+at+45+degrees&rlz=1C1GCEU_deDE869DE869&oq=correolis+coefficient+at+45+degrees&aqs=chrome..69i57j33i22i29i30.12278j0j4&sourceid=chrome&ie=UTF-8
             'u_dt': new UniformData('float', [0.001]),
             'u_dx': new UniformData('float', [0.01]),
@@ -88,6 +91,7 @@ export class SweRenderer {
         }, 'triangles', rect.vertices.length);
 
         this.context = new Context(this.outputCanvas.getContext('webgl'), true);
+        this.fb = createEmptyFramebufferObject(this.context.gl, huv.width, huv.height, 'display');
     }
 
     public init() {
@@ -97,6 +101,10 @@ export class SweRenderer {
     }
     
     public render() {
+        // first draw: to fb, as to update the source texture for next iteration
+        this.bundle.draw(this.context, [0, 0, 0, 0], this.fb);
+        this.bundle.updateTextureData(this.context, 'u_huvTexture', this.fb.texture);
+        // second draw: to output-canvas, for visualization
         this.bundle.draw(this.context, [0, 0, 0, 0]);
     }
 }

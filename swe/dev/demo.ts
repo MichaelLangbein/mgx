@@ -18,4 +18,6 @@ function renderLoop() {
   }, 100);
 }
 
-renderLoop();
+// renderLoop();
+renderer.render();
+renderer.render();

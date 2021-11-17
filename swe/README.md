@@ -7,3 +7,9 @@ Simple implementation of the shallow water equations (SWE) as a WebGL shader.
 ```
 npm i @mgx/swe
 ```
+
+
+## TODO's
+
+Edge-conditions
+Why does wave only propagate up?

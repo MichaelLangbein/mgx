@@ -27,18 +27,20 @@ const program = new Program(`
     uniform vec2 u_hRange;
     uniform vec2 u_uRange;
     uniform vec2 u_vRange;
+    uniform float u_HMax;
     
     void main() {
         
         //---------------- accessing data from textures ----------------------------------
         float deltaX = 1.0 / u_textureSize[0];
         float deltaY = 1.0 / u_textureSize[1];
-        vec4 huv = texture2D(u_huvTexture, v_textureCoord);
-        vec4 huvpx = texture2D(u_huvTexture, v_textureCoord + vec2(deltaX, 0));
-        vec4 huvpy = texture2D(u_huvTexture, v_textureCoord + vec2(0, deltaY));
-        vec4 huvmx = texture2D(u_huvTexture, v_textureCoord - vec2(deltaX, 0));
-        vec4 huvmy = texture2D(u_huvTexture, v_textureCoord - vec2(0, deltaY));
-        vec4 H00 = texture2D(u_HTexture, v_textureCoord);
+        // @TODO: implement mirroring/sameval edge-conditions here
+        vec4 huv   = texture2D( u_huvTexture, v_textureCoord                   );
+        vec4 huvpx = texture2D( u_huvTexture, v_textureCoord + vec2(deltaX, 0) );
+        vec4 huvmx = texture2D( u_huvTexture, v_textureCoord - vec2(deltaX, 0) );
+        vec4 huvpy = texture2D( u_huvTexture, v_textureCoord + vec2(0, deltaY) );
+        vec4 huvmy = texture2D( u_huvTexture, v_textureCoord - vec2(0, deltaY) );
+        vec4 H00   = texture2D( u_HTexture,   v_textureCoord                   );
         //---------------------------------------------------------------------------------
 
 
@@ -50,17 +52,17 @@ const program = new Program(`
         float vMin = u_vRange[0];
         float vMax = u_vRange[1];
         float h   = (hMax - hMin) * huv[0]   + hMin;
+        float hpx = (hMax - hMin) * huvpx[0] + hMin;
+        float hmx = (hMax - hMin) * huvmx[0] + hMin;
+        float hpy = (hMax - hMin) * huvpy[0] + hMin;
+        float hmy = (hMax - hMin) * huvmy[0] + hMin;
         float u   = (uMax - uMin) * huv[1]   + uMin;
+        float upx = (uMax - uMin) * huvpx[1] + uMin;
+        float umx = (uMax - uMin) * huvmx[1] + uMin;
         float v   = (vMax - vMin) * huv[2]   + vMin;
-        float hxp = (hMax - hMin) * huvpx[0] + hMin;
-        float hyp = (hMax - hMin) * huvpy[0] + hMin;
-        float uxp = (uMax - uMin) * huvpx[1] + uMin;
-        float vyp = (vMax - vMin) * huvpy[2] + vMin;
-        float hxm = (hMax - hMin) * huvmx[0] + hMin;
-        float hym = (hMax - hMin) * huvmy[0] + hMin;
-        float uxm = (uMax - uMin) * huvmx[1] + uMin;
-        float vym = (vMax - vMin) * huvmy[2] + vMin;
-        float H   = H00[0];
+        float vpy = (vMax - vMin) * huvpy[2] + vMin;
+        float vmy = (vMax - vMin) * huvmy[2] + vMin;
+        float H   = H00[0] * u_HMax;
         float g   = u_g;
         float b   = u_b;
         float f   = u_f;
@@ -71,13 +73,14 @@ const program = new Program(`
 
 
         //---------------- actual calculations ------------------------------------------
-        float dudx = (uxp - uxm) / (2.0 * dx);
-        float dvdy = (vyp - vym) / (2.0 * dy);
-        float dhdx = (hxp - hxm) / (2.0 * dx);
-        float dhdy = (hyp - hym) / (2.0 * dy); 
+        float dudx = (upx - umx) / (2.0 * dx);
+        float dvdy = (vpy - vmy) / (2.0 * dy);
+        float dhdx = (hpx - hmx) / (2.0 * dx);
+        float dhdy = (hpy - hmy) / (2.0 * dy); 
         float hNew =      - H * ( dudx + dvdy ) * dt + h;
         float uNew = ( + f*v - b*u - g * dhdx ) * dt + u;
         float vNew = ( - f*u - b*v - g * dhdy ) * dt + v;
+        // @TODO: playing around with uNew, hNew and vNew to figure out where things go wrong. Maybe try the same thing with a data-texture in webgl2?
         //---------------------------------------------------------------------------------
 
 
@@ -124,9 +127,10 @@ export class SweRenderer {
             'u_dt': new UniformData('float', [0.001]),
             'u_dx': new UniformData('float', [1.0 / huv.width]),
             'u_dy': new UniformData('float', [1.0 / huv.height]),
-            'u_hRange': new UniformData('vec2', [-10, 10]),
-            'u_uRange': new UniformData('vec2', [-10, 10]),
-            'u_vRange': new UniformData('vec2', [-10, 10]),
+            'u_hRange': new UniformData('vec2', [-1, 1]),
+            'u_uRange': new UniformData('vec2', [-1, 1]),
+            'u_vRange': new UniformData('vec2', [-1, 1]),
+            'u_HMax': new UniformData('float', [10])
         }, {
             'u_huvTexture': new TextureData(huv),
             'u_HTexture': new TextureData(H)

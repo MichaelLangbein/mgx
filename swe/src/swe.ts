@@ -1,4 +1,4 @@
-import { ArrayBundle, AttributeData, Bundle, Context, Program, TextureData,  } from '@mgx/engine1';
+import { ArrayBundle, AttributeData, Bundle, Context, Program, TextureData, UniformData,  } from '@mgx/engine1';
 import { rectangleA } from '../../utils/shapes';
 
 
@@ -17,32 +17,43 @@ const program = new Program(`
     varying vec2 v_textureCoord;
     uniform sampler2D u_huvTexture;
     uniform sampler2D u_HTexture;
+    uniform vec2 u_textureSize;
+    uniform float u_g;
+    uniform float u_b;
+    uniform float u_f;
+    uniform float u_dt;
+    uniform float u_dx;
+    uniform float u_dy;
     
     void main() {
+        float deltaX = 1.0 / u_textureSize[0];
+        float deltaY = 1.0 / u_textureSize[1];
+
         vec4 huv = texture2D(u_huvTexture, v_textureCoord);
+        vec4 huvx1 = texture2D(u_huvTexture, v_textureCoord + vec2(deltaX, 0));
+        vec4 huvy1 = texture2D(u_huvTexture, v_textureCoord + vec2(0, deltaY));
         vec4 H00 = texture2D(u_HTexture, v_textureCoord);
 
-        // float h = huv[0];
-        // float u = huv[1];
-        // float v = huv[2];
-        // float hx1 = 
-        // float hy1 = 
-        // float ux1 = 
-        // float vy1 = 
-        // float H = H00[0];
-        // float g = u_g;
-        // float b = u_b;
-        // float f = u_f;
-        // float dt = u_dt;
-        // float dx = u_dx;
-        // float dy = u_dy;
+        float h = huv[0];
+        float u = huv[1];
+        float v = huv[2];
+        float hx1 = huvx1[0];
+        float hy1 = huvy1[0];
+        float ux1 = huvx1[1];
+        float vy1 = huvy1[2];
+        float H = H00[0];
+        float g = u_g;
+        float b = u_b;
+        float f = u_f;
+        float dt = u_dt;
+        float dx = u_dx;
+        float dy = u_dy;
 
-        // float hNew = ( h - H * ( ((ux1 - u)/dx) + ((vx1 - v)/dy) ) ) * dt;
-        // float uNew = (  f*v - b*u - g*((hx1 - h)/dx) + u ) * dt;
-        // float vNew = ( -f*u - b*v - g*((hy1 - h)/dy) + v ) * dt;
+        float hNew = ( h - H * ( ((ux1 - u)/dx) + ((vy1 - v)/dy) ) ) * dt;
+        float uNew = (  f*v - b*u - g*((hx1 - h)/dx) + u ) * dt;
+        float vNew = ( -f*u - b*v - g*((hy1 - h)/dy) + v ) * dt;
 
-
-        gl_FragColor = huv + H00;
+        gl_FragColor = vec4(hNew, uNew, vNew, 1.0);
     }
 `);
 
@@ -63,7 +74,15 @@ export class SweRenderer {
         this.bundle = new ArrayBundle(program, {
             'a_vertex': new AttributeData(new Float32Array(rect.vertices.flat()), 'vec4', false),
             'a_textureCoord': new AttributeData(new Float32Array(rect.texturePositions.flat()), 'vec2', false)
-        }, { }, {
+        }, {
+            'u_textureSize': new UniformData('vec2', [huv.width, huv.height]),
+            'u_g': new UniformData('float', [9.8]), // https://www.google.com/search?q=gravitational+acceleration+constant&rlz=1C1GCEU_deDE869DE869&sxsrf=AOaemvKhOiXVsEX5hXOYDIVhCqvaO51Ekw%3A1637142341924&ei=Rc-UYa7qN8OyqtsP6fC-4As&oq=gravitational+acc&gs_lcp=Cgdnd3Mtd2l6EAMYATIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQyBQgAEMsBMgUIABCABDIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQ6BwgAEEcQsAM6BwgAELADEEM6BQgAEJECOgUILhDLAUoECEEYAFDiBFj9B2DuHGgCcAJ4AIABZIgB9wGSAQMyLjGYAQCgAQHIAQrAAQE&sclient=gws-wiz
+            'u_b': new UniformData('float', [0.001]), // https://en.wikipedia.org/wiki/Drag_(physics)
+            'u_f': new UniformData('float', [0.00528]), // https://www.google.com/search?q=correolis+coefficient+at+45+degrees&rlz=1C1GCEU_deDE869DE869&oq=correolis+coefficient+at+45+degrees&aqs=chrome..69i57j33i22i29i30.12278j0j4&sourceid=chrome&ie=UTF-8
+            'u_dt': new UniformData('float', [0.001]),
+            'u_dx': new UniformData('float', [0.01]),
+            'u_dy': new UniformData('float', [0.01]),
+        }, {
             'u_huvTexture': new TextureData(huv),
             'u_HTexture': new TextureData(H)
         }, 'triangles', rect.vertices.length);

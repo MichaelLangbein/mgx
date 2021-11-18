@@ -48,14 +48,16 @@ for t, tvl in enumerate(np.arange(0, Tvl - 2*dt, dt)):
         for y, yvl in enumerate(np.arange(0, Yvl - dy, dy)):
 
             xp = min(x+1, X - 1)
+            xm = max(x-1, 0    )
             yp = min(y+1, Y - 1)
+            ym = max(y-1, 0    )
 
-            dudx = (u[t, xp, y] - u[t, x, y]) / dx
-            dvdy = (v[t, x, yp] - v[t, x, y]) / dy
-            dhdx = (h[t, xp, y] - h[t, x, y]) / dx
-            dhdy = (h[t, x, yp] - h[t, x, y]) / dy
+            dudx = (u[t, xp, y] - u[t, xm, y]) / (2.0 * dx)
+            dvdy = (v[t, x, yp] - v[t, x, ym]) / (2.0 * dy)
+            dhdx = (h[t, xp, y] - h[t, xm, y]) / (2.0 * dx)
+            dhdy = (h[t, x, yp] - h[t, x, ym]) / (2.0 * dy)
 
-            hNew =      - H00[x, y] * ( dudx + dvdy ) * dt + h[t, x, y]
+            hNew =                - H00[x, y] * ( dudx + dvdy ) * dt + h[t, x, y]
             uNew = ( + f*v[t, x, y] - b*u[t, x, y] - g * dhdx ) * dt + u[t, x, y]
             vNew = ( - f*u[t, x, y] - b*v[t, x, y] - g * dhdy ) * dt + v[t, x, y]
 

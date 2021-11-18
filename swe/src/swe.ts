@@ -1,7 +1,7 @@
 import { Program, TextureData, UniformData, SwappingRenderer } from '../../engine1/src/index';
 
 
-const program = new Program(`
+const program = new Program(/*glsl*/`
     precision mediump float;
     attribute vec4 a_vertex;
     attribute vec2 a_textureCoord;
@@ -11,7 +11,7 @@ const program = new Program(`
         v_textureCoord = a_textureCoord;
         gl_Position = vec4(a_vertex.xyz, 1.0);
     }
-`, `
+`, /*glsl*/`
     precision mediump float;
     varying vec2 v_textureCoord;
     uniform sampler2D u_huvTexture;

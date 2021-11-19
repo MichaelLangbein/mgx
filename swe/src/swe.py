@@ -1,15 +1,15 @@
 #%% 
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 #%%
-Xvl = 1.0
-Yvl = 1.0
-Tvl = 1.0
+Xvl = 10.0
+Yvl = 10.0
+Tvl = 0.3
 
-X = 64
-Y = 64
-T = 200
+X = 128
+Y = 128
+T = 80
 
 dx = Xvl / X
 dy = Yvl / Y
@@ -20,21 +20,21 @@ f = 0.001
 b = 0.0052
 g = 9.8
 
-H00 = np.zeros((X, Y))
+H00 = np.ones((X, Y)) * 100
 h = np.zeros((T, X, Y))
 u = np.zeros((T, X, Y))
 v = np.zeros((T, X, Y))
 
 cx = int(X/2)
 cy = int(Y/2)
-cr = int(X/4)
+cr = 5
 for x in range(X):
     for y in range(Y):
         r = np.sqrt((x - cx)**2 + (y - cy)**2)
         if r < cr:
             h[0, x, y] = 50.0
         
-        H00[x, y] = max(min((3 * y - 10), (-3 * y + 100)), 0)
+        # H00[x, y] = max(min((3 * y - 10), (-3 * y + 100)), 0)
 
 
 plt.imshow(h[0])
@@ -44,6 +44,8 @@ print(dx, dy, dt)
 #%%
 for t, tvl in enumerate(np.arange(0, Tvl - 2*dt, dt)):
     print("t = ", t)
+
+    # fist pass: naive euler
     for x, xvl in enumerate(np.arange(0, Xvl - dx, dx)):
         for y, yvl in enumerate(np.arange(0, Yvl - dy, dy)):
 
@@ -64,6 +66,33 @@ for t, tvl in enumerate(np.arange(0, Tvl - 2*dt, dt)):
             h[t+1, x, y] = hNew
             u[t+1, x, y] = uNew
             v[t+1, x, y] = vNew
+
+    # second pass: augmented euler
+    for x, xvl in enumerate(np.arange(0, Xvl - dx, dx)):
+        for y, yvl in enumerate(np.arange(0, Yvl - dy, dy)):
+
+            xp = min(x+1, X - 1)
+            xm = max(x-1, 0    )
+            yp = min(y+1, Y - 1)
+            ym = max(y-1, 0    )
+
+            dhdt_t = h[t+1, x, y] - h[t, x, y]
+            dudt_t = u[t+1, x, y] - u[t, x, y]
+            dvdt_t = v[t+1, x, y] - v[t, x, y]
+
+            dudx_tdelta = (u[t+1, xp, y] - u[t+1, xm, y]) / (2.0 * dx)
+            dvdy_tdelta = (v[t+1, x, yp] - v[t+1, x, ym]) / (2.0 * dy)
+            dhdx_tdelta = (h[t+1, xp, y] - h[t+1, xm, y]) / (2.0 * dx)
+            dhdy_tdelta = (h[t+1, x, yp] - h[t+1, x, ym]) / (2.0 * dy)
+
+            dhdt_tdelta = - H00[x, y] * ( dudx_tdelta + dvdy_tdelta )
+            dudt_tdelta =   f * v[t+1, x, y] - b * u[t+1, x, y] - g * dhdx_tdelta
+            dvdt_tdelta = - f * u[t+1, x, y] - b * v[t+1, x, y] - g * dhdy_tdelta
+
+            h[t+1, x, y] = h[t, x, y] + dt * (dhdt_t + dhdt_tdelta) / 2
+            u[t+1, x, y] = u[t, x, y] + dt * (dudt_t + dudt_tdelta) / 2
+            v[t+1, x, y] = v[t, x, y] + dt * (dvdt_t + dvdt_tdelta) / 2
+
 
 
 print('min h: ', np.min(h))

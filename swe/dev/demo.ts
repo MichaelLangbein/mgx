@@ -16,7 +16,6 @@ const threejs_canvas = document.getElementById('threejs_canvas') as HTMLCanvasEl
 
 
 const sweRenderer = new SweRenderer(canvas, huvImage, HImage);
-sweRenderer.init();
 
 
 
@@ -66,5 +65,3 @@ renderer.setAnimationLoop((time) => {
   renderer.render(scene, camera);
 });
 
-
-// compare with this: https://hofk.de/main/discourse.threejs/2020/ColorWave/ColorWave.html

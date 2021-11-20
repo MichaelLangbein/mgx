@@ -8,6 +8,15 @@ import { rectangleA } from '../../utils/shapes';
 
 
 /**
+ * --------- TODOs ---------------------------
+ * Having these as just classes doesn't seem right.
+ * Would be better to have them as mixins, 
+ * so that I could combine TextureSwappingRenderer 
+ * and ProgramSwappingRenderer
+ */
+
+
+/**
  * Use-case: 
  * I want to render to a fb and then, on the next iteration,
  * use the same fb as input.
@@ -21,7 +30,7 @@ import { rectangleA } from '../../utils/shapes';
  * uniform vec2 u_textureSize;
  * ```
  */
-export class SwappingRenderer {
+export class TextureSwappingRenderer {
 
     private bundle: Bundle;
     private context: Context;
@@ -110,6 +119,15 @@ export class SwappingRenderer {
             console.warn('Cannot get image data: storePixels has been set to false');
         }
     }
+}
+
+/**
+ * Use-case:
+ * I want to use one program to render to a fb and then,
+ * on the next iteration, use another program with fb as input.
+ */
+export class ProgramSwappingRenderer {
+
 }
 
 

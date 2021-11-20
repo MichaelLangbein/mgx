@@ -1,7 +1,9 @@
 import {
     Program, TextureData, UniformData, getCurrentFramebuffersPixels,
     Bundle, Context, FramebufferObject, AttributeData, ArrayBundle,
-    createEmptyFramebufferObject
+    createEmptyFramebufferObject,
+    createEmptyTexture,
+    createFramebuffer
 } from '../../engine2/src/index';
 import { rectangleA } from '../../utils/shapes';
 
@@ -237,9 +239,9 @@ export class SweRenderer {
             for (let c = 0; c < w; c++) {
                 HData[r].push([255, 0, 0, 1.0]);
                 if ( Math.abs(r - w/2) < 10 && Math.abs(c - h/2) < 10 ) {
-                    huvData[r].push([10, 0, 0, 1.0]);
+                    huvData[r].push([1, 0.5, 0.5, 1.0]);
                 } else {
-                    huvData[r].push([0, 0, 0, 1.0]);
+                    huvData[r].push([0.5, 0.5, 0.5, 1.0]);
                 }
             }
         }
@@ -268,7 +270,8 @@ export class SweRenderer {
             'u_vRange':      new UniformData('vec2', [-5.0, 5.0]),
             'u_HMax':        new UniformData('float', [100.0])
         };
-        
+
+        this.context = new Context(outputCanvas.getContext('webgl2', {preserveDrawingBuffer: true}), true);
         
         this.naiveEuler = new ArrayBundle(
             eulerPropagation, 
@@ -295,10 +298,14 @@ export class SweRenderer {
             rect.vertices.length
         );
 
-        this.context = new Context(outputCanvas.getContext('webgl2', {preserveDrawingBuffer: true}), true);
-        this.naiveEulerOut      = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        const ext = this.context.gl.getExtension("EXT_color_buffer_float");
+        if (!ext) {
+          alert("need EXT_color_buffer_float");
+          return;
+        }
         this.augmentedEulerOut0 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
         this.augmentedEulerOut1 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.naiveEulerOut      = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
 
         //------- binding shaders and first draw ----------------------------------------------------------------------
         this.naiveEuler.upload(this.context);

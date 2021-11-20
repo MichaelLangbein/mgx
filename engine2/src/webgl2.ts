@@ -684,7 +684,7 @@ export const createDataTexture = (gl: WebGL2RenderingContext, data: number[][][]
 
     if (channels !== 4) {
         // have WebGL digest data one byte at a time.
-        // (Per default tries 4 bytes at a time, which causes errors when our data is not a mulitple of 4).
+        // (Per default tries 4 bytes at a time, which causes errors when our data is not a multiple of 4).
         const alignment = 1; // valid values are 1, 2, 4, and 8.
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, alignment);
     }
@@ -757,9 +757,11 @@ export const createEmptyTexture = (gl: WebGL2RenderingContext, width: number, he
 
 
 /**
- * Even though we reference textures as uniforms in a fragment shader, assigning an actual texture-value to that uniform works differently from normal uniforms.
+ * Even though we reference textures as uniforms in a fragment shader,
+ * assigning an actual texture-value to that uniform works differently from normal uniforms.
  * Normal uniforms have a concrete value.
- * Texture uniforms, on the other hand, are just an integer-index that points to a special slot in the GPU memory (the bindPoint) where the actual texture value lies.
+ * Texture uniforms, on the other hand, are just an integer-index
+ * that points to a special slot in the GPU memory (the bindPoint) where the actual texture value lies.
  */
 export const bindTextureToUniform = (gl: WebGL2RenderingContext, texture: WebGLTexture, bindPoint: number, uniformLocation: WebGLUniformLocation): void =>  {
     if (bindPoint > gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS)) {
@@ -831,6 +833,7 @@ export const createEmptyFramebufferObject = (gl: WebGL2RenderingContext, width: 
     if (use === 'display' && type !== 'ubyte4') {
         throw new Error('When using a texture for "display", it must have type "ubyte4". Float-textures are not renderable. They may be inputs, but they cannot be outputs.');
     }
+
     const fb = createFramebuffer(gl);
     const fbTexture = createEmptyTexture(gl, width, height, type, use);
     const fbo = bindTextureToFramebuffer(gl, fbTexture, fb);

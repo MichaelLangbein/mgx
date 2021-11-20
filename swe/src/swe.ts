@@ -2,7 +2,7 @@ import {
     Program, TextureData, UniformData, getCurrentFramebuffersPixels,
     Bundle, Context, FramebufferObject, AttributeData, ArrayBundle,
     createEmptyFramebufferObject
-} from '../../engine1/src/index';
+} from '../../engine2/src/index';
 import { rectangleA } from '../../utils/shapes';
 
 
@@ -226,9 +226,24 @@ export class SweRenderer {
         huv: HTMLImageElement, 
         H: HTMLImageElement
     ) {
+        const w = 256;
+        const h = 256;
+
+        const HData = [];
+        const huvData = [];
+        for (let r = 0; r < h; r++) {
+            HData.push([]);
+            huvData.push([]);
+            for (let c = 0; c < w; c++) {
+                HData[r].push([255, 0, 0, 1.0]);
+                if ( Math.abs(r - w/2) < 10 && Math.abs(c - h/2) < 10 ) {
+                    huvData[r].push([10, 0, 0, 1.0]);
+                } else {
+                    huvData[r].push([0, 0, 0, 1.0]);
+                }
+            }
+        }
   
-        const w = huv.width;
-        const h = huv.height;
 
         outputCanvas.width = w;
         outputCanvas.height = h;
@@ -244,14 +259,14 @@ export class SweRenderer {
             'u_textureSize': new UniformData('vec2', [w, h]),
             'u_g':           new UniformData('float', [9.8]),     // https://www.google.com/search?q=gravitational+acceleration+constant&rlz=1C1GCEU_deDE869DE869&sxsrf=AOaemvKhOiXVsEX5hXOYDIVhCqvaO51Ekw%3A1637142341924&ei=Rc-UYa7qN8OyqtsP6fC-4As&oq=gravitational+acc&gs_lcp=Cgdnd3Mtd2l6EAMYATIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQyBQgAEMsBMgUIABCABDIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQ6BwgAEEcQsAM6BwgAELADEEM6BQgAEJECOgUILhDLAUoECEEYAFDiBFj9B2DuHGgCcAJ4AIABZIgB9wGSAQMyLjGYAQCgAQHIAQrAAQE&sclient=gws-wiz
             'u_b':           new UniformData('float', [0.001]),   // https://en.wikipedia.org/wiki/Drag_(physics)
-            'u_f':           new UniformData('float', [0.00528]), // https://www.google.com/search?q=correolis+coefficient+at+45+degrees&rlz=1C1GCEU_deDE869DE869&oq=correolis+coefficient+at+45+degrees&aqs=chrome..69i57j33i22i29i30.12278j0j4&sourceid=chrome&ie=UTF-8
-            'u_dt':          new UniformData('float', [0.2]),
-            'u_dx':          new UniformData('float', [10000 / huv.width]),
-            'u_dy':          new UniformData('float', [10000 / huv.height]),
-            'u_hRange':      new UniformData('vec2', [-0.1, 0.1]),
-            'u_uRange':      new UniformData('vec2', [-0.1, 0.1]),
-            'u_vRange':      new UniformData('vec2', [-0.1, 0.1]),
-            'u_HMax':        new UniformData('float', [10])
+            'u_f':           new UniformData('float', [0.00528]), // https://www.google.com/search?q=correolis+coefficient+at+45+degrees&rlz=1C1GCEU_deDE869DE869&oq=correolis+coefficient+at+45+degrees&aqs=chrome..69i57j33i22i29i30.12278j0j4&sourceid=chrome&ie=UTF-8 
+            'u_dt':          new UniformData('float', [0.00001]),
+            'u_dx':          new UniformData('float', [0.001]),
+            'u_dy':          new UniformData('float', [0.001]),
+            'u_hRange':      new UniformData('vec2', [-5.0, 5.0]),
+            'u_uRange':      new UniformData('vec2', [-5.0, 5.0]),
+            'u_vRange':      new UniformData('vec2', [-5.0, 5.0]),
+            'u_HMax':        new UniformData('float', [100.0])
         };
         
         
@@ -260,8 +275,8 @@ export class SweRenderer {
             vertexData, 
             uniformData, 
             {
-                'u_huvTexture': new TextureData(huv),
-                'u_HTexture':   new TextureData(H),
+                'u_huvTexture': new TextureData(huvData, 'float4'),
+                'u_HTexture':   new TextureData(HData, 'float4'),
             }, 
             'triangles', 
             rect.vertices.length
@@ -272,18 +287,18 @@ export class SweRenderer {
             vertexData,
             uniformData,
             {
-                'u_huvTexture_initial':   new TextureData(huv),
-                'u_huvTexture_naiveProp': new TextureData(huv),
-                'u_HTexture':             new TextureData(H),
+                'u_huvTexture_initial':   new TextureData(huvData, 'float4'),
+                'u_huvTexture_naiveProp': new TextureData(huvData, 'float4'),
+                'u_HTexture':             new TextureData(HData, 'float4'),
             },
             'triangles',
             rect.vertices.length
         );
 
-        this.context = new Context(outputCanvas.getContext('webgl', {preserveDrawingBuffer: true}), true);
-        this.naiveEulerOut      = createEmptyFramebufferObject(this.context.gl, w, h, 'data');
-        this.augmentedEulerOut0 = createEmptyFramebufferObject(this.context.gl, w, h, 'data');
-        this.augmentedEulerOut1 = createEmptyFramebufferObject(this.context.gl, w, h, 'data');
+        this.context = new Context(outputCanvas.getContext('webgl2', {preserveDrawingBuffer: true}), true);
+        this.naiveEulerOut      = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.augmentedEulerOut0 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.augmentedEulerOut1 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
 
         //------- binding shaders and first draw ----------------------------------------------------------------------
         this.naiveEuler.upload(this.context);
@@ -308,7 +323,7 @@ export class SweRenderer {
             this.naiveEuler.draw(this.context, [0, 0, 0, 0], this.naiveEulerOut);
     
             this.augmentedEuler.bind(this.context);
-            this.augmentedEuler.updateTextureData(this.context, 'u_huvTexture_initial', this.augmentedEulerOut0.texture);
+            this.augmentedEuler.updateTextureData(this.context, 'u_huvTexture_initial',   this.augmentedEulerOut0.texture);
             this.augmentedEuler.updateTextureData(this.context, 'u_huvTexture_naiveProp', this.naiveEulerOut.texture);
             this.augmentedEuler.draw(this.context, [0, 0, 0, 0], this.augmentedEulerOut1);
         } else {
@@ -317,7 +332,7 @@ export class SweRenderer {
             this.naiveEuler.draw(this.context, [0, 0, 0, 0], this.naiveEulerOut);
     
             this.augmentedEuler.bind(this.context);
-            this.augmentedEuler.updateTextureData(this.context, 'u_huvTexture_initial', this.augmentedEulerOut1.texture);
+            this.augmentedEuler.updateTextureData(this.context, 'u_huvTexture_initial',   this.augmentedEulerOut1.texture);
             this.augmentedEuler.updateTextureData(this.context, 'u_huvTexture_naiveProp', this.naiveEulerOut.texture);
             this.augmentedEuler.draw(this.context, [0, 0, 0, 0], this.augmentedEulerOut0);
         }

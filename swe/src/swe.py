@@ -20,21 +20,23 @@ f = 0.001
 b = 0.0052
 g = 9.8
 
-H00 = np.ones((X, Y)) * 100
+H00 = np.ones((X, Y)) * 10
 h = np.zeros((T, X, Y))
 u = np.zeros((T, X, Y))
 v = np.zeros((T, X, Y))
 
-cx = int(X/2)
-cy = int(Y/2)
-cr = 5
-for x in range(X):
-    for y in range(Y):
-        r = np.sqrt((x - cx)**2 + (y - cy)**2)
-        if r < cr:
-            h[0, x, y] = 50.0
+# cx = int(X/2)
+# cy = int(Y/2)
+# cr = 5
+# for x in range(X):
+#     for y in range(Y):
+#         r = np.sqrt((x - cx)**2 + (y - cy)**2)
+#         if r < cr:
+#             h[0, x, y] = 10.0
         
         # H00[x, y] = max(min((3 * y - 10), (-3 * y + 100)), 0)
+
+h[0, int(0.2*X):int(0.8*X), 0:int(0.2*Y)] = 10.0
 
 
 plt.imshow(h[0])

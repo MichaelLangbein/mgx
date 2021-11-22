@@ -8,19 +8,19 @@ import {
 import { rectangleA } from '../../utils/shapes';
 
 
-const eulerPropagation = new Program(/*glsl*/`
+const eulerPropagation = new Program(/*glsl*/`#version 300 es
     precision mediump float;
-    attribute vec4 a_vertex;
-    attribute vec2 a_textureCoord;
-    varying vec2 v_textureCoord;
+    in vec4 a_vertex;
+    in vec2 a_textureCoord;
+    out vec2 v_textureCoord;
 
     void main() {
         v_textureCoord = a_textureCoord;
         gl_Position = vec4(a_vertex.xyz, 1.0);
     }
-`, /*glsl*/`
+`, /*glsl*/`#version 300 es
     precision mediump float;
-    varying vec2 v_textureCoord;
+    in vec2 v_textureCoord;
     uniform sampler2D u_huvTexture;
     uniform sampler2D u_HTexture;
     uniform vec2 u_textureSize;
@@ -30,10 +30,7 @@ const eulerPropagation = new Program(/*glsl*/`
     uniform float u_dt;
     uniform float u_dx;
     uniform float u_dy;
-    uniform vec2 u_hRange;
-    uniform vec2 u_uRange;
-    uniform vec2 u_vRange;
-    uniform float u_HMax;
+    out vec4 fragColor;
     
     void main() {
         
@@ -41,34 +38,24 @@ const eulerPropagation = new Program(/*glsl*/`
         float deltaX = 1.0 / u_textureSize[0];
         float deltaY = 1.0 / u_textureSize[1];
         // @TODO: implement mirroring/sameval edge-conditions here
-        vec4 huv   = texture2D( u_huvTexture, v_textureCoord                     );
-        vec4 huvpx = texture2D( u_huvTexture, v_textureCoord + vec2(deltaX, 0.0) );
-        vec4 huvmx = texture2D( u_huvTexture, v_textureCoord - vec2(deltaX, 0.0) );
-        vec4 huvpy = texture2D( u_huvTexture, v_textureCoord - vec2(0.0, deltaY) );
-        vec4 huvmy = texture2D( u_huvTexture, v_textureCoord + vec2(0.0, deltaY) );
-        vec4 H00   = texture2D( u_HTexture,   v_textureCoord                     );
-        //---------------------------------------------------------------------------------
-
-
-        //---------------- stretching texture values to data-range ------------------------
-        float hMin = u_hRange[0];
-        float hMax = u_hRange[1];
-        float uMin = u_uRange[0];
-        float uMax = u_uRange[1];
-        float vMin = u_vRange[0];
-        float vMax = u_vRange[1];
-        float h   = (hMax - hMin) * huv[0]   + hMin;
-        float hpx = (hMax - hMin) * huvpx[0] + hMin;
-        float hmx = (hMax - hMin) * huvmx[0] + hMin;
-        float hpy = (hMax - hMin) * huvpy[0] + hMin;
-        float hmy = (hMax - hMin) * huvmy[0] + hMin;
-        float u   = (uMax - uMin) * huv[1]   + uMin;
-        float upx = (uMax - uMin) * huvpx[1] + uMin;
-        float umx = (uMax - uMin) * huvmx[1] + uMin;
-        float v   = (vMax - vMin) * huv[2]   + vMin;
-        float vpy = (vMax - vMin) * huvpy[2] + vMin;
-        float vmy = (vMax - vMin) * huvmy[2] + vMin;
-        float H   = H00[0] * u_HMax;
+        vec4 huv   = texture( u_huvTexture, v_textureCoord                     );
+        vec4 huvpx = texture( u_huvTexture, v_textureCoord + vec2(deltaX, 0.0) );
+        vec4 huvmx = texture( u_huvTexture, v_textureCoord - vec2(deltaX, 0.0) );
+        vec4 huvpy = texture( u_huvTexture, v_textureCoord - vec2(0.0, deltaY) );
+        vec4 huvmy = texture( u_huvTexture, v_textureCoord + vec2(0.0, deltaY) );
+        vec4 H00   = texture( u_HTexture,   v_textureCoord                     );
+        float h   = huv[0];
+        float hpx = huvpx[0];
+        float hmx = huvmx[0];
+        float hpy = huvpy[0];
+        float hmy = huvmy[0];
+        float u   = huv[1];
+        float upx = huvpx[1];
+        float umx = huvmx[1];
+        float v   = huv[2];
+        float vpy = huvpy[2];
+        float vmy = huvmy[2];
+        float H   = H00[0];
         float g   = u_g;
         float b   = u_b;
         float f   = u_f;
@@ -90,31 +77,34 @@ const eulerPropagation = new Program(/*glsl*/`
 
 
         //---------------- compressing values down to texture-value-range ----------------
-        float hTex = (hNew - hMin) / (hMax - hMin);
-        float uTex = (uNew - uMin) / (uMax - uMin);
-        float vTex = (vNew - vMin) / (vMax - vMin);
-        hTex = max(min(hTex, 1.0), 0.0); 
-        uTex = max(min(uTex, 1.0), 0.0);
-        vTex = max(min(vTex, 1.0), 0.0);
+        float hTex = hNew;
+        float uTex = uNew;
+        float vTex = vNew;
         //---------------------------------------------------------------------------------
 
-        gl_FragColor = vec4(hTex, uTex, vTex, 1.0);
+        if (v_textureCoord.x > 0.95 || v_textureCoord.x < 0.05 || v_textureCoord.y > 0.95 || v_textureCoord.y < 0.05) {
+            hTex = 0.0;
+            uTex = 0.0;
+            vTex = 0.0;
+        }
+
+        fragColor = vec4(hTex, uTex, vTex, 1.0);
     }
 `);
 
-const augmentedEulerPropagation = new Program(/*glsl*/`
+const improvedEulerPropagation = new Program(/*glsl*/`#version 300 es
     precision mediump float;
-    attribute vec4 a_vertex;
-    attribute vec2 a_textureCoord;
-    varying vec2 v_textureCoord;
+    in vec4 a_vertex;
+    in vec2 a_textureCoord;
+    out vec2 v_textureCoord;
 
     void main() {
         v_textureCoord = a_textureCoord;
         gl_Position = vec4(a_vertex.xyz, 1.0);
     }
-`, /*glsl*/`
+`, /*glsl*/`#version 300 es
     precision mediump float;
-    varying vec2 v_textureCoord;
+    in vec2 v_textureCoord;
     uniform sampler2D u_huvTexture_initial;
     uniform sampler2D u_huvTexture_naiveProp;
     uniform sampler2D u_HTexture;
@@ -128,45 +118,42 @@ const augmentedEulerPropagation = new Program(/*glsl*/`
     uniform vec2 u_hRange;
     uniform vec2 u_uRange;
     uniform vec2 u_vRange;
-    uniform float u_HMax;
+    uniform float u_doRender;
+    out vec4 fragColor;
 
     void main() {
 
         //---------------- accessing data from textures ---------------------------------
         float deltaX = 1.0 / u_textureSize[0];
         float deltaY = 1.0 / u_textureSize[1];
-        vec4 huv_t         = texture2D( u_huvTexture_initial,   v_textureCoord                     );
-        vec4 huv_tdelta    = texture2D( u_huvTexture_naiveProp, v_textureCoord                     );
-        vec4 huv_tdelta_px = texture2D( u_huvTexture_naiveProp, v_textureCoord + vec2( deltaX, 0 ) );
-        vec4 huv_tdelta_mx = texture2D( u_huvTexture_naiveProp, v_textureCoord - vec2( deltaX, 0 ) );
-        vec4 huv_tdelta_py = texture2D( u_huvTexture_naiveProp, v_textureCoord + vec2( 0, deltaY ) );
-        vec4 huv_tdelta_my = texture2D( u_huvTexture_naiveProp, v_textureCoord - vec2( 0, deltaY ) );
-        vec4 H_            = texture2D( u_HTexture,             v_textureCoord                     );
-        //-------------------------------------------------------------------------------
-
-
-        //---------------- stretching texture values to data-range ----------------------
+        vec4 huv_t         = texture( u_huvTexture_initial,   v_textureCoord                     );
+        vec4 huv_tdelta    = texture( u_huvTexture_naiveProp, v_textureCoord                     );
+        vec4 huv_tdelta_px = texture( u_huvTexture_naiveProp, v_textureCoord + vec2( deltaX, 0 ) );
+        vec4 huv_tdelta_mx = texture( u_huvTexture_naiveProp, v_textureCoord - vec2( deltaX, 0 ) );
+        vec4 huv_tdelta_py = texture( u_huvTexture_naiveProp, v_textureCoord + vec2( 0, deltaY ) );
+        vec4 huv_tdelta_my = texture( u_huvTexture_naiveProp, v_textureCoord - vec2( 0, deltaY ) );
+        vec4 H00           = texture( u_HTexture,             v_textureCoord                     );
         float hMin        = u_hRange[0];
         float hMax        = u_hRange[1];
         float uMin        = u_uRange[0];
         float uMax        = u_uRange[1];
         float vMin        = u_vRange[0];
         float vMax        = u_vRange[1];
-        float h_t         = (hMax - hMin) * huv_t[0]         + hMin;
-        float u_t         = (uMax - uMin) * huv_t[1]         + uMin;
-        float v_t         = (vMax - vMin) * huv_t[2]         + vMin;
-        float h_tdelta    = (hMax - hMin) * huv_tdelta[0]    + hMin;
-        float u_tdelta    = (uMax - uMin) * huv_tdelta[1]    + uMin;
-        float v_tdelta    = (vMax - vMin) * huv_tdelta[2]    + vMin;
-        float h_tdelta_px = (hMax - hMin) * huv_tdelta_px[0] + hMin;
-        float h_tdelta_mx = (hMax - hMin) * huv_tdelta_mx[0] + hMin;
-        float h_tdelta_py = (hMax - hMin) * huv_tdelta_py[0] + hMin;
-        float h_tdelta_my = (hMax - hMin) * huv_tdelta_my[0] + hMin;
-        float u_tdelta_px = (uMax - uMin) * huv_tdelta_px[1] + uMin;
-        float u_tdelta_mx = (uMax - uMin) * huv_tdelta_mx[1] + uMin;
-        float v_tdelta_py = (vMax - vMin) * huv_tdelta_px[2] + vMin;
-        float v_tdelta_my = (vMax - vMin) * huv_tdelta_mx[2] + vMin;
-        float H   = H_[0] * u_HMax;
+        float h_t         = huv_t[0];
+        float u_t         = huv_t[1];
+        float v_t         = huv_t[2];
+        float h_tdelta    = huv_tdelta[0];
+        float u_tdelta    = huv_tdelta[1];
+        float v_tdelta    = huv_tdelta[2];
+        float h_tdelta_px = huv_tdelta_px[0];
+        float h_tdelta_mx = huv_tdelta_mx[0];
+        float h_tdelta_py = huv_tdelta_py[0];
+        float h_tdelta_my = huv_tdelta_my[0];
+        float u_tdelta_px = huv_tdelta_px[1];
+        float u_tdelta_mx = huv_tdelta_mx[1];
+        float v_tdelta_py = huv_tdelta_px[2];
+        float v_tdelta_my = huv_tdelta_mx[2];
+        float H           = H00[0];
         float g   = u_g;
         float b   = u_b;
         float f   = u_f;
@@ -192,7 +179,7 @@ const augmentedEulerPropagation = new Program(/*glsl*/`
         float dudt_tdelta =   f * v_tdelta - b * u_tdelta - g * dhdx_tdelta;
         float dvdt_tdelta = - f * u_tdelta - b * v_tdelta - g * dhdy_tdelta;
 
-        // 3. augmented euler: mean of t and t+delta differentials
+        // 3. improved euler: mean of t and t+delta differentials
         float hNew = h_t + dt * (dhdt_t + dhdt_tdelta) / 2.0;
         float uNew = u_t + dt * (dudt_t + dudt_tdelta) / 2.0;
         float vNew = v_t + dt * (dvdt_t + dvdt_tdelta) / 2.0;
@@ -200,15 +187,22 @@ const augmentedEulerPropagation = new Program(/*glsl*/`
 
 
         //---------------- compressing values down to texture-value-range ----------------
-        float hTex = (hNew - hMin) / (hMax - hMin);
-        float uTex = (uNew - uMin) / (uMax - uMin);
-        float vTex = (vNew - vMin) / (vMax - vMin);
-        hTex = max(min(hTex, 1.0), 0.0); 
-        uTex = max(min(uTex, 1.0), 0.0);
-        vTex = max(min(vTex, 1.0), 0.0);
+        float hTex = hNew;
+        float uTex = uNew;
+        float vTex = vNew;
+        if (v_textureCoord.x > 0.95 || v_textureCoord.x < 0.05 || v_textureCoord.y > 0.95 || v_textureCoord.y < 0.05) {
+            hTex = 0.0;
+            uTex = 0.0;
+            vTex = 0.0;
+        }
+        if (u_doRender > 0.5) {
+            hTex = (hTex - hMin) / (hMax - hMin);
+            uTex = (uTex - uMin) / (uMax - uMin);
+            vTex = (vTex - vMin) / (vMax - vMin);
+        }
         //---------------------------------------------------------------------------------
 
-        gl_FragColor = vec4(hTex, uTex, vTex, 1.0);
+        fragColor = vec4(hTex, uTex, vTex, 1.0);
     }
 `);
 
@@ -216,7 +210,7 @@ const augmentedEulerPropagation = new Program(/*glsl*/`
 export class SweRenderer {
 
     private naiveEuler: Bundle;
-    private augmentedEuler: Bundle;
+    private improvedEuler: Bundle;
     private context: Context;
     private naiveEulerOut: FramebufferObject;
     private augmentedEulerOut0: FramebufferObject;
@@ -237,11 +231,13 @@ export class SweRenderer {
             HData.push([]);
             huvData.push([]);
             for (let c = 0; c < w; c++) {
-                HData[r].push([255, 0, 0, 1.0]);
-                if ( Math.abs(r - w/2) < 10 && Math.abs(c - h/2) < 10 ) {
-                    huvData[r].push([1, 0.5, 0.5, 1.0]);
+                HData[r].push([100.0, 0, 0, 1.0]);
+                // if ( Math.abs(r - w/2) < 3 && Math.abs(c - h/2) < 3 ) {
+                //     huvData[r].push([1, 0, 0, 1.0]);
+                if (Math.abs(r - w/2) < 3) {
+                    huvData[r].push([1, 0, 0, 1.0]);
                 } else {
-                    huvData[r].push([0.5, 0.5, 0.5, 1.0]);
+                    huvData[r].push([0, 0, 0, 1.0]);
                 }
             }
         }
@@ -262,13 +258,9 @@ export class SweRenderer {
             'u_g':           new UniformData('float', [9.8]),     // https://www.google.com/search?q=gravitational+acceleration+constant&rlz=1C1GCEU_deDE869DE869&sxsrf=AOaemvKhOiXVsEX5hXOYDIVhCqvaO51Ekw%3A1637142341924&ei=Rc-UYa7qN8OyqtsP6fC-4As&oq=gravitational+acc&gs_lcp=Cgdnd3Mtd2l6EAMYATIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQyBQgAEMsBMgUIABCABDIFCAAQgAQyBQgAEIAEMgUIABCABDIFCAAQgAQ6BwgAEEcQsAM6BwgAELADEEM6BQgAEJECOgUILhDLAUoECEEYAFDiBFj9B2DuHGgCcAJ4AIABZIgB9wGSAQMyLjGYAQCgAQHIAQrAAQE&sclient=gws-wiz
             'u_b':           new UniformData('float', [0.001]),   // https://en.wikipedia.org/wiki/Drag_(physics)
             'u_f':           new UniformData('float', [0.00528]), // https://www.google.com/search?q=correolis+coefficient+at+45+degrees&rlz=1C1GCEU_deDE869DE869&oq=correolis+coefficient+at+45+degrees&aqs=chrome..69i57j33i22i29i30.12278j0j4&sourceid=chrome&ie=UTF-8 
-            'u_dt':          new UniformData('float', [0.00001]),
-            'u_dx':          new UniformData('float', [0.001]),
-            'u_dy':          new UniformData('float', [0.001]),
-            'u_hRange':      new UniformData('vec2', [-5.0, 5.0]),
-            'u_uRange':      new UniformData('vec2', [-5.0, 5.0]),
-            'u_vRange':      new UniformData('vec2', [-5.0, 5.0]),
-            'u_HMax':        new UniformData('float', [100.0])
+            'u_dt':          new UniformData('float', [0.00005]),
+            'u_dx':          new UniformData('float', [0.01]),
+            'u_dy':          new UniformData('float', [0.01]),
         };
 
         this.context = new Context(outputCanvas.getContext('webgl2', {preserveDrawingBuffer: true}), true);
@@ -285,10 +277,16 @@ export class SweRenderer {
             rect.vertices.length
         );
 
-        this.augmentedEuler = new ArrayBundle(
-            augmentedEulerPropagation,
+        this.improvedEuler = new ArrayBundle(
+            improvedEulerPropagation,
             vertexData,
-            uniformData,
+            {
+                ... uniformData,
+                'u_hRange':   new UniformData('vec2', [-5.0, 5.0]),
+                'u_uRange':   new UniformData('vec2', [-5.0, 5.0]),
+                'u_vRange':   new UniformData('vec2', [-5.0, 5.0]),
+                'u_doRender': new UniformData('float', [0.0])
+            },
             {
                 'u_huvTexture_initial':   new TextureData(huvData, 'float4'),
                 'u_huvTexture_naiveProp': new TextureData(huvData, 'float4'),
@@ -313,11 +311,11 @@ export class SweRenderer {
         this.naiveEuler.bind(this.context);
         this.naiveEuler.draw(this.context, [0, 0, 0, 0], this.naiveEulerOut);
     
-        this.augmentedEuler.upload(this.context);
-        this.augmentedEuler.initVertexArray(this.context);
-        this.augmentedEuler.bind(this.context);
-        this.augmentedEuler.updateTextureData(this.context, 'u_huvTexture_naiveProp', this.naiveEulerOut.texture);
-        this.augmentedEuler.draw(this.context, [0, 0, 0, 0], this.augmentedEulerOut0);
+        this.improvedEuler.upload(this.context);
+        this.improvedEuler.initVertexArray(this.context);
+        this.improvedEuler.bind(this.context);
+        this.improvedEuler.updateTextureData(this.context, 'u_huvTexture_naiveProp', this.naiveEulerOut.texture);
+        this.improvedEuler.draw(this.context, [0, 0, 0, 0], this.augmentedEulerOut0);
         //--------------------------------------------------------------------------------------------------------------
     }
 
@@ -329,25 +327,28 @@ export class SweRenderer {
             this.naiveEuler.updateTextureData(this.context, 'u_huvTexture', this.augmentedEulerOut0.texture);
             this.naiveEuler.draw(this.context, [0, 0, 0, 0], this.naiveEulerOut);
     
-            this.augmentedEuler.bind(this.context);
-            this.augmentedEuler.updateTextureData(this.context, 'u_huvTexture_initial',   this.augmentedEulerOut0.texture);
-            this.augmentedEuler.updateTextureData(this.context, 'u_huvTexture_naiveProp', this.naiveEulerOut.texture);
-            this.augmentedEuler.draw(this.context, [0, 0, 0, 0], this.augmentedEulerOut1);
+            this.improvedEuler.bind(this.context);
+            this.improvedEuler.updateUniformData(this.context, 'u_doRender', [0.0]);
+            this.improvedEuler.updateTextureData(this.context, 'u_huvTexture_initial',   this.augmentedEulerOut0.texture);
+            this.improvedEuler.updateTextureData(this.context, 'u_huvTexture_naiveProp', this.naiveEulerOut.texture);
+            this.improvedEuler.draw(this.context, [0, 0, 0, 0], this.augmentedEulerOut1);
         } else {
             this.naiveEuler.bind(this.context);
             this.naiveEuler.updateTextureData(this.context, 'u_huvTexture', this.augmentedEulerOut1.texture);
             this.naiveEuler.draw(this.context, [0, 0, 0, 0], this.naiveEulerOut);
     
-            this.augmentedEuler.bind(this.context);
-            this.augmentedEuler.updateTextureData(this.context, 'u_huvTexture_initial',   this.augmentedEulerOut1.texture);
-            this.augmentedEuler.updateTextureData(this.context, 'u_huvTexture_naiveProp', this.naiveEulerOut.texture);
-            this.augmentedEuler.draw(this.context, [0, 0, 0, 0], this.augmentedEulerOut0);
+            this.improvedEuler.bind(this.context);
+            this.improvedEuler.updateUniformData(this.context, 'u_doRender', [0.0]);
+            this.improvedEuler.updateTextureData(this.context, 'u_huvTexture_initial',   this.augmentedEulerOut1.texture);
+            this.improvedEuler.updateTextureData(this.context, 'u_huvTexture_naiveProp', this.naiveEulerOut.texture);
+            this.improvedEuler.draw(this.context, [0, 0, 0, 0], this.augmentedEulerOut0);
         }
         this.i += 1;
         //------------------------------------------------------------------------------------------------
 
         //-------- second draw: to output-canvas, for visualization --------------------------------------
-        this.augmentedEuler.draw(this.context, [0, 0, 0, 0]);
+        this.improvedEuler.updateUniformData(this.context, 'u_doRender', [1.0]);
+        this.improvedEuler.draw(this.context, [0, 0, 0, 0]);
         //------------------------------------------------------------------------------------------------
     }
 

@@ -1,5 +1,6 @@
+#version 300 es
     precision mediump float;
-    varying vec2 v_textureCoord;
+    in vec2 v_textureCoord;
     uniform sampler2D u_huvTexture_initial;
     uniform sampler2D u_huvTexture_naiveProp;
     uniform sampler2D u_HTexture;
@@ -13,20 +14,21 @@
     uniform vec2 u_hRange;
     uniform vec2 u_uRange;
     uniform vec2 u_vRange;
-    uniform float u_HMax;
-    
+    uniform bool u_doRender;
+    out vec4 fragColor;
+
     void main() {
 
         //---------------- accessing data from textures ---------------------------------
         float deltaX = 1.0 / u_textureSize[0];
         float deltaY = 1.0 / u_textureSize[1];
-        vec4 huv_t         = texture2D( u_huvTexture_initial,   v_textureCoord                     );
-        vec4 huv_tdelta    = texture2D( u_huvTexture_naiveProp, v_textureCoord                     );
-        vec4 huv_tdelta_px = texture2D( u_huvTexture_naiveProp, v_textureCoord + vec2( deltaX, 0 ) );
-        vec4 huv_tdelta_mx = texture2D( u_huvTexture_naiveProp, v_textureCoord - vec2( deltaX, 0 ) );
-        vec4 huv_tdelta_py = texture2D( u_huvTexture_naiveProp, v_textureCoord + vec2( 0, deltaY ) );
-        vec4 huv_tdelta_my = texture2D( u_huvTexture_naiveProp, v_textureCoord - vec2( 0, deltaY ) );
-        vec4 H_            = texture2D( u_HTexture,             v_textureCoord                     );
+        vec4 huv_t         = texture( u_huvTexture_initial,   v_textureCoord                     );
+        vec4 huv_tdelta    = texture( u_huvTexture_naiveProp, v_textureCoord                     );
+        vec4 huv_tdelta_px = texture( u_huvTexture_naiveProp, v_textureCoord + vec2( deltaX, 0 ) );
+        vec4 huv_tdelta_mx = texture( u_huvTexture_naiveProp, v_textureCoord - vec2( deltaX, 0 ) );
+        vec4 huv_tdelta_py = texture( u_huvTexture_naiveProp, v_textureCoord + vec2( 0, deltaY ) );
+        vec4 huv_tdelta_my = texture( u_huvTexture_naiveProp, v_textureCoord - vec2( 0, deltaY ) );
+        vec4 H00           = texture( u_HTexture,             v_textureCoord                     );
         //-------------------------------------------------------------------------------
 
 
@@ -37,21 +39,21 @@
         float uMax        = u_uRange[1];
         float vMin        = u_vRange[0];
         float vMax        = u_vRange[1];
-        float h_t         = (hMax - hMin) * huv_t[0]         + hMin;
-        float u_t         = (uMax - uMin) * huv_t[1]         + uMin;
-        float v_t         = (vMax - vMin) * huv_t[2]         + vMin;
-        float h_tdelta    = (hMax - hMin) * huv_tdelta[0]    + hMin;
-        float u_tdelta    = (uMax - uMin) * huv_tdelta[1]    + uMin;
-        float v_tdelta    = (vMax - vMin) * huv_tdelta[2]    + vMin;
-        float h_tdelta_px = (hMax - hMin) * huv_tdelta_px[0] + hMin;
-        float h_tdelta_mx = (hMax - hMin) * huv_tdelta_mx[0] + hMin;
-        float h_tdelta_py = (hMax - hMin) * huv_tdelta_py[0] + hMin;
-        float h_tdelta_my = (hMax - hMin) * huv_tdelta_my[0] + hMin;
-        float u_tdelta_px = (uMax - uMin) * huv_tdelta_px[1] + uMin;
-        float u_tdelta_mx = (uMax - uMin) * huv_tdelta_mx[1] + uMin;
-        float v_tdelta_py = (vMax - vMin) * huv_tdelta_px[2] + vMin;
-        float v_tdelta_my = (vMax - vMin) * huv_tdelta_mx[2] + vMin;
-        float H           = H_[0] * u_HMax;
+        float h_t         = huv_t[0];
+        float u_t         = huv_t[1];
+        float v_t         = huv_t[2];
+        float h_tdelta    = huv_tdelta[0];
+        float u_tdelta    = huv_tdelta[1];
+        float v_tdelta    = huv_tdelta[2];
+        float h_tdelta_px = huv_tdelta_px[0];
+        float h_tdelta_mx = huv_tdelta_mx[0];
+        float h_tdelta_py = huv_tdelta_py[0];
+        float h_tdelta_my = huv_tdelta_my[0];
+        float u_tdelta_px = huv_tdelta_px[1];
+        float u_tdelta_mx = huv_tdelta_mx[1];
+        float v_tdelta_py = huv_tdelta_px[2];
+        float v_tdelta_my = huv_tdelta_mx[2];
+        float H           = H00[0];
         float g   = u_g;
         float b   = u_b;
         float f   = u_f;
@@ -85,13 +87,18 @@
 
 
         //---------------- compressing values down to texture-value-range ----------------
-        float hTex = (hNew - hMin) / (hMax - hMin);
-        float uTex = (uNew - uMin) / (uMax - uMin);
-        float vTex = (vNew - vMin) / (vMax - vMin);
-        hTex = max(min(hTex, 1.0), 0.0); 
-        uTex = max(min(uTex, 1.0), 0.0);
-        vTex = max(min(vTex, 1.0), 0.0);
+        float hTex = hNew;
+        float uTex = uNew;
+        float vTex = vNew;
+        if (u_doRender) {
+            hTex = (hTex - hMin) / (hMax - hMin);
+            uTex = (uTex - uMin) / (uMax - uMin);
+            vTex = (vTex - vMin) / (vMax - vMin);
+            hTex = max(min(hTex, 1.0), 0.0); 
+            uTex = max(min(uTex, 1.0), 0.0);
+            vTex = max(min(vTex, 1.0), 0.0);
+        }
         //---------------------------------------------------------------------------------
 
-        gl_FragColor = vec4(hTex, uTex, vTex, 1.0);
+        fragColor = vec4(hTex, uTex, vTex, 1.0);
     }

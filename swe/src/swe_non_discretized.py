@@ -3,18 +3,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #%%
-Xvl = 10.0
-Yvl = 10.0
-Tvl = 1.0
+Xvl = 1.0
+Yvl = 1.0
+Tvl = 0.1
 
-X = 64
-Y = 64
-T = 80
+X = 200
+Y = 200
+T = 200
 
 dx = Xvl / X
 dy = Yvl / Y
 dt = Tvl / T
-
+print(dx, dy, dt)
 
 f = 0.001
 b = 0.0052
@@ -29,35 +29,19 @@ uImpr = np.ones((T, X, Y))
 vImpr = np.ones((T, X, Y))
 
 
-HMin = 0
-HMax = 50
-hMax = 10
-hMin = -10
-uMax = 10
-uMin = -10
-vMax = 10
-vMin = -10
-
-def shrink(fval, vmin, vmax):
-    return fval
-
-def stretch(ival, vmin, vmax):
-    return ival
-
-
 cx = int(0.6 * X)
 cy = int(0.6 * Y)
 cr = 5
 for x in range(X):
     for y in range(Y):
-        H00[x, y] = shrink(HMax, HMin, HMax)
-        u[0, x, y] = shrink(0, uMin, uMax)
-        v[0, x, y] = shrink(0, vMin, vMax)
+        H00[x, y] = 100
+        u[0, x, y] = 0.0
+        v[0, x, y] = 0.0
         r = np.sqrt((x - cx)**2 + (y - cy)**2)
         if r < cr:
-            h[0, x, y] = shrink(hMax, hMin, hMax)
+            h[0, x, y] = 10.0
         else: 
-            h[0, x, y] = shrink(0, hMin, hMax)
+            h[0, x, y] = 0.0
 
 
 
@@ -75,18 +59,18 @@ for t, tvl in enumerate(np.arange(0, Tvl - dt, dt)):
             yp = min(y+1, Y - 1)
             ym = max(y-1, 0    )
 
-            H_   = stretch(H00[x, y],   HMin, HMax)
-            h_   = stretch(h[t, x, y],  hMin, hMax)
-            u_   = stretch(u[t, x, y],  uMin, uMax)
-            v_   = stretch(v[t, x, y],  vMin, vMax)
-            u_xp = stretch(u[t, xp, y], uMin, uMax)
-            u_xm = stretch(u[t, xm, y], uMin, uMax)
-            v_yp = stretch(v[t, x, yp], vMin, vMax)
-            v_ym = stretch(v[t, x, ym], vMin, vMax)
-            h_xp = stretch(h[t, xp, y], hMin, hMax)
-            h_xm = stretch(h[t, xm, y], hMin, hMax)
-            h_yp = stretch(h[t, x, yp], hMin, hMax)
-            h_ym = stretch(h[t, x, ym], hMin, hMax)
+            H_   = H00[x, y]
+            h_   = h[t, x, y]
+            u_   = u[t, x, y]
+            v_   = v[t, x, y]
+            u_xp = u[t, xp, y]
+            u_xm = u[t, xm, y]
+            v_yp = v[t, x, yp]
+            v_ym = v[t, x, ym]
+            h_xp = h[t, xp, y]
+            h_xm = h[t, xm, y]
+            h_yp = h[t, x, yp]
+            h_ym = h[t, x, ym]
 
             dudx = (u_xp - u_xm) / (2.0 * dx)
             dvdy = (v_yp - v_ym) / (2.0 * dy)
@@ -97,9 +81,9 @@ for t, tvl in enumerate(np.arange(0, Tvl - dt, dt)):
             uNew = ( + f*v_ - b*u_ - g * dhdx ) * dt + u_
             vNew = ( - f*u_ - b*v_ - g * dhdy ) * dt + v_
 
-            h[t+1, x, y] = shrink(hNew, hMin, hMax)
-            u[t+1, x, y] = shrink(uNew, uMin, uMax)
-            v[t+1, x, y] = shrink(vNew, vMin, vMax)
+            h[t+1, x, y] = hNew
+            u[t+1, x, y] = uNew
+            v[t+1, x, y] = vNew
 
     # second pass: improved euler
     for x, xvl in enumerate(np.arange(0, Xvl, dx)):
@@ -110,29 +94,29 @@ for t, tvl in enumerate(np.arange(0, Tvl - dt, dt)):
             yp = min(y+1, Y - 1)
             ym = max(y-1, 0    )
 
-            H_     = stretch( H00[x, y],      HMin, HMax  )
-            h_     = stretch( h[t,   x,  y ], hMin, hMax  )
-            u_     = stretch( u[t,   x,  y ], uMin, uMax  )
-            v_     = stretch( v[t,   x,  y ], vMin, vMax  )
-            h_d    = stretch( h[t+1, x,  y ], hMin, hMax  )
-            u_d    = stretch( u[t+1, x,  y ], uMin, uMax  )
-            v_d    = stretch( v[t+1, x,  y ], vMin, vMax  )
-            u_xp   = stretch( u[t,   xp, y ], uMin, uMax  )
-            u_xm   = stretch( u[t,   xm, y ], uMin, uMax  )
-            v_yp   = stretch( v[t,   x,  yp], vMin, vMax  )
-            v_ym   = stretch( v[t,   x,  ym], vMin, vMax  )
-            h_xp   = stretch( h[t,   xp, y ], hMin, hMax  )
-            h_xm   = stretch( h[t,   xm, y ], hMin, hMax  )
-            h_yp   = stretch( h[t,   x,  yp], hMin, hMax  )
-            h_ym   = stretch( h[t,   x,  ym], hMin, hMax  )
-            u_xp_d = stretch( u[t+1, xp, y ], uMin, uMax  )
-            u_xm_d = stretch( u[t+1, xm, y ], uMin, uMax  )
-            v_yp_d = stretch( v[t+1, x,  yp], vMin, vMax  )
-            v_ym_d = stretch( v[t+1, x,  ym], vMin, vMax  )
-            h_xp_d = stretch( h[t+1, xp, y ], hMin, hMax  )
-            h_xm_d = stretch( h[t+1, xm, y ], hMin, hMax  )
-            h_yp_d = stretch( h[t+1, x,  yp], hMin, hMax  )
-            h_ym_d = stretch( h[t+1, x,  ym], hMin, hMax  )
+            H_     = H00[x, y]
+            h_     = h[t,   x,  y ]
+            u_     = u[t,   x,  y ]
+            v_     = v[t,   x,  y ]
+            h_d    = h[t+1, x,  y ]
+            u_d    = u[t+1, x,  y ]
+            v_d    = v[t+1, x,  y ]
+            u_xp   = u[t,   xp, y ]
+            u_xm   = u[t,   xm, y ]
+            v_yp   = v[t,   x,  yp]
+            v_ym   = v[t,   x,  ym]
+            h_xp   = h[t,   xp, y ]
+            h_xm   = h[t,   xm, y ]
+            h_yp   = h[t,   x,  yp]
+            h_ym   = h[t,   x,  ym]
+            u_xp_d = u[t+1, xp, y ]
+            u_xm_d = u[t+1, xm, y ]
+            v_yp_d = v[t+1, x,  yp]
+            v_ym_d = v[t+1, x,  ym]
+            h_xp_d = h[t+1, xp, y ]
+            h_xm_d = h[t+1, xm, y ]
+            h_yp_d = h[t+1, x,  yp]
+            h_ym_d = h[t+1, x,  ym]
 
             dhdt_t = h_d - h_
             dudt_t = u_d - u_
@@ -151,9 +135,9 @@ for t, tvl in enumerate(np.arange(0, Tvl - dt, dt)):
             uNew = u_ + dt * (dudt_t + dudt_tdelta) / 2.0
             vNew = v_ + dt * (dvdt_t + dvdt_tdelta) / 2.0
 
-            hImpr[t+1, x, y] = shrink(hNew, hMin, hMax)
-            uImpr[t+1, x, y] = shrink(uNew, uMin, hMax)
-            vImpr[t+1, x, y] = shrink(vNew, vMin, hMax)
+            hImpr[t+1, x, y] = hNew
+            uImpr[t+1, x, y] = uNew
+            vImpr[t+1, x, y] = vNew
 
     h[t+1, :, :] = hImpr[t+1, :, :]
     u[t+1, :, :] = hImpr[t+1, :, :]

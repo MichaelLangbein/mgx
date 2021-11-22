@@ -1,21 +1,19 @@
 import { SweRenderer } from '../src/swe';
 import { 
-  PerspectiveCamera, Scene, SphereGeometry, MeshNormalMaterial,
-  Mesh, WebGLRenderer, AmbientLight, PlaneGeometry, AxesHelper,
-  DirectionalLight, MeshPhongMaterial, MeshLambertMaterial
+  PerspectiveCamera, Scene,
+  Mesh, WebGLRenderer, PlaneGeometry, AxesHelper,
+  DirectionalLight, MeshPhongMaterial
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-const huvImage = document.getElementById('huvImage') as HTMLImageElement;
-const HImage = document.getElementById('HImage') as HTMLImageElement;
 const threejs_canvas = document.getElementById('threejs_canvas') as HTMLCanvasElement;
 
 
 
 
-const sweRenderer = new SweRenderer(canvas, huvImage, HImage);
+const sweRenderer = new SweRenderer(canvas);
 
 
 
@@ -35,7 +33,7 @@ renderer.setSize(threejs_canvas.clientWidth, threejs_canvas.clientHeight);
 
 const controls = new OrbitControls(camera, threejs_canvas);
 
-const geometry = new PlaneGeometry(10, 10, huvImage.width - 1, huvImage.height - 1);
+const geometry = new PlaneGeometry(10, 10, 256, 256);
 const material = new MeshPhongMaterial({ color: 'rgb(20, 125, 125)' });
 const plane = new Mesh(geometry, material);
 plane.position.set(0, 0.1, 0);

@@ -217,11 +217,7 @@ export class SweRenderer {
     private augmentedEulerOut1: FramebufferObject;
     private i = 0;
     
-    constructor(
-        outputCanvas: HTMLCanvasElement,
-        huv: HTMLImageElement, 
-        H: HTMLImageElement
-    ) {
+    constructor( outputCanvas: HTMLCanvasElement ) {
         const w = 256;
         const h = 256;
 

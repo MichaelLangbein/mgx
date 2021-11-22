@@ -1,144 +1,72 @@
-import { bindTextureToFramebuffer, createEmptyTexture, createFramebuffer, FramebufferObject } from '../src/webgl';
-import { Context, InstancedElementsBundle, Index, Program, AttributeData,
-    ElementsBundle, InstancedAttributeData, UniformData, ArrayBundle, TextureData } from '../src/engine.core';
-import { boxE, gaussianKernel, rectangleA } from '../../utils/shapes';
-import { projectionMatrix, identityMatrix, matrixMultiplyList, rotateXMatrix,
-    rotateYMatrix, rotateZMatrix, translateMatrix, transposeMatrix, flatten2, flatten3 } from '../../utils/math';
-import { renderLoop } from '../../utils/general';
+import { TextureSwappingRenderer } from '../src';
+import { Program, TextureData } from '../src';
 
 
-const body = document.getElementById('container') as HTMLDivElement;
+/**
+ * This demo also showcases webgl2's float-texture behavior.
+ * Input may be any float-value, 
+ * but when rendering to the canvas, webgl2 clamps all to [0, 1]
+ */
+
+
+
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-canvas.width = canvas.clientWidth;
-canvas.height = canvas.clientHeight;
-const gl = canvas.getContext('webgl') as WebGLRenderingContext;
-if (!gl) {
-    throw new Error('no context');
+
+
+const data = [];
+for (let r = 0; r < 256; r++) {
+    data.push([]);
+    for (let c = 0; c < 256; c++) {
+        data[r].push([Math.sin(r / 10), Math.cos(c / 10), 0, 1]);
+    }
 }
 
-const box = boxE(0.25, 0.25, 0.25);
-
-
-
-const nrInstances = 4;
-
-let transformMatrices = [
-    transposeMatrix(translateMatrix(-0.5,  0.5, -3.5)),
-    transposeMatrix(translateMatrix( 0.5,  0.5, -2.5)),
-    transposeMatrix(translateMatrix( 0.5, -0.5, -1.5)),
-    transposeMatrix(translateMatrix(-0.5, -0.5, -0.5)),
-];
-
-let colors = [
-    [1.0, 0.0, 0.0, 1.0],
-    [0.0, 1.0, 0.0, 1.0],
-    [0.0, 0.0, 1.0, 1.0],
-    [1.0, 1.0, 0.0, 1.0],
-];
-
-const projection = transposeMatrix(projectionMatrix(Math.PI / 2, 1, 0.01, 100));
-
-const context = new Context(gl, true);
-
-const drawingBundle = new InstancedElementsBundle(new Program(`
+const program = new Program(/*glsl*/`
     precision mediump float;
-    attribute vec4 a_position;
-    attribute mat4 a_transform;
-    attribute vec4 a_color;
-    varying vec4 v_color;
-    uniform mat4 u_projection;
+    attribute vec4 a_vertex;
+    attribute vec2 a_textureCoord;
+    varying vec2 v_textureCoord;
+    
     void main() {
-        vec4 pos = u_projection * a_transform * a_position;
-        gl_Position = pos;
-        v_color = a_color;
+        v_textureCoord = a_textureCoord;
+        gl_Position = a_vertex;  
     }
-`, `
-    precision mediump float;
-    varying vec4 v_color;
-    void main() {
-        gl_FragColor = v_color;
-    }
-`), {
-    'a_position': new AttributeData(new Float32Array(flatten2(box.vertices)), 'vec4', false),
-    'a_transform': new InstancedAttributeData(new Float32Array(flatten3(transformMatrices)), 'mat4', true, 1),
-    'a_color': new InstancedAttributeData(new Float32Array(flatten2(colors)), 'vec4', false, 1)
-}, {
-    'u_projection': new UniformData('mat4', flatten2(projection))
-}, {},
-'triangles',
-new Index(new Uint16Array(flatten2(box.vertexIndices))), nrInstances);
-
-
-const fb = createFramebuffer(gl);
-const fbTexture = createEmptyTexture(gl, canvas.width, canvas.height);
-const fbo = bindTextureToFramebuffer(gl, fbTexture, fb);
-
-
-
-
-const blurBundle = new ArrayBundle(new Program(`
-    precision mediump float;
-    attribute vec4 a_position;
-    attribute vec2 a_texPosition;
-    varying vec2 v_texPosition;
-    void main() {
-        gl_Position = a_position;
-        v_texPosition = a_texPosition;
-    }
-`, `
+    `, /*glsl*/`
     precision mediump float;
     uniform sampler2D u_texture;
     uniform vec2 u_textureSize;
-    uniform mat3 u_blur;
-    varying vec2 v_texPosition;
+    varying vec2 v_textureCoord;
+    
     void main() {
-        float deltaX = 7.0 / u_textureSize[0];
-        float deltaY = 7.0 / u_textureSize[1];
-        vec4 color = texture2D(u_texture, v_texPosition + vec2(-deltaX,  deltaY)) * u_blur[0][0]
-                   + texture2D(u_texture, v_texPosition + vec2(      0,  deltaY)) * u_blur[1][0]
-                   + texture2D(u_texture, v_texPosition + vec2( deltaX,  deltaY)) * u_blur[2][0]
-                   + texture2D(u_texture, v_texPosition + vec2(-deltaX,       0)) * u_blur[0][1]
-                   + texture2D(u_texture, v_texPosition + vec2(      0,       0)) * u_blur[1][1]
-                   + texture2D(u_texture, v_texPosition + vec2( deltaX,       0)) * u_blur[2][1]
-                   + texture2D(u_texture, v_texPosition + vec2(-deltaX, -deltaY)) * u_blur[0][2]
-                   + texture2D(u_texture, v_texPosition + vec2(      0, -deltaY)) * u_blur[1][2]
-                   + texture2D(u_texture, v_texPosition + vec2( deltaX, -deltaY)) * u_blur[2][2];
-        gl_FragColor = color;
+    
+        vec2 deltaX = vec2(1.0 / u_textureSize.x, 0.0);
+        vec2 deltaY = vec2(0.0, 1.0 / u_textureSize.y);
+        vec4 texData00 = texture2D(u_texture, v_textureCoord );
+        vec4 texDataPX = texture2D(u_texture, v_textureCoord + deltaX);
+        vec4 texDataMX = texture2D(u_texture, v_textureCoord - deltaX);
+        vec4 texDataPY = texture2D(u_texture, v_textureCoord + deltaY);
+        vec4 texDataMY = texture2D(u_texture, v_textureCoord - deltaY);
+    
+        gl_FragColor = 0.25 * (texData00 + texDataPX + texDataMX + texDataPX + texDataMY);
+        gl_FragColor = gl_FragColor * 0.0 + texData00;
     }
-`), {
-    'a_position': new AttributeData(new Float32Array(flatten2(rectangleA(2, 2).vertices)), 'vec4', false),
-    'a_texPosition': new AttributeData(new Float32Array(flatten2(rectangleA(2, 2).texturePositions)), 'vec2', false),
-}, {
-    'u_blur': new UniformData('mat3', flatten2(transposeMatrix(gaussianKernel()))),
-    'u_textureSize': new UniformData('vec2', [fbo.width, fbo.height])
-}, {
-    'u_texture': new TextureData(fbo.texture)
-}, 'triangles', 6);
+`);
 
+const renderer = new TextureSwappingRenderer(
+    canvas, 
+    program,
+    {},
+    {},
+    {
+        'u_texture': new TextureData(data, 'float4')
+    },
+    'u_texture'
+);
+renderer.init();
 
+function render() {
+    renderer.render();
+    setTimeout(render, 100);
+}
 
-
-
-
-drawingBundle.upload(context);
-drawingBundle.initVertexArray(context);
-blurBundle.upload(context);
-blurBundle.initVertexArray(context);
-
-let time = 0;
-renderLoop(60, (tDelta: number) => {
-    time += tDelta;
-
-    drawingBundle.bind(context);
-    transformMatrices = [
-        transposeMatrix(matrixMultiplyList([  translateMatrix(-1.0,  0.8, 0.5 * Math.sin(time * 0.003) + -3.5), rotateXMatrix(time * 0.1), ])),
-        transposeMatrix(matrixMultiplyList([  translateMatrix( 0.5,  0.5, 1.0 * Math.sin(time * 0.005) + -2.5), rotateYMatrix(time * 0.1), ])),
-        transposeMatrix(matrixMultiplyList([  translateMatrix( 0.5, -0.5, 0.5 * Math.sin(time * 0.003) + -1.5), rotateZMatrix(time * 0.1), ])),
-        transposeMatrix(matrixMultiplyList([  translateMatrix(-0.2, -0.2, 1.0 * Math.sin(time * 0.003) + -1.5), rotateXMatrix(time * 0.1), ])),
-    ];
-    drawingBundle.updateAttributeData(context, 'a_transform', new Float32Array(flatten3(transformMatrices)));
-    drawingBundle.draw(context, [0, 0, 0, 0], fbo);
-
-    blurBundle.bind(context);
-    blurBundle.draw(context);
-});
+render();

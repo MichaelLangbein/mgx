@@ -468,7 +468,7 @@ export interface TextureObject {
     border: number;
 }
 
-export type TextureType = 'ubyte4';
+export type TextureType = 'ubyte4' | 'float4';
 
 
 /**
@@ -497,6 +497,14 @@ export const getTextureParas = (gl: WebGLRenderingContext, t: TextureType, data:
                 format: gl.RGBA,
                 type: gl.UNSIGNED_BYTE,
                 binData: new Uint8Array(data),
+            };
+        case 'float4':
+            // https://stackoverflow.com/questions/26554157/webgl-rendering-to-floating-point-texture
+            return {
+                internalFormat: gl.RGBA,
+                format: gl.RGBA,
+                type: gl.FLOAT,
+                binData: new Float32Array(data),
             };
     }
 };
@@ -597,6 +605,12 @@ export const createDataTexture = (gl: WebGLRenderingContext, data: number[][][],
     const level = 0;
     const border = 0;
     const paras = getTextureParas(gl, t, flatten3(data));
+    if (t === 'float4') {
+        const ext = gl.getExtension('OES_texture_float');
+        if (!ext) {
+            throw Error('Need OES_texture_float');
+        }
+    }
 
     if (channels !== 4) {
         // have WebGL digest data one byte at a time.
@@ -641,6 +655,12 @@ export const createEmptyTexture = (gl: WebGLRenderingContext, width: number, hei
     }
 
     const paras = getTextureParas(gl, type, []);
+    if (type === 'float4') {
+        const ext = gl.getExtension('OES_texture_float');
+        if (!ext) {
+            throw Error('Need OES_texture_float');
+        }
+    }
 
     gl.activeTexture(gl.TEXTURE0 + textureConstructionBindPoint); // so that we don't overwrite another texture in the next line.
     gl.bindTexture(gl.TEXTURE_2D, texture);

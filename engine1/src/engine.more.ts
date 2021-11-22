@@ -56,6 +56,9 @@ export class TextureSwappingRenderer {
         if (texData instanceof HTMLImageElement || texData instanceof HTMLCanvasElement) {
             w = texData.width;
             h = texData.height;
+        } else if (Array.isArray(texData)) {
+            w = texData.length;
+            h = texData[0].length;
         } else {
             throw Error(`Datatype not yet implemented: ${texData}`);
         }

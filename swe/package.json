@@ -27,6 +27,6 @@
     "webpack-dev-server": "^4.3.0"
   },
   "dependencies": {
-    "@mgx/engine1": "^0.1.6"
+    "@mgx/engine1": "^0.1.7"
   }
 }

@@ -20,8 +20,8 @@ const sweRenderer = new SweRenderer(canvas, huvImage, HImage);
 
 
 const camera = new PerspectiveCamera(70, threejs_canvas.clientWidth / threejs_canvas.clientHeight, 0.01, 100);
-camera.position.set(2, 6, 10);
-camera.lookAt(0, 0, 0);
+camera.position.set(2, 10, 2);
+camera.lookAt(0, 5, -5);
 
 const scene = new Scene();
 
@@ -48,20 +48,22 @@ scene.add(ah);
 
 let t = 0;
 renderer.setAnimationLoop((time) => {
-  sweRenderer.render();
+  sweRenderer.render(true);
 
-  t += 1;
-  if (t % 8 === 0) {
+  if (t % 10 === 0) {
     const sweData = sweRenderer.getImageData() as any;
     const oldPositions = plane.geometry.getAttribute('position');
     for (let i = 0; i < oldPositions.count; i++) {  
       const h = sweData[i * 4];
-      oldPositions.setZ(i, 1.0 * (h/255 - 0.5) * 2);
+      oldPositions.setZ(i, h / 25);
     }
     oldPositions.needsUpdate = true;
     plane.geometry.computeVertexNormals();
   }
+
   controls.update();
   renderer.render(scene, camera);
+
+  t += 1;
 });
 

@@ -160,15 +160,15 @@ export class RungeKuttaRenderer {
             }
         }
         // @TODO: set dt for stability: https://nbviewer.org/github/barbagroup/CFDPython/blob/master/lessons/03_CFL_Condition.ipynb
-        const dt = 0.000001;
+        const dt = 0.001;
 
         this.context = new Context(canvas.getContext('webgl', { preserveDrawingBuffer: true }), true);
         this.dataFb0 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
         this.dataFb1 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
-        this.k1Fb = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
-        this.k2Fb = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
-        this.k3Fb = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
-        this.k4Fb = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.k1Fb =    createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.k2Fb =    createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.k3Fb =    createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.k4Fb =    createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
 
         const rect = rectangleA(2, 2);
 
@@ -187,6 +187,7 @@ export class RungeKuttaRenderer {
                 precision mediump float;
                 varying vec2 v_textureCoord;
                 uniform float u_dt;
+                uniform float u_kFactor;
                 uniform vec2 u_textureSize;
                 uniform sampler2D u_dataTexture;
                 uniform sampler2D u_kTexture;
@@ -196,11 +197,11 @@ export class RungeKuttaRenderer {
 
                     vec2 deltaX = vec2(1.0 / u_textureSize.x, 0.0);
                     vec2 deltaY = vec2(0.0, 1.0 / u_textureSize.y);
-                    vec4 data    = texture2D(u_dataTexture, v_textureCoord          ) + u_dt * texture2D(u_kTexture, v_textureCoord          );
-                    vec4 data_px = texture2D(u_dataTexture, v_textureCoord + deltaX ) + u_dt * texture2D(u_kTexture, v_textureCoord + deltaX );
-                    vec4 data_mx = texture2D(u_dataTexture, v_textureCoord - deltaX ) + u_dt * texture2D(u_kTexture, v_textureCoord - deltaX );
-                    vec4 data_py = texture2D(u_dataTexture, v_textureCoord + deltaY ) + u_dt * texture2D(u_kTexture, v_textureCoord + deltaY );
-                    vec4 data_my = texture2D(u_dataTexture, v_textureCoord - deltaY ) + u_dt * texture2D(u_kTexture, v_textureCoord - deltaY );
+                    vec4 data    = texture2D(u_dataTexture, v_textureCoord          ) + u_dt * u_kFactor * texture2D(u_kTexture, v_textureCoord          );
+                    vec4 data_px = texture2D(u_dataTexture, v_textureCoord + deltaX ) + u_dt * u_kFactor * texture2D(u_kTexture, v_textureCoord + deltaX );
+                    vec4 data_mx = texture2D(u_dataTexture, v_textureCoord - deltaX ) + u_dt * u_kFactor * texture2D(u_kTexture, v_textureCoord - deltaX );
+                    vec4 data_py = texture2D(u_dataTexture, v_textureCoord + deltaY ) + u_dt * u_kFactor * texture2D(u_kTexture, v_textureCoord + deltaY );
+                    vec4 data_my = texture2D(u_dataTexture, v_textureCoord - deltaY ) + u_dt * u_kFactor * texture2D(u_kTexture, v_textureCoord - deltaY );
 
                     //------------------ replace this section with your own, custom code --------------------------------------------------
                     float drdt = ((data_px.y - data_mx.y) / 0.001) + ((data_py.z - data_my.z) / 0.001);
@@ -216,6 +217,7 @@ export class RungeKuttaRenderer {
                 'a_textureCoord': new AttributeData(new Float32Array(rect.texturePositions.flat()), 'vec2', false)
             }, {
                 'u_dt':           new UniformData('float', [dt]),
+                'u_kFactor':      new UniformData('float', [0.0]),
                 'u_textureSize':  new UniformData('vec2', [w, h])
             }, {
                 'u_dataTexture':  new TextureData(data, 'float4'),
@@ -294,6 +296,19 @@ export class RungeKuttaRenderer {
         this.differentialBundle.upload(this.context);
         this.differentialBundle.initVertexArray(this.context);
         this.differentialBundle.bind(this.context);
+
+        this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.0]);
+        this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k1Fb);
+        this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.5]);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k1Fb.texture);
+        this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k2Fb);
+        this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.5]);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k2Fb.texture);
+        this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k3Fb);
+        this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [1.0]);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k3Fb.texture);
+        this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k4Fb);
+
         this.mergingBundle.upload(this.context);
         this.mergingBundle.initVertexArray(this.context);
         this.mergingBundle.bind(this.context);
@@ -317,18 +332,19 @@ export class RungeKuttaRenderer {
         //-------------------- Step 1: 4 runs to approximate the differential at different times ----------
         this.differentialBundle.bind(this.context);
         
+        this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.0]);
         this.differentialBundle.updateTextureData(this.context, 'u_dataTexture', dataSource.texture);
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k1Fb);
 
-        this.differentialBundle.updateUniformData(this.context, 'u_dt', [0.5]);
+        this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.5]);
         this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k1Fb.texture);
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k2Fb);
 
-        this.differentialBundle.updateUniformData(this.context, 'u_dt', [0.5]);
+        this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.5]);
         this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k2Fb.texture);
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k3Fb);
 
-        this.differentialBundle.updateUniformData(this.context, 'u_dt', [1.0]);
+        this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [1.0]);
         this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k3Fb.texture);
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k4Fb);
         //------------------------------------------------------------------------------------------------
@@ -337,11 +353,11 @@ export class RungeKuttaRenderer {
         //----------------- Step 2: weighted average of the 4 runs ---------------------------------------
         this.mergingBundle.bind(this.context);
         this.mergingBundle.updateUniformData(this.context, 'u_toCanvas', [0.0]);
-        // @TODO: check if updating texture is required here
-        this.mergingBundle.updateTextureData(this.context, 'u_k1', this.k1Fb.texture);
-        this.mergingBundle.updateTextureData(this.context, 'u_k2', this.k2Fb.texture);
-        this.mergingBundle.updateTextureData(this.context, 'u_k3', this.k3Fb.texture);
-        this.mergingBundle.updateTextureData(this.context, 'u_k4', this.k4Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_dataTexture', dataSource.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_k1',          this.k1Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_k2',          this.k2Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_k3',          this.k3Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_k4',          this.k4Fb.texture);
         this.mergingBundle.draw(this.context, [0, 0, 0, 0], dataTarget);
         //-------------------------------------------------------------------------------------------------
         

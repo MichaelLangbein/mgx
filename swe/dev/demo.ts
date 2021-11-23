@@ -52,7 +52,7 @@ renderer.setAnimationLoop((time) => {
 
   t += 1;
   if (t % 8 === 0) {
-    const sweData = sweRenderer.getImageData() as Uint8Array;
+    const sweData = sweRenderer.getImageData() as any;
     const oldPositions = plane.geometry.getAttribute('position');
     for (let i = 0; i < oldPositions.count; i++) {  
       const h = sweData[i * 4];

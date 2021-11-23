@@ -763,9 +763,9 @@ export const createFramebuffer = (gl: WebGLRenderingContext): WebGLFramebuffer =
     return fb;
 };
 
-export const createEmptyFramebufferObject = (gl: WebGLRenderingContext, width: number, height: number, use: 'data' | 'display'): FramebufferObject => {
+export const createEmptyFramebufferObject = (gl: WebGLRenderingContext, width: number, height: number, type: TextureType, use: 'data' | 'display'): FramebufferObject => {
     const fb = createFramebuffer(gl);
-    const fbTexture = createEmptyTexture(gl, width, height, 'ubyte4', use);
+    const fbTexture = createEmptyTexture(gl, width, height, type, use);
     const fbo = bindTextureToFramebuffer(gl, fbTexture, fb);
     return fbo;
 };

@@ -87,8 +87,8 @@ export class TextureSwappingRenderer {
             program, fullVertexData, fullUniformData, fullTextureData, 'triangles', rect.vertices.length);
 
         this.context = new Context(this.outputCanvas.getContext('webgl', {preserveDrawingBuffer: this.storePixels}), true);
-        this.fb1 = createEmptyFramebufferObject(this.context.gl, w, h, 'data');
-        this.fb2 = createEmptyFramebufferObject(this.context.gl, w, h, 'data');
+        this.fb1 = createEmptyFramebufferObject(this.context.gl, w, h, 'ubyte4', 'data');
+        this.fb2 = createEmptyFramebufferObject(this.context.gl, w, h, 'ubyte4', 'data');
     }
 
     public init() {
@@ -134,3 +134,184 @@ export class ProgramSwappingRenderer {
 }
 
 
+
+
+export class RungeKuttaRenderer {
+
+    private differentialBundle: ArrayBundle;
+    private mergingBundle: ArrayBundle;
+    private dataFb0: FramebufferObject;
+    private dataFb1: FramebufferObject;
+    private k1Fb: FramebufferObject;
+    private k2Fb: FramebufferObject;
+    private k3Fb: FramebufferObject;
+    private k4Fb: FramebufferObject;
+    private context: Context;
+    private i = 0;
+
+    constructor(canvas: HTMLCanvasElement) {
+        const w = 256;
+        const h = 256;
+        const data = [];
+        for (let r = 0; r < w; r++) {
+            data.push([]);
+            for (let c = 0; c < h; c++) {
+                data.push([...]);
+            }
+        }
+
+        this.context = new Context(canvas.getContext('webgl', { preserveDrawingBuffer: true }), true);
+        this.dataFb0 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.dataFb1 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.k1Fb = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.k2Fb = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.k3Fb = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.k4Fb = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+
+        const rect = rectangleA(2, 2);
+
+        this.differentialBundle = new ArrayBundle(
+            new Program(/*glsl*/`
+                precision mediump float;
+                attribute vec4 a_vertex;
+                attribute vec2 a_textureCoord;
+                varying vec2 v_textureCoord;
+                
+                void main() {
+                    v_textureCoord = a_textureCoord;
+                    gl_Position = a_vertex;  
+                }
+            `, /*glsl*/`
+                precision mediump float;
+                varying vec2 v_textureCoord;
+                uniform float u_dt;
+                uniform sampler2D u_kTexture;
+
+                void main() {
+
+
+
+                    gl_FragColor = 
+                }
+            `),
+            {
+                'a_vertex':       new AttributeData(new Float32Array(rect.vertices.flat()), 'vec4', false),
+                'a_textureCoord': new AttributeData(new Float32Array(rect.texturePositions.flat()), 'vec2', false)
+            }, {
+                'u_dt': new UniformData('float', [0.001])
+            }, {
+                'u_kTexture': new TextureData(data, 'float4')
+            },
+            'triangles',
+            rect.vertices.length
+        );
+
+        this.mergingBundle = new ArrayBundle(
+            new Program(/*glsl*/`
+                precision mediump float;
+                attribute vec4 a_vertex;
+                attribute vec2 a_textureCoord;
+                varying vec2 v_textureCoord;
+                
+                void main() {
+                    v_textureCoord = a_textureCoord;
+                    gl_Position = a_vertex;  
+                }
+            `, /*glsl*/`
+                precision mediump float;
+                varying vec2 v_textureCoord;
+                uniform sampler2D u_data;
+                uniform sampler2D u_k1;
+                uniform sampler2D u_k2;
+                uniform sampler2D u_k3;
+                uniform sampler2D u_k4;
+                uniform float u_toCanvas;
+
+                void main() {
+
+                    vec4 data = texture2D(u_data, v_textureCoord);
+                    vec4 k1   = texture2D(u_k1,   v_textureCoord);
+                    vec4 k2   = texture2D(u_k2,   v_textureCoord);
+                    vec4 k3   = texture2D(u_k3,   v_textureCoord);
+                    vec4 k4   = texture2D(u_k4,   v_textureCoord);
+
+                    vec4 weightedAverage = data + dt * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0;
+
+                    if (u_toCanvas > 0.5) {
+                        // normalize
+                    } else {
+                        gl_FragColor = weightedAverage;
+                    }
+                }
+            `),
+            {
+                'a_vertex':       new AttributeData(new Float32Array(rect.vertices.flat()), 'vec4', false),
+                'a_textureCoord': new AttributeData(new Float32Array(rect.texturePositions.flat()), 'vec2', false)
+            }, {
+                'u_toCanvas': new UniformData('float', [0.0])
+            }, {
+                'u_data':   new TextureData(data,              'float4'),
+                'u_k1':     new TextureData(this.k1Fb.texture, 'float4'),
+                'u_k2':     new TextureData(this.k2Fb.texture, 'float4'),
+                'u_k3':     new TextureData(this.k3Fb.texture, 'float4'),
+                'u_k4':     new TextureData(this.k4Fb.texture, 'float4'),
+            },
+            'triangles',
+            rect.vertices.length
+        );
+
+    }
+
+    draw() {
+        //----------------------- Step 0: swapping source- and target-textures ---------------------------
+        let dataSource;
+        let dataTarget;
+        if (this.i % 2 === 0) {
+            dataSource = this.dataFb0;
+            dataTarget = this.dataFb1;
+        } else {
+            dataSource = this.dataFb1;
+            dataTarget = this.dataFb0;
+        }
+        this.i += 1;
+        //-------------------------------------------------------------------------------------------------
+
+        //-------------------- Step 1: 4 runs to approximate the differential at different times ----------
+        this.differentialBundle.bind(this.context);
+        
+        this.differentialBundle.updateTextureData(this.context, 'u_dataTexture', dataSource.texture);
+        this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k1Fb);
+
+        this.differentialBundle.updateUniformData(this.context, 'u_dt', [0.5]);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k1Fb.texture);
+        this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k2Fb);
+
+        this.differentialBundle.updateUniformData(this.context, 'u_dt', [0.5]);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k2Fb.texture);
+        this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k3Fb);
+
+        this.differentialBundle.updateUniformData(this.context, 'u_dt', [1.0]);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k3Fb.texture);
+        this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k4Fb);
+        //------------------------------------------------------------------------------------------------
+
+        //----------------- Step 2: weighted average of the 4 runs ---------------------------------------
+        this.mergingBundle.bind(this.context);
+        this.mergingBundle.updateUniformData(this.context, 'u_toCanvas', [0.0]);
+        this.mergingBundle.updateTextureData(this.context, 'u_k1', this.k1Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_k2', this.k2Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_k3', this.k3Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_k4', this.k4Fb.texture);
+        this.mergingBundle.draw(this.context, [0, 0, 0, 0], dataTarget);
+        //-------------------------------------------------------------------------------------------------
+
+        //----------------- Step 3: drawing to canvas -----------------------------------------------------
+        this.mergingBundle.updateUniformData(this.context, 'u_toCanvas', [1.0]);
+        this.mergingBundle.draw(this.context, [0, 0, 0, 0]);
+        //-------------------------------------------------------------------------------------------------
+    }
+
+    public getImageData() {
+        return getCurrentFramebuffersPixels(this.context.gl.canvas);
+    }
+}

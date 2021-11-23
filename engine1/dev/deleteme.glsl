@@ -1,18 +1,31 @@
 precision mediump float;
-uniform sampler2D u_texture;
-uniform vec2 u_textureSize;
-varying vec2 v_textureCoord;
+                varying vec2 v_textureCoord;
+                uniform sampler2D u_data;
+                uniform sampler2D u_k1;
+                uniform sampler2D u_k2;
+                uniform sampler2D u_k3;
+                uniform sampler2D u_k4;
+                uniform vec2 u_RRange;
+                uniform vec2 u_GRange;
+                uniform vec2 u_BRange;
+                uniform float u_toCanvas;
 
-void main() {
+                void main() {
 
-    vec2 deltaX = vec2(1.0 / u_textureSize.x, 0.0);
-    vec2 deltaY = vec2(0.0, 1.0 / u_textureSize.y);
-    vec4 texData00 = texture2D(u_texture, v_textureCoord );
-    vec4 texDataPX = texture2D(u_texture, v_textureCoord + deltaX);
-    vec4 texDataMX = texture2D(u_texture, v_textureCoord - deltaX);
-    vec4 texDataPY = texture2D(u_texture, v_textureCoord + deltaY);
-    vec4 texDataMY = texture2D(u_texture, v_textureCoord - deltaY);
+                    vec4 data = texture2D(u_data, v_textureCoord);
+                    vec4 k1   = texture2D(u_k1,   v_textureCoord);
+                    vec4 k2   = texture2D(u_k2,   v_textureCoord);
+                    vec4 k3   = texture2D(u_k3,   v_textureCoord);
+                    vec4 k4   = texture2D(u_k4,   v_textureCoord);
 
-    gl_FragColor = 0.25 * (texData00 + texDataPX + texDataMX + texDataPX + texDataMY);
-    gl_FragColor = gl_FragColor * 0.0 + texData00;
-}
+                    vec4 weightedAverage = data + dt * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0;
+
+                    if (u_toCanvas > 0.5) {
+                        float rNorm = (weightedAverage.x - u_RRange[0]) / (u_RRange[1] - u_RRange[0]);
+                        float gNorm = (weightedAverage.y - u_GRange[0]) / (u_GRange[1] - u_GRange[0]);
+                        float bNorm = (weightedAverage.z - u_BRange[0]) / (u_BRange[1] - u_BRange[0]);
+                        gl_FragColor = vec4(rNorm, gNorm, bNorm, 1.0);
+                    } else {
+                        gl_FragColor = weightedAverage;
+                    }
+                }

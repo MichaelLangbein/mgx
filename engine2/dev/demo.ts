@@ -48,8 +48,8 @@ const program = new Program(/*glsl*/`#version 300 es
         vec4 texDataPY = texture(u_texture, v_textureCoord + deltaY);
         vec4 texDataMY = texture(u_texture, v_textureCoord - deltaY);
 
-        fragColor = 0.25 * (texData00 + texDataPX + texDataMX + texDataPX + texDataMY);
-        fragColor = fragColor * 0.0 + texData00;
+        fragColor = (texData00 + texDataPX + texDataMX + texDataPX + texDataMY) / 5.0;
+        // fragColor = fragColor * 0.0 + texData00;
     }
 `);
 

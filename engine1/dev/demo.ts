@@ -15,6 +15,7 @@ const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const renderer = new RungeKuttaRenderer(canvas);
 
 function render() {
+    console.log('drawing ...')
     renderer.render(true);
     setTimeout(render, 100);
 }

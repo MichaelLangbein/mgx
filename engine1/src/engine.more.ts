@@ -156,11 +156,15 @@ export class RungeKuttaRenderer {
         for (let r = 0; r < w; r++) {
             data.push([]);
             for (let c = 0; c < h; c++) {
-                data[r].push([Math.sin(r * 10), Math.cos(c * 10), Math.sqrt(r % c), 1.0]);
+                if (Math.abs(r - w/2) < 10 && Math.abs(c - h/2) < 10) {
+                    data[r].push([0.0, 10.0, 10.0, 1.0]);
+                } else {
+                    data[r].push([0.0, 0.0, 0.0, 1.0]);
+                }
             }
         }
         // @TODO: set dt for stability: https://nbviewer.org/github/barbagroup/CFDPython/blob/master/lessons/03_CFL_Condition.ipynb
-        const dt = 0.001;
+        const dt = 0.0001;
 
         this.context = new Context(canvas.getContext('webgl', { preserveDrawingBuffer: true }), true);
         this.dataFb0 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
@@ -204,11 +208,24 @@ export class RungeKuttaRenderer {
                     vec4 data_my = texture2D(u_dataTexture, v_textureCoord - deltaY ) + u_dt * u_kFactor * texture2D(u_kTexture, v_textureCoord - deltaY );
 
                     //------------------ replace this section with your own, custom code --------------------------------------------------
-                    float drdt = ((data_px.y - data_mx.y) / 0.001) + ((data_py.z - data_my.z) / 0.001);
-                    float dgdt = (data_px.x - data_mx.x) / 0.001;
-                    float dbdt = (data_py.x - data_my.x) / 0.001;
+                    float u = data[1];
+                    float v = data[2];
+                    float upx = data_px[1];
+                    float vpx = data_px[2];
+                    float umx = data_mx[1];
+                    float vmx = data_mx[2];
+                    float upy = data_py[1];
+                    float vpy = data_py[2];
+                    float umy = data_my[1];
+                    float vmy = data_my[2];
+                    float dx = 0.05;
+                    float dy = 0.05;
 
-                    gl_FragColor = vec4(drdt, dgdt, dbdt, 1.0);
+                    float dudt = - u * (upx - umx) / (2.0 * dx) - v * (vpy - vmy) / (2.0 * dy);
+                    float dvdt = - u * (upx - umx) / (2.0 * dx) - v * (vpy - vmy) / (2.0 * dy);
+
+                    gl_FragColor = vec4(0.0, dudt, dvdt, 1.0);
+                    // gl_FragColor = 0.0 * gl_FragColor + vec4(data.xyz, 1.0);
                     //---------------------------------------------------------------------------------------------------------------------
                 }
             `),
@@ -278,9 +295,9 @@ export class RungeKuttaRenderer {
             }, {
                 'u_dt':           new UniformData('float', [dt]),
                 'u_toCanvas':     new UniformData('float', [0.0]),
-                'u_RRange':       new UniformData('vec2', [0.0, 100.0]),
-                'u_GRange':       new UniformData('vec2', [0.0, 100.0]),
-                'u_BRange':       new UniformData('vec2', [0.0, 100.0]),
+                'u_RRange':       new UniformData('vec2', [-10.0, 10.0]),
+                'u_GRange':       new UniformData('vec2', [-10.0, 10.0]),
+                'u_BRange':       new UniformData('vec2', [-10.0, 10.0]),
             }, {
                 'u_dataTexture':  new TextureData(data,              'float4'),
                 'u_k1':           new TextureData(this.k1Fb.texture, 'float4'),
@@ -298,20 +315,34 @@ export class RungeKuttaRenderer {
         this.differentialBundle.bind(this.context);
 
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.0]);
+        // this.differentialBundle.updateTextureData(this.context, 'u_dataTexture', dataSource.texture);
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k1Fb);
+
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.5]);
         this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k1Fb.texture);
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k2Fb);
+
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.5]);
         this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k2Fb.texture);
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k3Fb);
+
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [1.0]);
         this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k3Fb.texture);
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k4Fb);
-
+        
         this.mergingBundle.upload(this.context);
         this.mergingBundle.initVertexArray(this.context);
         this.mergingBundle.bind(this.context);
+
+        this.mergingBundle.updateUniformData(this.context, 'u_toCanvas', [0.0]);
+        // this.mergingBundle.updateTextureData(this.context, 'u_dataTexture', dataSource.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_k1',          this.k1Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_k2',          this.k2Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_k3',          this.k3Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_k4',          this.k4Fb.texture);
+        this.mergingBundle.draw(this.context, [0, 0, 0, 0], this.dataFb0);
+
+        this.mergingBundle.draw(this.context, [0, 0, 0, 0]);
     }
 
     render(alsoDrawToCanvas = false) {

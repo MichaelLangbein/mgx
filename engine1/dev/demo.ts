@@ -1,14 +1,6 @@
 import { RungeKuttaRenderer, TextureData } from '../src';
 
 
-/**
- * This demo also showcases webgl's float-texture behavior.
- * Input may be any float-value, 
- * but when rendering to the canvas, webgl clamps all to [0, 1]
- */
-
-
-
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 
 const Hdata = [];
@@ -63,12 +55,23 @@ const code = /*glsl*/`
     gl_FragColor = vec4(dhdt, dudt, dvdt, 1.0);
 `;
 
-const renderer = new RungeKuttaRenderer(canvas, data, code, {
+const deltaT = 0.001;
+const hMin = -10;
+const hMax = 10;
+const uMin = -10;
+const uMax = 10;
+const vMin = -10;
+const vMax = 10;
+
+const renderer = new RungeKuttaRenderer(canvas, data, deltaT, code, {
+    'r': [hMin, hMax],
+    'g': [uMin, uMax],
+    'b': [vMin, vMax],
+}, {
     'u_HTexture': new TextureData(Hdata, 'float4')
 });
 
 function render() {
-    console.log('drawing ...')
     renderer.render(true);
     setTimeout(render, 100);
 }

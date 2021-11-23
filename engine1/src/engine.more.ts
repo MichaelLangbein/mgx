@@ -135,7 +135,11 @@ export class ProgramSwappingRenderer {
 
 
 
-
+/**
+ * 
+ * ## Note:
+ * dt <--- set dt for stability: https://nbviewer.org/github/barbagroup/CFDPython/blob/master/lessons/03_CFL_Condition.ipynb
+ */
 export class RungeKuttaRenderer {
 
     private differentialBundle: ArrayBundle;
@@ -152,13 +156,13 @@ export class RungeKuttaRenderer {
     constructor(
         canvas: HTMLCanvasElement,
         data: number[][][],
+        dt: number,
         differentialShaderCode: string,
+        rgbRanges: RgbRanges,
         userProvidedTextures: {[key: string]: TextureData} = {},
     ) {
         const w = data.length;
         const h = data[0].length;
-        // @TODO: set dt for stability: https://nbviewer.org/github/barbagroup/CFDPython/blob/master/lessons/03_CFL_Condition.ipynb
-        const dt = 0.0001;
 
         this.context = new Context(canvas.getContext('webgl', { preserveDrawingBuffer: true }), true);
         this.dataFb0 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
@@ -279,9 +283,9 @@ export class RungeKuttaRenderer {
             }, {
                 'u_dt':           new UniformData('float', [dt]),
                 'u_toCanvas':     new UniformData('float', [0.0]),
-                'u_RRange':       new UniformData('vec2', [-10.0, 10.0]),
-                'u_GRange':       new UniformData('vec2', [-10.0, 10.0]),
-                'u_BRange':       new UniformData('vec2', [-10.0, 10.0]),
+                'u_RRange':       new UniformData('vec2', [rgbRanges['r'][0], rgbRanges['r'][1]]),
+                'u_GRange':       new UniformData('vec2', [rgbRanges['g'][0], rgbRanges['g'][1]]),
+                'u_BRange':       new UniformData('vec2', [rgbRanges['b'][0], rgbRanges['b'][1]]),
             }, {
                 'u_dataTexture':  new TextureData(data,              'float4'),
                 'u_k1':           new TextureData(this.k1Fb.texture, 'float4'),
@@ -388,4 +392,10 @@ export class RungeKuttaRenderer {
     public getImageData() {
         return getCurrentFramebuffersPixels(this.context.gl.canvas);
     }
+}
+
+export interface RgbRanges {
+    'r': [number, number],
+    'g': [number, number],
+    'b': [number, number],
 }

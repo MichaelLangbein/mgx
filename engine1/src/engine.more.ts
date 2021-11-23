@@ -149,20 +149,13 @@ export class RungeKuttaRenderer {
     private context: Context;
     private i = 0;
 
-    constructor(canvas: HTMLCanvasElement) {
-        const w = 256;
-        const h = 256;
-        const data = [];
-        for (let r = 0; r < w; r++) {
-            data.push([]);
-            for (let c = 0; c < h; c++) {
-                if (Math.abs(r - w/2) < 10 && Math.abs(c - h/2) < 10) {
-                    data[r].push([0.0, 10.0, 10.0, 1.0]);
-                } else {
-                    data[r].push([0.0, 0.0, 0.0, 1.0]);
-                }
-            }
-        }
+    constructor(
+        canvas: HTMLCanvasElement,
+        data: number[][][],
+        differentialShaderCode: string
+    ) {
+        const w = data.length;
+        const h = data[0].length;
         // @TODO: set dt for stability: https://nbviewer.org/github/barbagroup/CFDPython/blob/master/lessons/03_CFL_Condition.ipynb
         const dt = 0.0001;
 
@@ -208,24 +201,7 @@ export class RungeKuttaRenderer {
                     vec4 data_my = texture2D(u_dataTexture, v_textureCoord - deltaY ) + u_dt * u_kFactor * texture2D(u_kTexture, v_textureCoord - deltaY );
 
                     //------------------ replace this section with your own, custom code --------------------------------------------------
-                    float u = data[1];
-                    float v = data[2];
-                    float upx = data_px[1];
-                    float vpx = data_px[2];
-                    float umx = data_mx[1];
-                    float vmx = data_mx[2];
-                    float upy = data_py[1];
-                    float vpy = data_py[2];
-                    float umy = data_my[1];
-                    float vmy = data_my[2];
-                    float dx = 0.05;
-                    float dy = 0.05;
-
-                    float dudt = - u * (upx - umx) / (2.0 * dx) - v * (vpy - vmy) / (2.0 * dy);
-                    float dvdt = - u * (upx - umx) / (2.0 * dx) - v * (vpy - vmy) / (2.0 * dy);
-
-                    gl_FragColor = vec4(0.0, dudt, dvdt, 1.0);
-                    // gl_FragColor = 0.0 * gl_FragColor + vec4(data.xyz, 1.0);
+                    ${differentialShaderCode}
                     //---------------------------------------------------------------------------------------------------------------------
                 }
             `),

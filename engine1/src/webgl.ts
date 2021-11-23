@@ -1040,6 +1040,12 @@ export const getCurrentFramebuffersPixels = (canvas: HTMLCanvasElement): ArrayBu
         throw new Error('no context');
     }
 
+    const canRead: boolean = (gl.checkFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE);
+    if (!canRead) {
+        throw new Error('Cannot read from current framebuffer. FramebufferStatus = ' + gl.checkFramebufferStatus(gl.FRAMEBUFFER));
+    }
+
+
     const format = gl.getParameter(gl.IMPLEMENTATION_COLOR_READ_FORMAT);
     const type = gl.getParameter(gl.IMPLEMENTATION_COLOR_READ_TYPE);
 

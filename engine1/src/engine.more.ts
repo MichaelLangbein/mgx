@@ -2,6 +2,7 @@ import {
     ArrayBundle, AttributeData, Bundle, Context,
     createEmptyFramebufferObject, FramebufferObject,
     getCurrentFramebuffersPixels, Program, TextureData,
+    TextureDataValue,
     UniformData 
 } from '../../engine1/src/index';
 import { rectangleA } from '../../utils/shapes';
@@ -136,7 +137,10 @@ export class ProgramSwappingRenderer {
 
 
 /**
- * 
+ * Use-case:
+ * I want to do a numerical simulation in 2d
+ * using Runge-Kutta(4) differentials.
+ *
  * ## Note:
  * dt <--- set dt for stability: https://nbviewer.org/github/barbagroup/CFDPython/blob/master/lessons/03_CFL_Condition.ipynb
  */
@@ -155,14 +159,26 @@ export class RungeKuttaRenderer {
 
     constructor(
         canvas: HTMLCanvasElement,
-        data: number[][][],
+        data: TextureDataValue,
         dt: number,
         differentialShaderCode: string,
         rgbRanges: RgbRanges,
         userProvidedTextures: {[key: string]: TextureData} = {},
     ) {
-        const w = data.length;
-        const h = data[0].length;
+
+        let w; let h;
+        if (Array.isArray(data)) {
+            w = data.length;
+            h = data[0].length;
+        } else if (data instanceof HTMLImageElement || data instanceof HTMLCanvasElement) {
+            w = data.width;
+            h = data.height;
+        } else {
+            w = data.width;
+            h = data.height;
+        }
+        canvas.width = w;
+        canvas.height = h;
 
         this.context = new Context(canvas.getContext('webgl', { preserveDrawingBuffer: true }), true);
         this.dataFb0 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
@@ -391,6 +407,10 @@ export class RungeKuttaRenderer {
 
     public getImageData() {
         return getCurrentFramebuffersPixels(this.context.gl.canvas);
+    }
+
+    public updateTexture(textureName: string, newData: TextureDataValue) {
+        this.differentialBundle.updateTextureData(this.context, textureName, newData);
     }
 }
 

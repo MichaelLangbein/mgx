@@ -152,7 +152,8 @@ export class RungeKuttaRenderer {
     constructor(
         canvas: HTMLCanvasElement,
         data: number[][][],
-        differentialShaderCode: string
+        differentialShaderCode: string,
+        userProvidedTextures: {[key: string]: TextureData} = {},
     ) {
         const w = data.length;
         const h = data[0].length;
@@ -168,6 +169,11 @@ export class RungeKuttaRenderer {
         this.k4Fb =    createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
 
         const rect = rectangleA(2, 2);
+
+        let userProvidedTexturesStringified = '';
+        for (const tName in userProvidedTextures) {
+            userProvidedTexturesStringified += ` uniform sampler2D ${tName}; `;
+        }
 
         this.differentialBundle = new ArrayBundle(
             new Program(/*glsl*/`
@@ -188,6 +194,7 @@ export class RungeKuttaRenderer {
                 uniform vec2 u_textureSize;
                 uniform sampler2D u_dataTexture;
                 uniform sampler2D u_kTexture;
+                ${ userProvidedTexturesStringified }
 
 
                 void main() {
@@ -207,14 +214,15 @@ export class RungeKuttaRenderer {
             `),
             {
                 'a_vertex':       new AttributeData(new Float32Array(rect.vertices.flat()), 'vec4', false),
-                'a_textureCoord': new AttributeData(new Float32Array(rect.texturePositions.flat()), 'vec2', false)
+                'a_textureCoord': new AttributeData(new Float32Array(rect.texturePositions.flat()), 'vec2', false),
             }, {
                 'u_dt':           new UniformData('float', [dt]),
                 'u_kFactor':      new UniformData('float', [0.0]),
-                'u_textureSize':  new UniformData('vec2', [w, h])
+                'u_textureSize':  new UniformData('vec2', [w, h]),
             }, {
                 'u_dataTexture':  new TextureData(data, 'float4'),
-                'u_kTexture':     new TextureData(data, 'float4')
+                'u_kTexture':     new TextureData(data, 'float4'),
+                ... userProvidedTextures
             },
             'triangles',
             rect.vertices.length

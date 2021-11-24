@@ -14,21 +14,6 @@ export class SweRenderer {
         H: HTMLImageElement
     ) {
 
-        // const Hdata = [];
-        // const data = [];
-        // for (let r = 0; r < 256; r++) {
-        //     data.push([]);
-        //     Hdata.push([]);
-        //     for (let c = 0; c < 256; c++) {
-        //         if (Math.abs(r - 256 / 2) < 2 && Math.abs(c - 256 / 2) < 2) {
-        //             data[r].push([1.0, 0.0, 0.0, 1.0]);
-        //         } else {
-        //             data[r].push([0.0, 0.0, 0.0, 1.0]);
-        //         }
-        //         Hdata[r].push([10, 0, 0, 1]);
-        //     }
-        // }
-
         const code = /*glsl*/`
             float H   = texture2D(u_HTexture, v_textureCoord)[0];
             float h   = data[0];
@@ -47,8 +32,8 @@ export class SweRenderer {
             float umy = data_my[1];
             float vmy = data_my[2];
             
-            float dx = 0.01;
-            float dy = 0.01;
+            float dx = 0.05;
+            float dy = 0.05;
             float f = 0.001;
             float b = 0.003;
             float g = 9.831;
@@ -66,7 +51,7 @@ export class SweRenderer {
             gl_FragColor = vec4(dhdt, dudt, dvdt, 1.0);
         `;
 
-        const deltaT = 0.0005;
+        const deltaT = 0.005;
         const hMin = -10;
         const hMax = 10;
         const uMin = -10;

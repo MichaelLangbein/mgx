@@ -4,7 +4,13 @@ import {
   Mesh, WebGLRenderer, AmbientLight, PlaneGeometry, AxesHelper,
   DirectionalLight, MeshPhongMaterial, MeshLambertMaterial, MeshStandardMaterial,
   Texture,
-  PointLight
+  PointLight,
+  CubeCamera,
+  WebGLCubeRenderTarget,
+  RGBFormat,
+  LinearMipmapLinearFilter,
+  CubeRefractionMapping,
+  MeshBasicMaterial
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
@@ -25,6 +31,7 @@ const camera = new PerspectiveCamera(70, threejs_canvas.clientWidth / threejs_ca
 camera.position.set(2, 10, 2);
 camera.lookAt(0, 5, -5);
 
+
 const scene = new Scene();
 
 const light = new PointLight(0xffffff, 1.0);
@@ -38,21 +45,40 @@ renderer.setSize(threejs_canvas.clientWidth, threejs_canvas.clientHeight);
 
 const controls = new OrbitControls(camera, threejs_canvas);
 
+
+
+
+
+const refrCamera = new CubeCamera(0.01, 100, new WebGLCubeRenderTarget( 
+  128,
+  { 
+    format: RGBFormat,
+    generateMipmaps: true,
+    minFilter: LinearMipmapLinearFilter,
+  }
+));
+refrCamera.renderTarget.texture.mapping = CubeRefractionMapping;
+scene.add(refrCamera);
+
+
+
+
 const geometry = new PlaneGeometry(10, 10, huvImage.width - 1, huvImage.height - 1);
-const material = new MeshPhongMaterial({
+const material = new MeshBasicMaterial({
   color: 'rgb(117, 255, 250)',
   // displacementMap: new Texture(canvas),
   // displacementScale: 50,
   // displacementBias: -25,
-  transparent: true,
-  opacity: 0.8,
-  reflectivity: 1.8
+  envMap: refrCamera.renderTarget.texture, 
+  refractionRatio: 0.985, 
+  reflectivity: 0.9
 });
 const plane = new Mesh(geometry, material);
 plane.castShadow = true;
 plane.receiveShadow = true;
 plane.position.set(0, 0.1, 0);
 plane.lookAt(0, 1, 0);
+refrCamera.position.set(plane.position.x, plane.position.y, plane.position.z);
 scene.add(plane);
 
 const geometry2 = new PlaneGeometry(10, 10, 5, 5);
@@ -85,6 +111,7 @@ renderer.setAnimationLoop((time) => {
   }
 
   controls.update();
+  refrCamera.update(renderer, scene);
   renderer.render(scene, camera);
 
   t += 1;

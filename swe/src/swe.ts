@@ -1,6 +1,6 @@
 import {
-    TextureData, RungeKuttaRenderer
-} from '@mgx/engine1';
+    TextureData, RungeKuttaRenderer, TextureDataValue
+} from '../../engine1';
 
 
 
@@ -10,8 +10,8 @@ export class SweRenderer {
 
     constructor(
         outputCanvas: HTMLCanvasElement,
-        huv: HTMLImageElement,
-        H: HTMLImageElement
+        huv: TextureDataValue,
+        H: TextureDataValue
     ) {
 
         const code = /*glsl*/`
@@ -78,6 +78,10 @@ export class SweRenderer {
 
     public getImageData() {
         return this.rkRenderer.getImageData();
+    }
+
+    public setHuvData(data: number[][][]) {
+        this.rkRenderer.updateTexture('u_dataTexture', data);
     }
 }
 

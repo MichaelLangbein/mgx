@@ -8,14 +8,6 @@ import {
 import { rectangleA } from '../../utils/shapes';
 
 
-/**
- * --------- TODOs ---------------------------
- * Having these as just classes doesn't seem right.
- * Would be better to have them as mixins, 
- * so that I could combine TextureSwappingRenderer 
- * and ProgramSwappingRenderer
- */
-
 
 /**
  * Use-case: 
@@ -123,15 +115,6 @@ export class TextureSwappingRenderer {
             console.warn('Cannot get image data: storePixels has been set to false');
         }
     }
-}
-
-/**
- * Use-case:
- * I want to use one program to render to a fb and then,
- * on the next iteration, use another program with fb as input.
- */
-export class ProgramSwappingRenderer {
-
 }
 
 
@@ -319,7 +302,7 @@ export class RungeKuttaRenderer {
         this.differentialBundle.bind(this.context);
 
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.0]);
-        // this.differentialBundle.updateTextureData(this.context, 'u_dataTexture', dataSource.texture);
+        this.differentialBundle.updateTextureData(this.context, 'u_dataTexture', data);
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k1Fb);
 
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.5]);
@@ -339,7 +322,7 @@ export class RungeKuttaRenderer {
         this.mergingBundle.bind(this.context);
 
         this.mergingBundle.updateUniformData(this.context, 'u_toCanvas', [0.0]);
-        // this.mergingBundle.updateTextureData(this.context, 'u_dataTexture', dataSource.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_dataTexture', data);
         this.mergingBundle.updateTextureData(this.context, 'u_k1',          this.k1Fb.texture);
         this.mergingBundle.updateTextureData(this.context, 'u_k2',          this.k2Fb.texture);
         this.mergingBundle.updateTextureData(this.context, 'u_k3',          this.k3Fb.texture);

@@ -42,7 +42,7 @@ for (let r = 0; r < 256; r++) {
   huvData.push([]);
   for (let c = 0; c < 256; c++) {
     if (Math.abs(r - 230) < 5 && Math.abs(c - 127) < 5) {
-      huvData[r].push([0.5, 0, 0, 1]);
+      huvData[r].push([0, 0, 0, 1]);
     } else {
       huvData[r].push([0, 0, 0, 1]);
     }
@@ -130,19 +130,19 @@ function addMeshes(
 }
 
 
-// threejsCanvas.addEventListener('click', () => {
+threejsCanvas.addEventListener('click', () => {
   
-//   const huvData: number[][][] = [];
-//   for (let r = 0; r < 256; r++) {
-//     huvData.push([]);
-//     for (let c = 0; c < 256; c++) {
-//       if (Math.abs(r - 28) < 5 && Math.abs(c - 28) < 5) {
-//         huvData[r].push([1, 0, 0, 1]);
-//       } else {
-//         huvData[r].push([0, 0, 0, 1]);
-//       }
-//     }
-//   }
+  const huvData: number[][][] = [];
+  for (let r = 0; r < 256; r++) {
+    huvData.push([]);
+    for (let c = 0; c < 256; c++) {
+      if (Math.abs(r - 28) < 5 && Math.abs(c - 28) < 5) {
+        huvData[r].push([1, 0, 0, 1]);
+      } else {
+        huvData[r].push([0, 0, 0, 1]);
+      }
+    }
+  }
 
-//   sweRenderer.setHuvData(huvData);
-// });
+  sweRenderer.setHuvData(huvData);
+});

@@ -48,6 +48,14 @@ export class SweRenderer {
             float dudt = ( + f*v - b*u - g * dhdx );
             float dvdt = ( - f*u - b*v - g * dhdy );
 
+            
+            float d = 1.5 * 1.0 / 256.0;
+            if(v_textureCoord.x <= d || v_textureCoord.x > 1.0 - d ||
+                v_textureCoord.y <= d || v_textureCoord.y > 1.0 - d    ) {
+                    dhdt = 0.0;
+                    dudt = 0.0;
+                    dvdt = 0.0;
+            }
             gl_FragColor = vec4(dhdt, dudt, dvdt, 1.0);
         `;
 

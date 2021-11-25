@@ -2,7 +2,7 @@ import { SweRenderer } from '../src/swe';
 import {
   PerspectiveCamera, Scene, Mesh, WebGLRenderer, PlaneGeometry, AxesHelper,
   PointLight, CubeCamera, WebGLCubeRenderTarget, RGBFormat, LinearMipmapLinearFilter,
-  CubeRefractionMapping, MeshBasicMaterial, TextureLoader, Texture, MeshStandardMaterial
+  CubeRefractionMapping, MeshBasicMaterial, TextureLoader, Texture, MeshStandardMaterial, Raycaster
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
@@ -119,30 +119,54 @@ function addMeshes(
       }
       oldPositions.needsUpdate = true;
       waterMesh.geometry.computeVertexNormals();
+      refractionCamera.update(renderer, scene);
     }
 
     controls.update();
-    refractionCamera.update(renderer, scene);
     renderer.render(scene, camera);
 
     t += 1;
   });
+
+
+  const rayCaster = new Raycaster();
+  threejsCanvas.addEventListener('click', (evt) => {
+    
+    /**
+     * @TODO:
+     *  - only on click, not at end of drag
+     */
+    const rect = threejsCanvas.getBoundingClientRect();
+    const x_ = (evt.clientX - rect.left) * threejsCanvas.width  / rect.width;
+    const y_ = (evt.clientY - rect.top ) * threejsCanvas.height / rect.height;
+    const x = (x_ / threejsCanvas.width ) * 2 - 1;
+    const y = (y_ / threejsCanvas.height) * -2 + 1;
+    rayCaster.setFromCamera({x, y}, camera);
+    const intersections = rayCaster.intersectObject(waterMesh);
+    if (intersections) {
+      const intersection = intersections[0];
+      const cc = 126 + (126 * intersection.point.x / 5);
+      const cr = 126 + (126 * intersection.point.z / 5);
+    
+      const newData: number[][][] = [];
+      const oldData = sweRenderer.getImageData() as any;
+      for (let r = 0; r < 256; r++) {
+        newData.push([]);
+        for (let c = 0; c < 256; c++) {
+          const oldH = oldData[r * 256 * 4 + c * 4 + 0];
+          const oldU = oldData[r * 256 * 4 + c * 4 + 1];
+          const oldV = oldData[r * 256 * 4 + c * 4 + 2];
+          if (Math.abs(r - cr) < 5 && Math.abs(c - cc) < 5) {
+            newData[r].push([oldH + 1, oldU, oldV, 1]);
+          } else {
+            newData[r].push([oldH, oldU, oldV, 1]);
+          }
+        }
+      }
+      sweRenderer.setHuvData(newData);
+    }
+  
+  });
 }
 
-
-threejsCanvas.addEventListener('click', () => {
-  
-  const huvData: number[][][] = [];
-  for (let r = 0; r < 256; r++) {
-    huvData.push([]);
-    for (let c = 0; c < 256; c++) {
-      if (Math.abs(r - 28) < 5 && Math.abs(c - 28) < 5) {
-        huvData[r].push([1, 0, 0, 1]);
-      } else {
-        huvData[r].push([0, 0, 0, 1]);
-      }
-    }
-  }
-
-  sweRenderer.setHuvData(huvData);
-});
+ 

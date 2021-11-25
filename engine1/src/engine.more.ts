@@ -2,10 +2,10 @@ import {
     ArrayBundle, AttributeData, Bundle, Context,
     createEmptyFramebufferObject, FramebufferObject,
     getCurrentFramebuffersPixels, Program, TextureData,
-    TextureDataValue,
-    UniformData 
+    TextureDataValue, UniformData 
 } from '../../engine1/src/index';
 import { rectangleA } from '../../utils/shapes';
+import { updateTexture } from './webgl';
 
 
 
@@ -393,7 +393,29 @@ export class RungeKuttaRenderer {
     }
 
     public updateTexture(textureName: string, newData: TextureDataValue) {
-        this.differentialBundle.updateTextureData(this.context, textureName, newData);
+
+        // case 1: if u_dataTexture is to be updated, we need to change the upcoming framebuffer
+        if (textureName === 'u_dataTexture') {
+            let dataSource: FramebufferObject;
+            if (this.i % 2 === 0) {
+                dataSource = this.dataFb0;
+            } else {
+                dataSource = this.dataFb1;
+            }
+
+            // @TODO: there should be a method `engine.core.FramebufferAbstraction.updateTexture`
+            if (newData instanceof HTMLCanvasElement || newData instanceof HTMLImageElement || Array.isArray(newData)) {
+                updateTexture(this.context.gl, dataSource.texture, newData);
+            } else {
+                dataSource.texture = newData;
+            }
+        } 
+
+        // case 2: otherwise just a normal texture-update
+        else {
+            this.differentialBundle.bind(this.context);
+            this.differentialBundle.updateTextureData(this.context, textureName, newData);
+        }
     }
 }
 

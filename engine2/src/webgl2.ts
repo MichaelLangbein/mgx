@@ -783,6 +783,7 @@ export const updateTexture = (gl: WebGL2RenderingContext, to: TextureObject, new
     gl.bindTexture(gl.TEXTURE_2D, to.texture);  // analog to bindBuffer. Binds texture to currently active texture-bindpoint (aka. texture unit).
     if (newData instanceof HTMLImageElement || newData instanceof HTMLCanvasElement) {
         gl.texImage2D(gl.TEXTURE_2D, 0, to.internalformat, to.format, to.type, newData);  // analog to bufferData
+        gl.generateMipmap(gl.TEXTURE_2D); // mipmaps are mini-versions of the texture. 
     } else {
         const width = newData[0].length;
         const height = newData.length;
@@ -793,7 +794,6 @@ export const updateTexture = (gl: WebGL2RenderingContext, to: TextureObject, new
         const paras = getTextureParas(gl, to.textureType, flatten3(newData));
         gl.texImage2D(gl.TEXTURE_2D, to.level, to.internalformat, to.width, to.height, to.border, to.format, to.type, paras.binData);
     }
-    gl.generateMipmap(gl.TEXTURE_2D); // mipmaps are mini-versions of the texture.
     gl.bindTexture(gl.TEXTURE_2D, null);  // unbinding
 
     if (newData instanceof HTMLImageElement) {

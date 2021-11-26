@@ -800,7 +800,7 @@ export const bindFramebuffer = (gl: WebGLRenderingContext, fbo: FramebufferObjec
  * That canvas.width * canvas.height then gets stretched to canvas.clientWidth * canvas.clientHeight.
  * (Note: the full canvas.width gets stretched to clientWidth, not just the viewport!)
  */
-export const bindOutputCanvasToFramebuffer = (gl: WebGLRenderingContext, manualViewport?: [number, number, number, number]) => {
+export const bindCanvasToDrawingBuffer = (gl: WebGLRenderingContext, manualViewport?: [number, number, number, number]) => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     // It's EXTREMELY IMPORTANT to remember to call gl.viewport and set it to the size of the thing your rendering to.
     // https://webglfundamentals.org/webgl/lessons/webgl-render-to-texture.html
@@ -1034,11 +1034,7 @@ export const bindValueToUniform = (gl: WebGLRenderingContext, uniformLocation: W
  *
  * Note: WebGL2 allows to use `drawBuffer` and `readBuffer`, so that we are no longer limited to only the current framebuffer.
  */
-export const getCurrentFramebuffersPixels = (canvas: HTMLCanvasElement): ArrayBuffer  => {
-    const gl = canvas.getContext('webgl') as WebGLRenderingContext;
-    if (!gl) {
-        throw new Error('no context');
-    }
+export const getCurrentFramebuffersPixels = (gl: WebGLRenderingContext, width: number, height: number): ArrayBuffer  => {
 
     const canRead: boolean = (gl.checkFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE);
     if (!canRead) {
@@ -1062,7 +1058,7 @@ export const getCurrentFramebuffersPixels = (canvas: HTMLCanvasElement): ArrayBu
 
     // Just like `toDataURL` or `toBlob`, `readPixels` does not access the frontbuffer.
     // It accesses the backbuffer or any other currently active framebuffer.
-    gl.readPixels(0, 0, canvas.width, canvas.height, format, type, pixels);
+    gl.readPixels(0, 0, width, height, format, type, pixels);
 
     return pixels;
 };

@@ -1,11 +1,9 @@
 import {
     ArrayBundle, AttributeData, Bundle, Context,
-    createEmptyFramebufferObject, FramebufferObject,
-    getCurrentFramebuffersPixels, Program, TextureData,
+    Program, TextureData, FrameBuffer,
     TextureDataValue, UniformData 
 } from '../../engine1/src/index';
 import { rectangleA } from '../../utils/shapes';
-import { updateTexture } from './webgl';
 
 
 
@@ -27,8 +25,8 @@ export class TextureSwappingRenderer {
 
     private bundle: Bundle;
     private context: Context;
-    private fb1: FramebufferObject;
-    private fb2: FramebufferObject;
+    private fb1: FrameBuffer;
+    private fb2: FrameBuffer;
     private i = 0;
 
     constructor(
@@ -80,8 +78,8 @@ export class TextureSwappingRenderer {
             program, fullVertexData, fullUniformData, fullTextureData, 'triangles', rect.vertices.length);
 
         this.context = new Context(this.outputCanvas.getContext('webgl', {preserveDrawingBuffer: this.storePixels}), true);
-        this.fb1 = createEmptyFramebufferObject(this.context.gl, w, h, 'ubyte4', 'data');
-        this.fb2 = createEmptyFramebufferObject(this.context.gl, w, h, 'ubyte4', 'data');
+        this.fb1 = new FrameBuffer(this.context.gl, w, h, 'ubyte4', 'data');
+        this.fb2 = new FrameBuffer(this.context.gl, w, h, 'ubyte4', 'data');
     }
 
     public init() {
@@ -95,10 +93,10 @@ export class TextureSwappingRenderer {
     public render() {
         // first draw: to fb, so as to update the source texture for the next iteration
         if (this.i % 2 === 0) {
-            this.bundle.updateTextureData(this.context, this.swappedTextureName, this.fb1.texture);
+            this.bundle.updateTextureData(this.context, this.swappedTextureName, this.fb1.getTexture());
             this.bundle.draw(this.context, [0, 0, 0, 0], this.fb2);
         } else {
-            this.bundle.updateTextureData(this.context, this.swappedTextureName, this.fb2.texture);
+            this.bundle.updateTextureData(this.context, this.swappedTextureName, this.fb2.getTexture());
             this.bundle.draw(this.context, [0, 0, 0, 0], this.fb1);
         }
         this.i += 1;
@@ -110,7 +108,13 @@ export class TextureSwappingRenderer {
 
     public getImageData() {
         if (this.storePixels) {
-            return getCurrentFramebuffersPixels(this.context.gl.canvas);
+            let dataSource: FrameBuffer;
+            if (this.i % 2 === 0) {
+                dataSource = this.fb1;
+            } else {
+                dataSource = this.fb2;
+            }
+            return dataSource.getData(this.context.gl);
         } else {
             console.warn('Cannot get image data: storePixels has been set to false');
         }
@@ -131,12 +135,12 @@ export class RungeKuttaRenderer {
 
     private differentialBundle: ArrayBundle;
     private mergingBundle: ArrayBundle;
-    private dataFb0: FramebufferObject;
-    private dataFb1: FramebufferObject;
-    private k1Fb: FramebufferObject;
-    private k2Fb: FramebufferObject;
-    private k3Fb: FramebufferObject;
-    private k4Fb: FramebufferObject;
+    private dataFb0: FrameBuffer;
+    private dataFb1: FrameBuffer;
+    private k1Fb: FrameBuffer;
+    private k2Fb: FrameBuffer;
+    private k3Fb: FrameBuffer;
+    private k4Fb: FrameBuffer;
     private context: Context;
     private i = 0;
 
@@ -164,12 +168,12 @@ export class RungeKuttaRenderer {
         canvas.height = h;
 
         this.context = new Context(canvas.getContext('webgl', { preserveDrawingBuffer: true }), true);
-        this.dataFb0 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
-        this.dataFb1 = createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
-        this.k1Fb =    createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
-        this.k2Fb =    createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
-        this.k3Fb =    createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
-        this.k4Fb =    createEmptyFramebufferObject(this.context.gl, w, h, 'float4', 'data');
+        this.dataFb0 = new FrameBuffer(this.context.gl, w, h, 'float4', 'data');
+        this.dataFb1 = new FrameBuffer(this.context.gl, w, h, 'float4', 'data');
+        this.k1Fb =    new FrameBuffer(this.context.gl, w, h, 'float4', 'data');
+        this.k2Fb =    new FrameBuffer(this.context.gl, w, h, 'float4', 'data');
+        this.k3Fb =    new FrameBuffer(this.context.gl, w, h, 'float4', 'data');
+        this.k4Fb =    new FrameBuffer(this.context.gl, w, h, 'float4', 'data');
 
         const rect = rectangleA(2, 2);
 
@@ -286,11 +290,11 @@ export class RungeKuttaRenderer {
                 'u_GRange':       new UniformData('vec2', [rgbRanges['g'][0], rgbRanges['g'][1]]),
                 'u_BRange':       new UniformData('vec2', [rgbRanges['b'][0], rgbRanges['b'][1]]),
             }, {
-                'u_dataTexture':  new TextureData(data,              'float4'),
-                'u_k1':           new TextureData(this.k1Fb.texture, 'float4'),
-                'u_k2':           new TextureData(this.k2Fb.texture, 'float4'),
-                'u_k3':           new TextureData(this.k3Fb.texture, 'float4'),
-                'u_k4':           new TextureData(this.k4Fb.texture, 'float4'),
+                'u_dataTexture':  new TextureData(data,                   'float4'),
+                'u_k1':           new TextureData(this.k1Fb.getTexture(), 'float4'),
+                'u_k2':           new TextureData(this.k2Fb.getTexture(), 'float4'),
+                'u_k3':           new TextureData(this.k3Fb.getTexture(), 'float4'),
+                'u_k4':           new TextureData(this.k4Fb.getTexture(), 'float4'),
             },
             'triangles',
             rect.vertices.length
@@ -306,15 +310,15 @@ export class RungeKuttaRenderer {
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k1Fb);
 
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.5]);
-        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k1Fb.texture);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k1Fb.getTexture() );
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k2Fb);
 
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.5]);
-        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k2Fb.texture);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k2Fb.getTexture() );
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k3Fb);
 
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [1.0]);
-        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k3Fb.texture);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k3Fb.getTexture() );
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k4Fb);
         
         this.mergingBundle.upload(this.context);
@@ -322,11 +326,11 @@ export class RungeKuttaRenderer {
         this.mergingBundle.bind(this.context);
 
         this.mergingBundle.updateUniformData(this.context, 'u_toCanvas', [0.0]);
-        this.mergingBundle.updateTextureData(this.context, 'u_dataTexture', data);
-        this.mergingBundle.updateTextureData(this.context, 'u_k1',          this.k1Fb.texture);
-        this.mergingBundle.updateTextureData(this.context, 'u_k2',          this.k2Fb.texture);
-        this.mergingBundle.updateTextureData(this.context, 'u_k3',          this.k3Fb.texture);
-        this.mergingBundle.updateTextureData(this.context, 'u_k4',          this.k4Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_dataTexture', data                   );
+        this.mergingBundle.updateTextureData(this.context, 'u_k1',          this.k1Fb.getTexture() );
+        this.mergingBundle.updateTextureData(this.context, 'u_k2',          this.k2Fb.getTexture() );
+        this.mergingBundle.updateTextureData(this.context, 'u_k3',          this.k3Fb.getTexture() );
+        this.mergingBundle.updateTextureData(this.context, 'u_k4',          this.k4Fb.getTexture() );
         this.mergingBundle.draw(this.context, [0, 0, 0, 0], this.dataFb0);
 
         this.mergingBundle.draw(this.context, [0, 0, 0, 0]);
@@ -351,19 +355,19 @@ export class RungeKuttaRenderer {
         this.differentialBundle.bind(this.context);
         
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.0]);
-        this.differentialBundle.updateTextureData(this.context, 'u_dataTexture', dataSource.texture);
+        this.differentialBundle.updateTextureData(this.context, 'u_dataTexture', dataSource.getTexture() );
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k1Fb);
 
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.5]);
-        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k1Fb.texture);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k1Fb.getTexture() );
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k2Fb);
 
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [0.5]);
-        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k2Fb.texture);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k2Fb.getTexture() );
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k3Fb);
 
         this.differentialBundle.updateUniformData(this.context, 'u_kFactor', [1.0]);
-        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k3Fb.texture);
+        this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k3Fb.getTexture() );
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k4Fb);
         //------------------------------------------------------------------------------------------------
 
@@ -371,11 +375,11 @@ export class RungeKuttaRenderer {
         //----------------- Step 2: weighted average of the 4 runs ---------------------------------------
         this.mergingBundle.bind(this.context);
         this.mergingBundle.updateUniformData(this.context, 'u_toCanvas', [0.0]);
-        this.mergingBundle.updateTextureData(this.context, 'u_dataTexture', dataSource.texture);
-        this.mergingBundle.updateTextureData(this.context, 'u_k1',          this.k1Fb.texture);
-        this.mergingBundle.updateTextureData(this.context, 'u_k2',          this.k2Fb.texture);
-        this.mergingBundle.updateTextureData(this.context, 'u_k3',          this.k3Fb.texture);
-        this.mergingBundle.updateTextureData(this.context, 'u_k4',          this.k4Fb.texture);
+        this.mergingBundle.updateTextureData(this.context, 'u_dataTexture', dataSource.getTexture() );
+        this.mergingBundle.updateTextureData(this.context, 'u_k1',          this.k1Fb.getTexture()  );
+        this.mergingBundle.updateTextureData(this.context, 'u_k2',          this.k2Fb.getTexture()  );
+        this.mergingBundle.updateTextureData(this.context, 'u_k3',          this.k3Fb.getTexture()  );
+        this.mergingBundle.updateTextureData(this.context, 'u_k4',          this.k4Fb.getTexture()  );
         this.mergingBundle.draw(this.context, [0, 0, 0, 0], dataTarget);
         //-------------------------------------------------------------------------------------------------
         
@@ -389,26 +393,26 @@ export class RungeKuttaRenderer {
     }
 
     public getImageData() {
-        return getCurrentFramebuffersPixels(this.context.gl.canvas);
+        let dataSource;
+        if (this.i % 2 === 0) {
+            dataSource = this.dataFb0;
+        } else {
+            dataSource = this.dataFb1;
+        }
+        return dataSource.getData(this.context.gl);
     }
 
     public updateTexture(textureName: string, newData: TextureDataValue) {
 
         // case 1: if u_dataTexture is to be updated, we need to change the upcoming framebuffer
         if (textureName === 'u_dataTexture') {
-            let dataSource: FramebufferObject;
+            let dataSource: FrameBuffer;
             if (this.i % 2 === 0) {
                 dataSource = this.dataFb0;
             } else {
                 dataSource = this.dataFb1;
             }
-
-            // @TODO: there should be a method `engine.core.FramebufferAbstraction.updateTexture`
-            if (newData instanceof HTMLCanvasElement || newData instanceof HTMLImageElement || Array.isArray(newData)) {
-                updateTexture(this.context.gl, dataSource.texture, newData);
-            } else {
-                dataSource.texture = newData;
-            }
+            dataSource.updateTextureData(this.context.gl, newData);
         } 
 
         // case 2: otherwise just a normal texture-update

@@ -6,12 +6,13 @@
  */
 
 
+import { createEmptyFramebufferObject, createFramebuffer, getCurrentFramebuffersPixels } from '.';
 import { bindIndexBuffer, bindProgram, bindTextureToUniform, bindValueToUniform, BufferObject, createBuffer,
     createIndexBuffer, createShaderProgram, createTexture, drawArray, drawElements, getAttributeLocation,
     getUniformLocation, IndexBufferObject, TextureObject, WebGLUniformType, drawElementsInstanced, drawArrayInstanced,
     GlDrawingMode, bindVertexArray, createVertexArray, VertexArrayObject, bindBufferToAttributeVertexArray,
     bindBufferToAttributeInstancedVertexArray, updateBufferData, updateTexture, FramebufferObject,
-    bindOutputCanvasToFramebuffer, bindFramebuffer, clearBackground, WebGLAttributeType, createDataTexture, TextureType, bindTextureToFramebuffer} from './webgl';
+    bindCanvasToDrawingBuffer, bindFramebuffer, clearBackground, WebGLAttributeType, createDataTexture, TextureType, bindTextureToFramebuffer} from './webgl';
 
 
 
@@ -270,7 +271,70 @@ export class TextureData {
         }
         return oldTo;
     }
+
 }
+
+
+/**
+ * A framebuffer has an initially empty texture on it.
+ * Once it has been drawn to, that texture can be used to update 
+ * other textures.
+ * 
+ * So, commonly, one does:
+ * ```ts
+ *     const fb = new FrameBuffer();
+ *     bundle.draw(context, [0, 0, 0, 0], fb);
+ *     bundle.updateTextureData(context, 'u_someTexture', fb.getTexture());
+ * ```
+ * 
+ * One could also 
+ * ```ts
+ *     const fb = new FrameBuffer();
+ *     fb.attachNewTexture(texture);
+ *     bundle.draw(context, [0, 0, 0, 0], fb);
+ * ```
+ *  - Pro: this way the texture will be automatically updated and there is no need to call `bundle.updateTextureData`
+ *  - Con: this only works if the texture is not also a direct input to the shader. If it is, a `Feedback-loop formed` error will be thrown.
+ */
+export class FrameBuffer {
+    frameBuffer: FramebufferObject;
+
+    constructor(gl: WebGLRenderingContext, width: number, height: number, type: TextureType, use: 'data' | 'display') {
+        this.frameBuffer = createEmptyFramebufferObject(gl, width, height, type, use);
+    }
+
+    bindToDrawingBuffer(gl: WebGLRenderingContext, viewport?: [number, number, number, number]) {
+        bindFramebuffer(gl, this.frameBuffer, viewport);
+    }
+
+    attachNewTexture(gl: WebGLRenderingContext, texture: TextureData) {
+        this.frameBuffer = bindTextureToFramebuffer(gl, texture.texture, this.frameBuffer.framebuffer);
+    }
+
+    updateTextureData(gl: WebGLRenderingContext, newData: TextureDataValue) {
+        if ((newData as TextureObject).texture) { // if (newData instanceof TextureObject) {
+            this.frameBuffer.texture = newData as TextureObject;
+        } else {
+            this.frameBuffer.texture = updateTexture(gl, this.frameBuffer.texture, newData as HTMLImageElement | HTMLCanvasElement | number[][][]);
+        }
+    }
+
+    /**
+     * Note: this only works if
+     *  1. this framebuffer has already been drawn to
+     *  2. and gl has been initialized with 'preserveDrawingBuffer'
+     */
+    getData(gl: WebGLRenderingContext): ArrayBuffer {
+        // this.bind(gl); <-- is this required?
+        return getCurrentFramebuffersPixels(gl, this.frameBuffer.width, this.frameBuffer.height);
+    }
+
+    getTexture() {
+        return this.frameBuffer.texture;
+    }
+}
+
+
 
 /**
  * Data container.
@@ -354,6 +418,7 @@ export class Program {
         return this.getUniformLocation(gl, tName);
     }
 }
+
 
 
 
@@ -525,11 +590,11 @@ export abstract class Bundle {
         this.bind(context);   // @TODO: not sure if this is required here.
     }
 
-    public draw (context: Context, background?: number[], frameBuffer?: FramebufferObject, viewport?: [number, number, number, number]): void {
+    public draw (context: Context, background?: number[], frameBuffer?: FrameBuffer, viewport?: [number, number, number, number]): void {
         if (!frameBuffer) {
-            bindOutputCanvasToFramebuffer(context.gl, viewport);
+            bindCanvasToDrawingBuffer(context.gl, viewport);
         } else {
-            bindFramebuffer(context.gl, frameBuffer, viewport);
+            frameBuffer.bindToDrawingBuffer(context.gl, viewport);
         }
         if (background) {
             clearBackground(context.gl, background);
@@ -555,7 +620,7 @@ export class ArrayBundle extends Bundle {
     }
 
 
-    draw(context: Context, background?: number[], frameBuffer?: FramebufferObject, viewport?: [number, number, number, number]): void {
+    draw(context: Context, background?: number[], frameBuffer?: FrameBuffer, viewport?: [number, number, number, number]): void {
         super.draw(context, background, frameBuffer, viewport);
         drawArray(context.gl, this.drawingMode, this.nrAttributes, 0);
     }
@@ -590,7 +655,7 @@ export class ElementsBundle extends Bundle {
         this.index.bind(context.gl);
     }
 
-    draw(context: Context, background?: number[], frameBuffer?: FramebufferObject, viewport?: [number, number, number, number]): void {
+    draw(context: Context, background?: number[], frameBuffer?: FrameBuffer, viewport?: [number, number, number, number]): void {
         super.draw(context, background, frameBuffer, viewport);
         this.index.bind(context.gl);
         drawElements(context.gl, this.index.index, this.drawingMode);
@@ -627,7 +692,7 @@ export class InstancedArrayBundle extends Bundle {
         super(program, attributes, uniforms, textures, drawingMode);
     }
 
-    draw(context: Context, background?: number[], frameBuffer?: FramebufferObject, viewport?: [number, number, number, number]): void {
+    draw(context: Context, background?: number[], frameBuffer?: FrameBuffer, viewport?: [number, number, number, number]): void {
         super.draw(context, background, frameBuffer, viewport);
         drawArrayInstanced(context.gl, this.drawingMode, this.nrAttributes, 0, this.nrInstances);
     }
@@ -667,7 +732,7 @@ export class InstancedElementsBundle extends Bundle {
         this.index.bind(context.gl);
     }
 
-    draw(context: Context, background?: number[], frameBuffer?: FramebufferObject, viewport?: [number, number, number, number]): void {
+    draw(context: Context, background?: number[], frameBuffer?: FrameBuffer, viewport?: [number, number, number, number]): void {
         super.draw(context, background, frameBuffer, viewport);
         this.index.bind(context.gl);
         drawElementsInstanced(context.gl, this.index.index, this.drawingMode, this.nrInstances);

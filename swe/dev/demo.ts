@@ -143,7 +143,7 @@ function addMeshes(
     const y = (y_ / threejsCanvas.height) * -2 + 1;
     rayCaster.setFromCamera({x, y}, camera);
     const intersections = rayCaster.intersectObject(waterMesh);
-    if (intersections) {
+    if (intersections && intersections[0]) {
       const intersection = intersections[0];
       const cc = 126 + (126 * intersection.point.x / 5);
       const cr = 126 + (126 * intersection.point.z / 5);

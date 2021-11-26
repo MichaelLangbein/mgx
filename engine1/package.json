@@ -1,6 +1,6 @@
 {
   "name": "@mgx/engine1",
-  "version": "0.1.7",
+  "version": "0.2.0",
   "description": "Simple API for WebGL-1",
   "main": "dist/engine1.js",
   "types": "dist/engine1/src/index.d.ts",

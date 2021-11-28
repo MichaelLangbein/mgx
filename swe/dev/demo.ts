@@ -2,7 +2,7 @@ import { SweRenderer } from '../src/swe';
 import {
   PerspectiveCamera, Scene, Mesh, WebGLRenderer, PlaneGeometry, AxesHelper,
   PointLight, CubeCamera, WebGLCubeRenderTarget, RGBFormat, LinearMipmapLinearFilter,
-  CubeRefractionMapping, MeshBasicMaterial, TextureLoader, Texture, MeshStandardMaterial, Raycaster
+  CubeRefractionMapping, MeshBasicMaterial, TextureLoader, Texture, MeshStandardMaterial, Raycaster, MeshPhongMaterial
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
@@ -15,7 +15,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
  */
 
 
-const sweCanvas = document.createElement('canvas');
+const sweCanvas = document.getElementById('canvas') as HTMLCanvasElement; //document.createElement('canvas');
 const threejsCanvas = document.getElementById('threejs_canvas') as HTMLCanvasElement;
 
 
@@ -42,7 +42,7 @@ for (let r = 0; r < 256; r++) {
   huvData.push([]);
   for (let c = 0; c < 256; c++) {
     if (Math.abs(r - 230) < 5 && Math.abs(c - 127) < 5) {
-      huvData[r].push([0, 0, 0, 1]);
+      huvData[r].push([20, 0, 0, 1]);
     } else {
       huvData[r].push([0, 0, 0, 1]);
     }
@@ -77,11 +77,12 @@ function addMeshes(
   scene.add(refractionCamera);
 
   const waterGeometry = new PlaneGeometry(10, 10, 255, 255);
-  const waterMaterial = new MeshBasicMaterial({
+  const waterMaterial = new MeshPhongMaterial({
     color: 'rgb(117, 255, 250)',
     envMap: refractionCamera.renderTarget.texture,
     refractionRatio: 0.985,
-    reflectivity: 0.9
+    reflectivity: 0.9,
+    displacementMap: new Texture(sweCanvas)
   });
   const waterMesh = new Mesh(waterGeometry, waterMaterial);
   waterMesh.position.set(0, 0.1, 0);
@@ -108,20 +109,11 @@ function addMeshes(
 
   let t = 0;
   renderer.setAnimationLoop((time) => {
-    sweRenderer.render();
+    sweRenderer.render(true);
 
-    if (t % 5 === 0) {
-      const sweData = sweRenderer.getImageData() as any;
-      const oldPositions = waterMesh.geometry.getAttribute('position');
-      for (let i = 0; i < oldPositions.count; i++) {
-        const h = sweData[i * 4];
-        oldPositions.setZ(i, h / 1);
-      }
-      oldPositions.needsUpdate = true;
-      waterMesh.geometry.computeVertexNormals();
-      refractionCamera.update(renderer, scene);
-    }
-
+    refractionCamera.update(renderer, scene);
+    waterMesh.material.displacementMap.needsUpdate = true;
+    // waterMesh.geometry.computeVertexNormals();
     controls.update();
     renderer.render(scene, camera);
 
@@ -157,7 +149,7 @@ function addMeshes(
           const oldU = oldData[r * 256 * 4 + c * 4 + 1];
           const oldV = oldData[r * 256 * 4 + c * 4 + 2];
           if (Math.abs(r - cr) < 5 && Math.abs(c - cc) < 5) {
-            newData[r].push([oldH + 1, oldU, oldV, 1]);
+            newData[r].push([oldH * 1.2, oldU, oldV, 1]);
           } else {
             newData[r].push([oldH, oldU, oldV, 1]);
           }

@@ -6,19 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SWE</title>
     <style>
+        body {
+            height: 100%;
+        }
         #canvas {
             width: 256px;
             height: 256px;
             background-color: aliceblue;
         }
         #threejs_canvas {
-            width: 100%;
-            height: 100vh;
+            width: 60%;
+            height: 60%;
             background-color: aliceblue;
         }
     </style>
 </head>
 <body>
+    <canvas id="canvas"></canvas>
     <canvas id="threejs_canvas"></canvas>
 </body>
 <script src="bundle.js"></script>

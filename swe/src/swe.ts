@@ -10,8 +10,8 @@ export class SweRenderer {
 
     constructor(
         outputCanvas: HTMLCanvasElement,
-        huv: TextureDataValue,
-        H: TextureDataValue
+        private huv: TextureDataValue,
+        private H: TextureDataValue
     ) {
 
         const code = /*glsl*/`
@@ -76,7 +76,6 @@ export class SweRenderer {
         });
         
         this.rkRenderer = renderer;
-        
     }
 
 
@@ -86,6 +85,10 @@ export class SweRenderer {
 
     public getImageData() {
         return this.rkRenderer.getImageData();
+    }
+
+    public getHuvTexture() {
+        return this.huv;
     }
 
     public setHuvData(data: number[][][]) {

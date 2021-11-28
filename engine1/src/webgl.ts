@@ -623,6 +623,7 @@ export const createDataTexture = (gl: WebGLRenderingContext, data: number[][][],
     const paras = getTextureParas(gl, t, flatten3(data));
     if (t === 'float4') {
         const ext = getExtension(gl, 'OES_texture_float');
+        const ext2 = getExtension(gl, 'WEBGL_color_buffer_float');
     }
 
     if (channels !== 4) {
@@ -670,6 +671,7 @@ export const createEmptyTexture = (gl: WebGLRenderingContext, width: number, hei
     const paras = getTextureParas(gl, type, []);
     if (type === 'float4') {
         const ext = getExtension(gl, 'OES_texture_float');
+        const ext2 = getExtension(gl, 'WEBGL_color_buffer_float');
     }
 
     gl.activeTexture(gl.TEXTURE0 + textureConstructionBindPoint); // so that we don't overwrite another texture in the next line.

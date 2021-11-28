@@ -2,7 +2,8 @@ import { SweRenderer } from '../src/swe';
 import {
   PerspectiveCamera, Scene, Mesh, WebGLRenderer, PlaneGeometry, AxesHelper,
   PointLight, CubeCamera, WebGLCubeRenderTarget, RGBFormat, LinearMipmapLinearFilter,
-  CubeRefractionMapping, MeshBasicMaterial, TextureLoader, Texture, MeshStandardMaterial, Raycaster, MeshPhongMaterial
+  CubeRefractionMapping, TextureLoader, Texture, MeshStandardMaterial, Raycaster,
+  MeshPhongMaterial
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
@@ -10,12 +11,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 /**
  * @TODOs:
  *  - move refraction camera along with user camera, always slightly under water-surface
- *  - handle edge-conditions so waves don't over-exaggerate
- *  - allow touching water-surface
  */
 
 
-const sweCanvas = document.getElementById('canvas') as HTMLCanvasElement; //document.createElement('canvas');
+const sweCanvas = document.createElement('canvas');
 const threejsCanvas = document.getElementById('threejs_canvas') as HTMLCanvasElement;
 
 
@@ -37,12 +36,13 @@ const controls = new OrbitControls(camera, threejsCanvas);
 
 
 
+
 const huvData: number[][][] = [];
 for (let r = 0; r < 256; r++) {
   huvData.push([]);
   for (let c = 0; c < 256; c++) {
     if (Math.abs(r - 230) < 5 && Math.abs(c - 127) < 5) {
-      huvData[r].push([20, 0, 0, 1]);
+      huvData[r].push([0, 0, 0, 1]);
     } else {
       huvData[r].push([0, 0, 0, 1]);
     }
@@ -53,7 +53,7 @@ const textureLoader = new TextureLoader();
 textureLoader.load('./dem.png', (demTexture: Texture) => {
   textureLoader.load('./demCutoff.png', (demCutoffTexture) => {
     textureLoader.load('./terrainTexture.png', (terrainTexture: Texture) => {
-      addMeshes(huvData, sweCanvas, demTexture, demCutoffTexture, terrainTexture);
+        addMeshes(huvData, sweCanvas, demTexture, demCutoffTexture, terrainTexture);
     });
   });
 });
@@ -61,11 +61,11 @@ textureLoader.load('./dem.png', (demTexture: Texture) => {
 let sweRenderer: SweRenderer;
 
 function addMeshes(
-  huvData: number[][][], sweCanvas: HTMLCanvasElement,
+  huvImage: number[][][], sweCanvas: HTMLCanvasElement,
   demTexture: Texture, demCutoffTexture: Texture, terrainTexture: Texture
 ) {
 
-  sweRenderer = new SweRenderer(sweCanvas, huvData, demCutoffTexture.image);
+  sweRenderer = new SweRenderer(sweCanvas, huvImage, demCutoffTexture.image);
 
   const refractionCamera = new CubeCamera(0.01, 100, new WebGLCubeRenderTarget(
     128, {
@@ -79,10 +79,11 @@ function addMeshes(
   const waterGeometry = new PlaneGeometry(10, 10, 255, 255);
   const waterMaterial = new MeshPhongMaterial({
     color: 'rgb(117, 255, 250)',
+    displacementMap: new Texture(sweCanvas),
     envMap: refractionCamera.renderTarget.texture,
     refractionRatio: 0.985,
     reflectivity: 0.9,
-    displacementMap: new Texture(sweCanvas)
+    // wireframe: true,
   });
   const waterMesh = new Mesh(waterGeometry, waterMaterial);
   waterMesh.position.set(0, 0.1, 0);
@@ -98,7 +99,7 @@ function addMeshes(
     color: 'white',
     displacementMap: demTexture,
     displacementScale: 2.5,
-    displacementBias: -0.8,
+    displacementBias: 0,
     map: terrainTexture
   });
   const terrainMesh = new Mesh(terrainGeometry, terrainMaterial);
@@ -111,6 +112,7 @@ function addMeshes(
   renderer.setAnimationLoop((time) => {
     sweRenderer.render(true);
 
+    refractionCamera.position.setX( - camera.position.x * 0.5);
     refractionCamera.update(renderer, scene);
     waterMesh.material.displacementMap.needsUpdate = true;
     // waterMesh.geometry.computeVertexNormals();
@@ -140,8 +142,8 @@ function addMeshes(
       const cc = 126 + (126 * intersection.point.x / 5);
       const cr = 126 + (126 * intersection.point.z / 5);
     
-      const newData: number[][][] = [];
-      const oldData = sweRenderer.getImageData() as any;
+      const newData: number[][][] = [];  // needs to be in framebuffer-domain (-10, 10)
+      const oldData = sweRenderer.getImageData() as any;  // returned in canvas-domain (0, 255)
       for (let r = 0; r < 256; r++) {
         newData.push([]);
         for (let c = 0; c < 256; c++) {
@@ -149,9 +151,9 @@ function addMeshes(
           const oldU = oldData[r * 256 * 4 + c * 4 + 1];
           const oldV = oldData[r * 256 * 4 + c * 4 + 2];
           if (Math.abs(r - cr) < 5 && Math.abs(c - cc) < 5) {
-            newData[r].push([oldH * 1.2, oldU, oldV, 1]);
+            newData[r].push([(oldH + 400 - 127) / 127, (oldU - 127) / 127, (oldV - 127) / 127, 1]);
           } else {
-            newData[r].push([oldH, oldU, oldV, 1]);
+            newData[r].push([(oldH - 127) / 127, (oldU - 127) / 127, (oldV - 127) / 127, 1]);
           }
         }
       }

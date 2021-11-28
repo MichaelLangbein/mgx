@@ -25,6 +25,22 @@ const textureConstructionBindPoint = 7;
 
 
 
+const extensionCache: {[key: string]: any} = {};
+
+function getExtension(gl: WebGLRenderingContext, name: string) {
+    if (name in extensionCache) {
+        return extensionCache[name];
+    } else {
+        const ext = gl.getExtension(name);
+        if (!ext) {
+            throw Error(`couldn't get extension ${name}`);
+        }
+        extensionCache[name] = ext;
+        return ext;
+    }
+}
+
+
 
 /**
  * Compile shader.
@@ -178,7 +194,7 @@ export interface VertexArrayObject {
 }
 
 export const createVertexArray = (gl: WebGLRenderingContext): VertexArrayObject => {
-    const ext = gl.getExtension('OES_vertex_array_object');
+    const ext = getExtension(gl, 'OES_vertex_array_object');
     const o = ext.createVertexArrayOES();
     return {
         buffers: [],
@@ -216,7 +232,7 @@ export const drawArrayInstanced = (gl: WebGLRenderingContext, drawingMode: GlDra
             glDrawingMode = gl.TRIANGLES;
             break;
     }
-    const ext = gl.getExtension('ANGLE_instanced_arrays');
+    const ext = getExtension(gl, 'ANGLE_instanced_arrays');
     ext.drawArraysInstancedANGLE(glDrawingMode, offset, vectorCount, nrLoops);
 };
 
@@ -275,7 +291,7 @@ const sizeOf = (gl: WebGLRenderingContext, type: number): number => {
  * If nrInstances !== 0: binding with vertexAttribDivisor(loc, nrInstances)
  */
 export const bindBufferToAttribute = (gl: WebGLRenderingContext, attributeLocation: number, bo: BufferObject, nrInstances = 0): void => {
-    const ext = gl.getExtension('ANGLE_instanced_arrays');
+    const ext = getExtension(gl, 'ANGLE_instanced_arrays');
     // Bind buffer to global-state ARRAY_BUFFER
     gl.bindBuffer(gl.ARRAY_BUFFER, bo.buffer);
     // Enable editing of vertex-array-location
@@ -352,7 +368,7 @@ export const bindBufferToAttribute = (gl: WebGLRenderingContext, attributeLocati
 
 
 export const bindBufferToAttributeVertexArray = (gl: WebGLRenderingContext, attributeLocation: number, bufferObject: BufferObject, va: VertexArrayObject): VertexArrayObject => {
-    const ext = gl.getExtension('OES_vertex_array_object');
+    const ext = getExtension(gl, 'OES_vertex_array_object');
     ext.bindVertexArrayOES(va.vao);
     bindBufferToAttribute(gl, attributeLocation, bufferObject);
     va.buffers.push(bufferObject);
@@ -371,7 +387,7 @@ export const bindBufferToAttributeInstanced = (gl: WebGLRenderingContext, attrib
 
 
 export const bindBufferToAttributeInstancedVertexArray = (gl: WebGLRenderingContext, attributeLocation: number, bufferObject: BufferObject, nrInstances: number, va: VertexArrayObject): VertexArrayObject => {
-    const ext = gl.getExtension('OES_vertex_array_object');
+    const ext = getExtension(gl, 'OES_vertex_array_object');
     ext.bindVertexArrayOES(va.vao);
     bindBufferToAttributeInstanced(gl, attributeLocation, bufferObject, nrInstances);
     va.buffers.push(bufferObject);
@@ -379,7 +395,7 @@ export const bindBufferToAttributeInstancedVertexArray = (gl: WebGLRenderingCont
 };
 
 export const bindVertexArray = (gl: WebGLRenderingContext, va: VertexArrayObject): void => {
-    const ext = gl.getExtension('OES_vertex_array_object');
+    const ext = getExtension(gl, 'OES_vertex_array_object');
     ext.bindVertexArrayOES(va.vao);
 };
 
@@ -449,7 +465,7 @@ export const drawElementsInstanced = (gl: WebGLRenderingContext, ibo: IndexBuffe
             glDrawingMode = gl.TRIANGLES;
             break;
     }
-    const ext = gl.getExtension('ANGLE_instanced_arrays');
+    const ext = getExtension(gl, 'ANGLE_instanced_arrays');
     ext.drawElementsInstancedANGLE(glDrawingMode, ibo.count, ibo.type, ibo.offset, nrLoops);
 };
 
@@ -606,10 +622,7 @@ export const createDataTexture = (gl: WebGLRenderingContext, data: number[][][],
     const border = 0;
     const paras = getTextureParas(gl, t, flatten3(data));
     if (t === 'float4') {
-        const ext = gl.getExtension('OES_texture_float');
-        if (!ext) {
-            throw Error('Need OES_texture_float');
-        }
+        const ext = getExtension(gl, 'OES_texture_float');
     }
 
     if (channels !== 4) {
@@ -656,10 +669,7 @@ export const createEmptyTexture = (gl: WebGLRenderingContext, width: number, hei
 
     const paras = getTextureParas(gl, type, []);
     if (type === 'float4') {
-        const ext = gl.getExtension('OES_texture_float');
-        if (!ext) {
-            throw Error('Need OES_texture_float');
-        }
+        const ext = getExtension(gl, 'OES_texture_float');
     }
 
     gl.activeTexture(gl.TEXTURE0 + textureConstructionBindPoint); // so that we don't overwrite another texture in the next line.

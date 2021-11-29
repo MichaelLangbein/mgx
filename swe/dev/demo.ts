@@ -10,8 +10,6 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 /**
  * @TODOs:
  *  - move refraction camera along with user camera, always slightly under water-surface
- *  - handle edge-conditions so waves don't over-exaggerate
- *  - allow touching water-surface
  */
 
 

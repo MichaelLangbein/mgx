@@ -4,6 +4,8 @@ import { GPUComputationRenderer } from "three/examples/jsm/misc/GPUComputationRe
 
 export class RungeKuttaRenderer {
 
+    private w: number;
+    private h: number;
     private differentialShader: ShaderMaterial;
     private summarizeShader: ShaderMaterial;
     private k1Target: WebGLRenderTarget;
@@ -16,7 +18,8 @@ export class RungeKuttaRenderer {
     private i = 0;
 
     constructor(renderer: WebGLRenderer, w: number, h: number, data0: Float32Array, differentialCode: string) {
-        const data0Texture = new DataTexture(data0, w, h, RGBAFormat, FloatType);
+        this.w = w;
+        this.h = h;
 
         const differentialShaderCode = `
             uniform sampler2D dataTexture;
@@ -76,6 +79,65 @@ export class RungeKuttaRenderer {
         this.summaryTarget1 = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
         this.summaryTarget2 = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
 
+        this.initTextures(data0);
+    }
+
+    getOutputTexture() {
+        const {dataSource, dataSink} = this.getCurrentSourceAndSink(this.i);
+        return dataSource.texture;
+    }
+
+    updateInputTexture(data: Float32Array) {
+        // const {dataSource, dataSink} = this.getCurrentSourceAndSink(this.i);
+        // const texture = new DataTexture(data, this.w, this.h, RGBAFormat, FloatType);
+        // texture.needsUpdate = true;
+        // dataSource.setTexture(texture);
+        // return texture;
+        this.destroyTextures();
+        this.initTextures(data);
+        this.i = 0;
+        return this.getOutputTexture();
+    }
+
+    update() {
+        const {dataSource, dataSink} = this.getCurrentSourceAndSink(this.i);
+
+        this.differentialShader.uniforms.dataTexture.value = dataSource.texture;
+        this.differentialShader.uniforms.dk.value = 0.0;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k1Target);
+        this.differentialShader.uniforms.dk.value = 0.5;
+        this.differentialShader.uniforms.kTexture.value = this.k1Target.texture;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k2Target);
+        this.differentialShader.uniforms.dk.value = 0.5;
+        this.differentialShader.uniforms.kTexture.value = this.k2Target.texture;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k3Target);
+        this.differentialShader.uniforms.dk.value = 1.0;
+        this.differentialShader.uniforms.kTexture.value = this.k3Target.texture;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k4Target);
+        this.summarizeShader.uniforms.dataTexture.value = dataSource.texture;
+        this.summarizeShader.uniforms.k1Texture.value = this.k1Target.texture;
+        this.summarizeShader.uniforms.k2Texture.value = this.k2Target.texture;
+        this.summarizeShader.uniforms.k3Texture.value = this.k3Target.texture;
+        this.summarizeShader.uniforms.k4Texture.value = this.k4Target.texture;
+        this.gpgpu.doRenderTarget(this.summarizeShader, dataSink);
+
+        this.i += 1;
+    }
+
+    private getCurrentSourceAndSink(i: number) {
+        let dataSource, dataSink;
+        if (i % 2 === 0) {
+            dataSource = this.summaryTarget1;
+            dataSink = this.summaryTarget2;
+        } else {
+            dataSource = this.summaryTarget2;
+            dataSink = this.summaryTarget1;
+        }
+        return {dataSource, dataSink};
+    }
+
+    private initTextures(data: Float32Array) {
+        const data0Texture = new DataTexture(data, this.w, this.h, RGBAFormat, FloatType);
         this.differentialShader.uniforms.dataTexture.value = data0Texture;
         this.differentialShader.uniforms.dk.value = 0.0;
         this.gpgpu.doRenderTarget(this.differentialShader, this.k1Target);
@@ -96,38 +158,12 @@ export class RungeKuttaRenderer {
         this.gpgpu.doRenderTarget(this.summarizeShader, this.summaryTarget1);
     }
 
-    getOutputTexture() {
-        return this.summaryTarget1.texture;
-    }
-
-    update() {
-        let dataSource, dataTarget;
-        if (this.i % 2 === 0) {
-            dataSource = this.summaryTarget1;
-            dataTarget = this.summaryTarget2;
-        } else {
-            dataSource = this.summaryTarget2;
-            dataTarget = this.summaryTarget1;
-        }
-        this.i += 1;
-
-        this.differentialShader.uniforms.dataTexture.value = dataSource.texture;
-        this.differentialShader.uniforms.dk.value = 0.0;
-        this.gpgpu.doRenderTarget(this.differentialShader, this.k1Target);
-        this.differentialShader.uniforms.dk.value = 0.5;
-        this.differentialShader.uniforms.kTexture.value = this.k1Target.texture;
-        this.gpgpu.doRenderTarget(this.differentialShader, this.k2Target);
-        this.differentialShader.uniforms.dk.value = 0.5;
-        this.differentialShader.uniforms.kTexture.value = this.k2Target.texture;
-        this.gpgpu.doRenderTarget(this.differentialShader, this.k3Target);
-        this.differentialShader.uniforms.dk.value = 1.0;
-        this.differentialShader.uniforms.kTexture.value = this.k3Target.texture;
-        this.gpgpu.doRenderTarget(this.differentialShader, this.k4Target);
-        this.summarizeShader.uniforms.dataTexture.value = dataSource.texture;
-        this.summarizeShader.uniforms.k1Texture.value = this.k1Target.texture;
-        this.summarizeShader.uniforms.k2Texture.value = this.k2Target.texture;
-        this.summarizeShader.uniforms.k3Texture.value = this.k3Target.texture;
-        this.summarizeShader.uniforms.k4Texture.value = this.k4Target.texture;
-        this.gpgpu.doRenderTarget(this.summarizeShader, dataTarget);
+    private destroyTextures() {
+        this.k1Target.texture.dispose();
+        this.k2Target.texture.dispose();
+        this.k3Target.texture.dispose();
+        this.k4Target.texture.dispose();
+        this.summaryTarget1.texture.dispose();
+        this.summaryTarget2.texture.dispose();
     }
 }

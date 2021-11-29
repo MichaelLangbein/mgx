@@ -1,10 +1,15 @@
 import { 
   AxesHelper, Mesh, MeshStandardMaterial, PerspectiveCamera, 
-  PlaneBufferGeometry, PointLight, Scene, TextureLoader, 
-  WebGLRenderer 
+  PlaneBufferGeometry, PointLight, Scene, WebGLRenderer 
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { RungeKuttaRenderer } from "../src";
+
+
+/**
+ * @TODOs
+ *  - create custom-material that uses fluid-texture for normal-calculation
+ */
 
 
 //-------------------------- Section 1: dom-elements --------------------------------------------
@@ -31,16 +36,16 @@ light.lookAt(0, 0, 0);
 scene.add(light);
 
 
-
 const w = 256;
 const h = 256;
 const huv0Data = new Float32Array( w * h * 4 );
+const huv1Data = new Float32Array( w * h * 4 );
 for (let r = 0; r < h; r++) {
   for (let c = 0; c < w; c++) {
     if (Math.abs(r - h/2) < 3 && Math.abs(c - h/2) < 3) {
-      huv0Data[(r * h + c) * 4 + 0] = 1.0;  // red
+      huv1Data[(r * h + c) * 4 + 0] = 10.0;  // red
     }
-    huv0Data[(r * h + c) * 4 + 3] = 1.0;  // alpha
+    huv1Data[(r * h + c) * 4 + 3] = 1.0;  // alpha
   }
 }
 const fluidShader = `
@@ -78,16 +83,19 @@ const fluidShader = `
 
   gl_FragColor = vec4(dhdt, dudt, dvdt, 1.0);
 `;
-const fluidSim = new RungeKuttaRenderer(renderer, w, h, huv0Data, fluidShader);
-
-
+const fluidSim = new RungeKuttaRenderer(renderer, w, h, huv1Data, fluidShader);
+container.addEventListener('click', (evt) => {
+  plane.material.map = fluidSim.updateInputTexture(huv1Data);
+  plane.material.needsUpdate = true;
+})
 
 
 const plane = new Mesh(
-  new PlaneBufferGeometry(5, 5, 2, 2),
+  new PlaneBufferGeometry(5, 5, 100, 100),
   new MeshStandardMaterial({
     color: 'rgb(117, 255, 250)',
     refractionRatio: 0.985,
+    // displacementMap: fluidSim.getOutputTexture()
     map: fluidSim.getOutputTexture()
   })
 );

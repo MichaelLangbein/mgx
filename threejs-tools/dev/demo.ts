@@ -1,6 +1,6 @@
 import { 
-  AxesHelper, Mesh, MeshStandardMaterial, PerspectiveCamera, 
-  PlaneBufferGeometry, PointLight, Scene, WebGLRenderer 
+  AxesHelper, Color, Mesh, MeshStandardMaterial, PerspectiveCamera, 
+  PlaneBufferGeometry, PointLight, Scene, ShaderChunk, ShaderLib, ShaderMaterial, UniformsUtils, WebGLRenderer 
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { RungeKuttaRenderer } from "../src";
@@ -85,19 +85,101 @@ const fluidShader = `
 `;
 const fluidSim = new RungeKuttaRenderer(renderer, w, h, huv1Data, fluidShader);
 container.addEventListener('click', (evt) => {
-  plane.material.map = fluidSim.updateInputTexture(huv1Data);
+  plane.material.uniforms['huvData'].value = fluidSim.updateInputTexture(huv1Data);
   plane.material.needsUpdate = true;
-})
+});
+
+
+
+const extendedPhongShader = `
+      uniform sampler2D huvData;
+
+			#define PHONG
+      varying vec3 vViewPosition;
+      #include <common>
+      #include <uv_pars_vertex>
+      #include <uv2_pars_vertex>
+      #include <displacementmap_pars_vertex>
+      #include <envmap_pars_vertex>
+      #include <color_pars_vertex>
+      #include <fog_pars_vertex>
+      #include <normal_pars_vertex>
+      #include <morphtarget_pars_vertex>
+      #include <skinning_pars_vertex>
+      #include <shadowmap_pars_vertex>
+      #include <logdepthbuf_pars_vertex>
+      #include <clipping_planes_pars_vertex>
+
+      void main() {
+        #include <uv_vertex>
+        #include <uv2_vertex>
+        #include <color_vertex>
+
+
+        // # include <beginnormal_vertex> ---------------------------------------------------------------------------------------------------------
+
+        vec2 deltaX_ = vec2(0.1, 0.0);
+        vec2 deltaY_ = vec2(0.0, 0.1);
+
+        float h_mx = texture2D( huvData, uv - deltaX_ ).x;
+        float h_px = texture2D( huvData, uv + deltaX_ ).x;
+        float h_my = texture2D( huvData, uv - deltaY_ ).x;
+        float h_py = texture2D( huvData, uv + deltaY_ ).x;
+
+				vec3 objectNormal = vec3(
+					h_mx - h_px,
+					h_my - h_py,
+					1.0
+        );
+				//-----------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+        #include <morphnormal_vertex>
+        #include <skinbase_vertex>
+        #include <skinnormal_vertex>
+        #include <defaultnormal_vertex>
+        #include <normal_vertex>
+
+
+        //# include <begin_vertex> -------------------------------------------------------------------------------------------------------------------
+				float heightValue = texture2D( huvData, uv ).x;
+				vec3 transformed = vec3( position.x, position.y, heightValue );
+				//--------------------------------------------------------------------------------------------------------------------------------------------
+
+
+        #include <morphtarget_vertex>
+        #include <skinning_vertex>
+        #include <displacementmap_vertex>
+        #include <project_vertex>
+        #include <logdepthbuf_vertex>
+        #include <clipping_planes_vertex>
+        vViewPosition = - mvPosition.xyz;
+        #include <worldpos_vertex>
+        #include <envmap_vertex>
+        #include <shadowmap_vertex>
+        #include <fog_vertex>
+      }
+`;
+const extendedPhongMaterial = new ShaderMaterial({
+  uniforms: UniformsUtils.merge([
+    ShaderLib['phong'].uniforms, { "huvData": { value: null } }
+  ]),
+  vertexShader: extendedPhongShader,
+  fragmentShader: ShaderChunk['meshphong_frag'],
+  lights: true,
+});
+
+extendedPhongMaterial.uniforms["diffuse"].value = new Color(0x0040C0);
+extendedPhongMaterial.uniforms["specular"].value = new Color(0x111111);
+extendedPhongMaterial.uniforms["shininess"].value = 1.0;
+extendedPhongMaterial.uniforms["opacity"].value = 1.0;
+extendedPhongMaterial.uniforms["huvData"].value = fluidSim.getOutputTexture()
 
 
 const plane = new Mesh(
   new PlaneBufferGeometry(5, 5, 100, 100),
-  new MeshStandardMaterial({
-    color: 'rgb(117, 255, 250)',
-    refractionRatio: 0.985,
-    // displacementMap: fluidSim.getOutputTexture()
-    map: fluidSim.getOutputTexture()
-  })
+  extendedPhongMaterial
 );
 plane.position.set(0, 0, 0);
 plane.lookAt(0, 1, 0);

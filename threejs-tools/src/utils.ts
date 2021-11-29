@@ -1,0 +1,133 @@
+import { DataTexture, FloatType, NearestFilter, RepeatWrapping, RGBAFormat, ShaderMaterial, WebGLRenderer, WebGLRenderTarget } from "three";
+import { GPUComputationRenderer } from "three/examples/jsm/misc/GPUComputationRenderer";
+
+
+export class RungeKuttaRenderer {
+
+    private differentialShader: ShaderMaterial;
+    private summarizeShader: ShaderMaterial;
+    private k1Target: WebGLRenderTarget;
+    private k2Target: WebGLRenderTarget;
+    private k3Target: WebGLRenderTarget;
+    private k4Target: WebGLRenderTarget;
+    private summaryTarget1: WebGLRenderTarget;
+    private summaryTarget2: WebGLRenderTarget;
+    private gpgpu: GPUComputationRenderer;
+    private i = 0;
+
+    constructor(renderer: WebGLRenderer, w: number, h: number, data0: Float32Array, differentialCode: string) {
+        const data0Texture = new DataTexture(data0, w, h, RGBAFormat, FloatType);
+
+        const differentialShaderCode = `
+            uniform sampler2D dataTexture;
+            uniform sampler2D kTexture;
+            uniform float dk;
+
+            void main() {
+                vec2 position = gl_FragCoord.xy / resolution.xy;
+                vec2 deltaX = vec2(1.0 / resolution.x, 0.0);
+                vec2 deltaY = vec2(0.0, 1.0 / resolution.y);
+
+                float dt = 0.005;
+
+                vec4 data    = texture2D(dataTexture, position          ) + dt * dk * texture2D(kTexture, position          );
+                vec4 data_px = texture2D(dataTexture, position + deltaX ) + dt * dk * texture2D(kTexture, position + deltaX );
+                vec4 data_mx = texture2D(dataTexture, position - deltaX ) + dt * dk * texture2D(kTexture, position - deltaX );
+                vec4 data_py = texture2D(dataTexture, position + deltaY ) + dt * dk * texture2D(kTexture, position + deltaY );
+                vec4 data_my = texture2D(dataTexture, position - deltaY ) + dt * dk * texture2D(kTexture, position - deltaY );
+
+                ${differentialCode}
+            }
+        `;
+
+        const summarizeShaderCode = `
+            uniform sampler2D dataTexture;
+            uniform sampler2D k1Texture;
+            uniform sampler2D k2Texture;
+            uniform sampler2D k3Texture;
+            uniform sampler2D k4Texture;
+
+            void main() {
+                vec2 position = gl_FragCoord.xy / resolution.xy;
+
+                float dt = 0.005;
+
+                vec4 data = texture2D(dataTexture, position);
+                vec4 k1   = texture2D(k1Texture,   position);
+                vec4 k2   = texture2D(k2Texture,   position);
+                vec4 k3   = texture2D(k3Texture,   position);
+                vec4 k4   = texture2D(k4Texture,   position);
+
+                vec4 weightedAverage = data + dt * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0;
+
+                gl_FragColor = vec4(weightedAverage.xyz, 1.0);
+            }
+        `;
+
+        this.gpgpu = new GPUComputationRenderer(w, h, renderer);
+
+
+        this.differentialShader = this.gpgpu.createShaderMaterial(differentialShaderCode, { dataTexture: { value: null }, kTexture: { value: null }, dk: { value: null } });
+        this.summarizeShader = this.gpgpu.createShaderMaterial(summarizeShaderCode, { dataTexture: { value: null }, k1Texture: { value: null }, k2Texture: { value: null }, k3Texture: { value: null }, k4Texture: { value: null } });
+        this.k1Target = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
+        this.k2Target = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
+        this.k3Target = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
+        this.k4Target = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
+        this.summaryTarget1 = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
+        this.summaryTarget2 = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
+
+        this.differentialShader.uniforms.dataTexture.value = data0Texture;
+        this.differentialShader.uniforms.dk.value = 0.0;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k1Target);
+        this.differentialShader.uniforms.dk.value = 0.5;
+        this.differentialShader.uniforms.kTexture.value = this.k1Target.texture;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k2Target);
+        this.differentialShader.uniforms.dk.value = 0.5;
+        this.differentialShader.uniforms.kTexture.value = this.k2Target.texture;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k3Target);
+        this.differentialShader.uniforms.dk.value = 1.0;
+        this.differentialShader.uniforms.kTexture.value = this.k3Target.texture;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k4Target);
+        this.summarizeShader.uniforms.dataTexture.value = data0Texture;
+        this.summarizeShader.uniforms.k1Texture.value = this.k1Target.texture;
+        this.summarizeShader.uniforms.k2Texture.value = this.k2Target.texture;
+        this.summarizeShader.uniforms.k3Texture.value = this.k3Target.texture;
+        this.summarizeShader.uniforms.k4Texture.value = this.k4Target.texture;
+        this.gpgpu.doRenderTarget(this.summarizeShader, this.summaryTarget1);
+    }
+
+    getOutputTexture() {
+        return this.summaryTarget1.texture;
+    }
+
+    update() {
+        let dataSource, dataTarget;
+        if (this.i % 2 === 0) {
+            dataSource = this.summaryTarget1;
+            dataTarget = this.summaryTarget2;
+        } else {
+            dataSource = this.summaryTarget2;
+            dataTarget = this.summaryTarget1;
+        }
+        this.i += 1;
+
+        this.differentialShader.uniforms.dataTexture.value = dataSource.texture;
+        this.differentialShader.uniforms.dk.value = 0.0;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k1Target);
+        this.differentialShader.uniforms.dk.value = 0.5;
+        this.differentialShader.uniforms.kTexture.value = this.k1Target.texture;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k2Target);
+        this.differentialShader.uniforms.dk.value = 0.5;
+        this.differentialShader.uniforms.kTexture.value = this.k2Target.texture;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k3Target);
+        this.differentialShader.uniforms.dk.value = 1.0;
+        this.differentialShader.uniforms.kTexture.value = this.k3Target.texture;
+        this.gpgpu.doRenderTarget(this.differentialShader, this.k4Target);
+        this.summarizeShader.uniforms.dataTexture.value = dataSource.texture;
+        this.summarizeShader.uniforms.k1Texture.value = this.k1Target.texture;
+        this.summarizeShader.uniforms.k2Texture.value = this.k2Target.texture;
+        this.summarizeShader.uniforms.k3Texture.value = this.k3Target.texture;
+        this.summarizeShader.uniforms.k4Texture.value = this.k4Target.texture;
+        this.gpgpu.doRenderTarget(this.summarizeShader, dataTarget);
+    }
+}

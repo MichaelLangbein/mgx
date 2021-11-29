@@ -72,14 +72,25 @@ scene.add(light);
 
 
 const shader1Code = `
+  uniform sampler2D dataTexture;
   void main() {
-    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    vec2 position = gl_FragCoord.xy / resolution.xy;
+    float data = texture2D(dataTexture, position).x;
+    gl_FragColor = vec4(data, 1.0, 1.0, 1.0);
   }
 `;
 const w = 30;
 const h = 30;
+const state0Data = new Float32Array( w * h * 4 );
+for (let r = 0; r < h; r++) {
+  for (let c = 0; c < w; c++) {
+    state0Data[(r * h + c) * 4 + 0] = Math.random() > 0.5 ? 1.0 : 0.0;  // red
+    state0Data[(r * h + c) * 4 + 3] = 1.0;                              // alpha
+  }
+}
+const data0 = new DataTexture(state0Data, w, h, RGBAFormat, FloatType);
 const gpuCompute = new GPUComputationRenderer(w, h, renderer);
-const shader1 = gpuCompute.createShaderMaterial(shader1Code, {});
+const shader1 = gpuCompute.createShaderMaterial(shader1Code, { dataTexture: {value: data0} });
 const shader1Target = gpuCompute.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
 gpuCompute.doRenderTarget(shader1, shader1Target);
 

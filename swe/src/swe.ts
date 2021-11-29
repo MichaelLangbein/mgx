@@ -1,6 +1,6 @@
 import {
     TextureData, RungeKuttaRenderer, TextureDataValue
-} from '../../engine1/src';
+} from '@mgx/engine1';
 
 
 

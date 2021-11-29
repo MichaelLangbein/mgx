@@ -13,17 +13,13 @@ import { bindIndexBuffer, bindProgram, bindTextureToUniform, bindValueToUniform,
     GlDrawingMode, bindVertexArray, createVertexArray, VertexArrayObject, bindBufferToAttributeVertexArray,
     bindBufferToAttributeInstancedVertexArray, updateBufferData, updateTexture, FramebufferObject,
     bindCanvasToDrawingBuffer, bindFramebuffer, clearBackground, WebGLAttributeType, createDataTexture, TextureType, bindTextureToFramebuffer} from './webgl';
+import md5 from 'md5';
 
 
 
 
-// dead-simple hash function - not intended to be secure in any way.
-const hash = function(s: string): string {
-    let h = 0;
-    for (const c of s) {
-        h += c.charCodeAt(0);
-    }
-    return `${h}`;
+const hash = function(s: string | Buffer | number[] | Uint8Array): string {
+    return md5(s);
 };
 
 
@@ -237,7 +233,7 @@ export class TextureData {
     textureDataType: TextureType;
     constructor(im: TextureDataValue, textureDataType?: TextureType) {
         this.data = im;
-        this.hash = hash(Math.random() * 1000 + ''); // @TODO: how do you hash textures?
+        this.hash = this.makeHash(im);
         this.textureDataType = textureDataType;
     }
 
@@ -270,6 +266,34 @@ export class TextureData {
             this.texture = updateTexture(gl, this.texture, newData as HTMLImageElement | HTMLCanvasElement | number[][][]);
         }
         return oldTo;
+    }
+
+    private makeHash(im: TextureDataValue): string {
+        
+        if (Array.isArray(im)) {
+            return hash(im.flat().flat());
+        } 
+        
+        else if (im instanceof HTMLImageElement) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = im.width;
+            canvas.height = im.height;
+            context.drawImage(im, 0, 0 );
+            const pixelData = context.getImageData(0, 0, im.width, im.height);
+            return hash(pixelData.data as any);
+        } 
+
+        else if (im instanceof HTMLCanvasElement) {
+            const context = im.getContext('2d');
+            const pixelData = context.getImageData(0, 0, im.width, im.height);
+            return hash(pixelData.data as any);
+        }
+        
+        
+        else {
+            return hash(Math.random() * 100000000000 + '');
+        }
     }
 
 }
@@ -427,6 +451,9 @@ export class Program {
  * Intercepts calls to upload, bind etc.
  * and checks if the data is *already* uploaded, bound, etc.
  * Saves on calls.
+ * 
+ * You can have multiple bundles with one context,
+ * so that several shaders can operate on shared data.
  *
  * @TODO: also wrap around bind-calls and vertex-arrays.
  * @TODO: check for overloading too many textures.
@@ -470,8 +497,8 @@ export class Context {
         }
     }
 
-    uploadTexture(data: TextureData): void {
-        if (!this.loadedTextures.includes(data.hash)) {
+    uploadTexture(data: TextureData, forceUpload = false): void {
+        if (forceUpload || !this.loadedTextures.includes(data.hash)) {
             data.upload(this.gl);
             this.loadedTextures.push(data.hash);
             if (this.verbose) console.log(`Context: uploaded texture ${data.hash}`);
@@ -513,7 +540,7 @@ export abstract class Bundle {
         checkDataProvided(program, attributes, uniforms, textures);
     }
 
-    public upload (context: Context): void {
+    public upload (context: Context, forceUpload = false): void {
         context.uploadProgram(this.program);
 
         for (const attributeName in this.attributes) {
@@ -528,7 +555,7 @@ export abstract class Bundle {
 
         for (const textureName in this.textures) {
             const data = this.textures[textureName];
-            context.uploadTexture(data);
+            context.uploadTexture(data, forceUpload);
         }
     }
 

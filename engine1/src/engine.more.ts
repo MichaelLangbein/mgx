@@ -301,7 +301,7 @@ export class RungeKuttaRenderer {
         );
 
 
-        this.differentialBundle.upload(this.context);
+        this.differentialBundle.upload(this.context, true);
         this.differentialBundle.initVertexArray(this.context);
         this.differentialBundle.bind(this.context);
 
@@ -321,7 +321,7 @@ export class RungeKuttaRenderer {
         this.differentialBundle.updateTextureData(this.context, 'u_kTexture', this.k3Fb.getTexture() );
         this.differentialBundle.draw(this.context, [0, 0, 0, 0], this.k4Fb);
         
-        this.mergingBundle.upload(this.context);
+        this.mergingBundle.upload(this.context, true);
         this.mergingBundle.initVertexArray(this.context);
         this.mergingBundle.bind(this.context);
 

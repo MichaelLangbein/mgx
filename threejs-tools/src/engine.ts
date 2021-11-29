@@ -4,19 +4,11 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 
 export abstract class EngineObject {
-    constructor(private mesh: Mesh) {}
+    constructor(public mesh: Mesh) {}
 
     abstract update(time: number): void;
 }
 
-
-// export class EuclidianAxis extends EngineObject {
-//     constructor() {
-
-//     }
-
-//     update()
-// }
 
 
 
@@ -63,6 +55,7 @@ export class Engine {
 
     addObject(object: EngineObject) {
         this.objects.push(object);
+        this.scene.add(object.mesh);
     }
 
     render(time: number) {
@@ -71,5 +64,11 @@ export class Engine {
         }
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
+    }
+
+    loop() {
+        this.renderer.setAnimationLoop((time, frame) => {
+            this.render(time);
+        });
     }
 }

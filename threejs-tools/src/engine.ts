@@ -1,12 +1,18 @@
-import { Mesh, PerspectiveCamera, Scene, TextureLoader, WebGLRenderer } from "three";
+import { Mesh, PerspectiveCamera, PointLight, Scene, TextureLoader, WebGLRenderer } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 
 
 export abstract class EngineObject {
+    protected engine: Engine;
+
     constructor(public mesh: Mesh) {}
 
     abstract update(time: number): void;
+
+    setEngine(engine: Engine) {
+        this.engine = engine;
+    }
 }
 
 
@@ -22,9 +28,9 @@ export class Engine {
     renderer: WebGLRenderer;
     camera: PerspectiveCamera;
     controls: OrbitControls;
-    loader: TextureLoader;
     scene: Scene;
     objects: EngineObject[] = [];
+    light: PointLight;
 
     constructor(options: EngineOptions) {
 
@@ -42,19 +48,22 @@ export class Engine {
 
         const controls = new OrbitControls(camera, options.canvas);
 
-        const loader = new TextureLoader();
-
         const scene = new Scene();
+
+        const light = new PointLight('#ffffff', 1);
+        light.position.fromArray([0, 10, 0]);
+        scene.add(light);
 
         this.renderer = renderer;
         this.camera = camera;
         this.controls = controls;
-        this.loader = loader;
         this.scene = scene;
+        this.light = light;
     }
 
     addObject(object: EngineObject) {
         this.objects.push(object);
+        object.setEngine(this);
         this.scene.add(object.mesh);
     }
 

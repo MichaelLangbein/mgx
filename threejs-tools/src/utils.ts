@@ -1,8 +1,6 @@
 import {
-    Color, CubeCamera, CubeRefractionMapping, DataTexture, FloatType, LinearMipmapLinearFilter, Mesh, MeshPhongMaterial, MeshStandardMaterial, NearestFilter, PlaneBufferGeometry, RepeatWrapping, RGBAFormat,
-    RGBFormat,
-    ShaderChunk, ShaderLib, ShaderMaterial, UniformsUtils, WebGLCubeRenderTarget, WebGLRenderer,
-    WebGLRenderTarget
+    DataTexture, FloatType, Mesh, NearestFilter, PlaneBufferGeometry, RepeatWrapping, RGBAFormat,
+    ShaderMaterial, Texture, WebGLRenderer, WebGLRenderTarget
 } from "three";
 import { GPUComputationRenderer } from "three/examples/jsm/misc/GPUComputationRenderer";
 import { EngineObject } from ".";
@@ -186,9 +184,8 @@ export class RungeKuttaRenderer {
 export class WaterObject extends EngineObject {
     
     private fluidSim: RungeKuttaRenderer;
-    private cubeCam: CubeCamera;
 
-    constructor(renderer: WebGLRenderer, w: number, h: number, huvData: Float32Array) {
+    constructor(renderer: WebGLRenderer, w: number, h: number, huvData: Float32Array, groundTexture: Texture) {
 
         //------------------------ Step 1: fluid-motion compute-shader -------------------------------------------
         const fluidShader = `
@@ -229,159 +226,102 @@ export class WaterObject extends EngineObject {
         const fluidSim = new RungeKuttaRenderer(renderer, w, h, huvData, fluidShader);
         //--------------------------------------------------------------------------------------------------------
 
-        //---------------------- Step 2: refraction camera -------------------------------------------------------
-        const target = new WebGLCubeRenderTarget(128, { format: RGBFormat, generateMipmaps: true, minFilter: LinearMipmapLinearFilter });
-        target.texture.mapping = CubeRefractionMapping;
-        const camera = new CubeCamera(0.01, 1000, target);
-        //--------------------------------------------------------------------------------------------------------
+
 
         //---------------------- Step 3: custom material ---------------------------------------------------------
+        const vertexShader = `
+            uniform sampler2D huvData;
+            varying vec3 v_normal;
+            varying vec3 v_worldPosition;
+            varying vec2 v_uv;
+            uniform vec2 huvDataSize;
+            uniform vec2 groundTextureDataSize;
 
-        // -------------------- First attempt: standard phong material and displacement-map: ------------
+            vec3 surfaceNormal(vec3 a, vec3 b) {
+                return normalize(cross(a, b));
+            }
+
+            void main()	{
+                float dx = 1.0 / huvDataSize.x;
+                float dy = 1.0 / huvDataSize.y;
+                vec2 deltaX = vec2(dx, 0.0);
+                vec2 deltaY = vec2(0.0, dy);
+
+                float h    = texture2D(huvData, uv          ).x;
+                float h_px = texture2D(huvData, uv + deltaX ).x;
+                float h_py = texture2D(huvData, uv + deltaY ).x;
+
+                vec3 sx = vec3(dx, 0.0, h_px - h);
+                vec3 sy = vec3(0.0, dy, h_py - h);
+
+                v_normal = surfaceNormal(sx, sy);
+
+                vec4 adjustedPosition = vec4(position.xy, h, 1.0);
+                vec4 worldPosition = modelMatrix * adjustedPosition;
+                v_worldPosition = worldPosition.xyz;
+
+                v_uv = uv;
+
+                gl_Position = projectionMatrix * viewMatrix * worldPosition;
+            }
+        `;
+        const fragmentShader = `
+            uniform sampler2D huvData;
+            uniform sampler2D groundTexture;
+            uniform vec2 huvDataSize;
+            uniform vec2 groundTextureSize;
+            varying vec3 v_normal;
+            varying vec3 v_worldPosition;
+            varying vec2 v_uv;
+
+            float angle(vec3 a, vec3 b) {
+                return acos( dot(a, b) / (length(a) * length(b)) );
+            }
+
+            void main() {
+                vec3 baseColor = vec3(0.0, 0.0, 1.0);
+
+                float refractiveIndexAir = 1.0;
+                float refractiveIndexWater = 1.333;
+                
+                vec3 up = vec3(0.0, 0.0, 1.0);
+                float angleAir = angle(cameraPosition, up);
+
+                float angleWater = asin( sin(angleAir) * refractiveIndexAir / refractiveIndexWater );
+
+                float h = texture2D(huvData, v_uv).x;
+                float H = 30.0;
+                float depth = h + H;
+
+                vec2 normalizedViewDirection = normalize((v_worldPosition - cameraPosition).xy);
+                vec2 duv = normalizedViewDirection * depth * sin(angleWater) * vec2(1.0 / groundTextureSize.x, 1.0 / groundTextureSize.y);
+
+                vec3 camData = texture2D(groundTexture, v_uv + duv).xyz;
+
+
+                float transparency = 0.5;
+                vec3 color = transparency * camData + (1.0 - transparency) * baseColor;
+
+                float heightFactor = h / 0.125;
+                color = (1.0 - heightFactor) * color + heightFactor * vec3(1.0, 1.0, 1.0);
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+        const customMaterial = new ShaderMaterial({
+            fragmentShader,
+            vertexShader,
+            uniforms: {
+                'huvData': {value: fluidSim.getOutputTexture()},
+                'huvDataSize': {value: [w, h]},
+                'groundTexture': { value: groundTexture },
+                // 'groundTextureSize': { value: [groundTexture.image.width, groundTexture.image.height] }
+                'groundTextureSize': { value: [499, 500] }
+            }
+        });
         const plane = new Mesh(
             new PlaneBufferGeometry(5, 5, 100, 100),
-            new MeshPhongMaterial({
-                color: 'rgb(50, 50, 200)',
-                specular: 'rgb(125, 125, 125)',
-                refractionRatio: 0.5,
-                transparent: true,
-                envMap: target.texture,
-                displacementMap: fluidSim.getOutputTexture()  
-            })
+            customMaterial
         );
-        //------------------- env-map seems to look in multiple directions at once-----------------------
-
-        // --------------- Second attempt: simple custom shader using texture3D: ------------------------
-        // const vertexShader = `
-        //     uniform sampler2D huvData;
-        //     varying vec4 coords;
-        //     void main()	{
-        //         coords = modelMatrix * vec4( position, 1.0 );
-        //         float h = texture2D(huvData, uv.xy).x;
-        //         vec4 adjustedPosition = vec4(position.xy, h, 1.0);
-        //         vec4 mvPosition = modelViewMatrix * adjustedPosition;    
-        //         gl_Position = projectionMatrix * mvPosition;
-        //     }
-        // `;
-        // const fragmentShader = `
-        //     uniform samplerCube cubeCam;
-        //     varying vec4 coords;
-        //     void main() {
-        //         vec3 baseColor = vec3(0.0, 0.0, 1.0);
-        //         vec3 camData = texture(cubeCam, coords.xyz).xyz;
-        //         float transparency = 0.5;
-        //         vec3 color = transparency * camData + (1.0 - transparency) * baseColor;
-        //         gl_FragColor = vec4(color.xyz, 1.0);
-        //     }
-        // `;
-        // const customMaterial = new ShaderMaterial({
-        //     fragmentShader,
-        //     vertexShader,
-        //     uniforms: {
-        //         'huvData': {value: fluidSim.getOutputTexture()},
-        //         'cubeCam': {value: target.texture}
-        //     }
-        // });
-        // const plane = new Mesh(
-        //     new PlaneBufferGeometry(5, 5, 100, 100),
-        //     customMaterial
-        // );
-        //------------- Seems like cubeCam is not looking in correct direction ----------------------
-
-        //----------------- Third attempt: extending phong-material: --------------------------------
-        // const extendedPhongShader = `
-        //     uniform sampler2D huvData;
-
-		// 	#define PHONG
-        //     varying vec3 vViewPosition;
-        //     #include <common>
-        //     #include <uv_pars_vertex>
-        //     #include <uv2_pars_vertex>
-        //     #include <displacementmap_pars_vertex>
-        //     #include <envmap_pars_vertex>
-        //     #include <color_pars_vertex>
-        //     #include <fog_pars_vertex>
-        //     #include <normal_pars_vertex>
-        //     #include <morphtarget_pars_vertex>
-        //     #include <skinning_pars_vertex>
-        //     #include <shadowmap_pars_vertex>
-        //     #include <logdepthbuf_pars_vertex>
-        //     #include <clipping_planes_pars_vertex>
-
-        //     void main() {
-        //         #include <uv_vertex>
-        //         #include <uv2_vertex>
-        //         #include <color_vertex>
-
-
-        //         // # include <beginnormal_vertex> ---------------------------------------------------------------------------------------------------------
-
-        //         vec2 deltaX_ = vec2(0.1, 0.0);
-        //         vec2 deltaY_ = vec2(0.0, 0.1);
-
-        //         float h_mx = texture2D( huvData, uv - deltaX_ ).x;
-        //         float h_px = texture2D( huvData, uv + deltaX_ ).x;
-        //         float h_my = texture2D( huvData, uv - deltaY_ ).x;
-        //         float h_py = texture2D( huvData, uv + deltaY_ ).x;
-
-        //                 vec3 objectNormal = vec3(
-        //                     h_mx - h_px,
-        //                     h_my - h_py,
-        //                     1.0
-        //         );
-        //                 //-----------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-        //         #include <morphnormal_vertex>
-        //         #include <skinbase_vertex>
-        //         #include <skinnormal_vertex>
-        //         #include <defaultnormal_vertex>
-        //         #include <normal_vertex>
-
-
-        //         //# include <begin_vertex> -------------------------------------------------------------------------------------------------------------------
-        //                 float heightValue = texture2D( huvData, uv ).x;
-        //                 vec3 transformed = vec3( position.x, position.y, heightValue );
-        //                 //--------------------------------------------------------------------------------------------------------------------------------------------
-
-
-        //         #include <morphtarget_vertex>
-        //         #include <skinning_vertex>
-        //         #include <displacementmap_vertex>
-        //         #include <project_vertex>
-        //         #include <logdepthbuf_vertex>
-        //         #include <clipping_planes_vertex>
-        //         vViewPosition = - mvPosition.xyz;
-        //         #include <worldpos_vertex>
-        //         #include <envmap_vertex>
-        //         #include <shadowmap_vertex>
-        //         #include <fog_vertex>
-        //     }
-        // `;
-        // const extendedPhongMaterial = new ShaderMaterial({
-        //     uniforms: UniformsUtils.merge([
-        //         ShaderLib['phong'].uniforms, { "huvData": { value: null } }
-        //     ]),
-        //     vertexShader: extendedPhongShader,
-        //     fragmentShader: ShaderChunk['meshphong_frag'],
-        //     lights: true,
-        //     transparent: true,
-        // });
-
-        // extendedPhongMaterial.uniforms["diffuse"].value = new Color(0x0040C0);
-        // extendedPhongMaterial.uniforms["specular"].value = new Color(0x111111);
-        // extendedPhongMaterial.uniforms["shininess"].value = 1.0;
-        // extendedPhongMaterial.uniforms["opacity"].value = 1.0;
-        // extendedPhongMaterial.uniforms["refractionRatio"].value = 0.5;
-        // extendedPhongMaterial.uniforms["huvData"].value = fluidSim.getOutputTexture();
-        // extendedPhongMaterial.uniforms["envMap"].value = target.texture;
-
-        // const plane = new Mesh(
-        //     new PlaneBufferGeometry(5, 5, 100, 100),
-        //     extendedPhongMaterial
-        // );
-        //---------------- doesn't seem to notice the envMap ----------------------------------------
 
         //--------------------------------------------------------------------------------------------------------
 
@@ -393,6 +333,18 @@ export class WaterObject extends EngineObject {
          *  custom shader
          *  with 'underneathMe' texture = chessboard
          *  use normals and view-matrix to calculate which uv-coordinates of the chessboard to display.
+         * https://www.3dgep.com/understanding-the-view-matrix/
+         *  while the normals need to be passed in as a varying from the vertex shader, 
+         *  the rest should be entirely doable in the fragment shader.
+         * 
+         *  ```glsl
+         *  float angleAir = calculateAngleInFromViewMatrix(u_viewMatrix);
+         *  float angleWater = refraction(angleAir, densityAir, densityWater);  // https://en.wikipedia.org/wiki/Refraction
+         *  float depth = texture2D(H); // actually, this should be the depth under the touch-point... but this is probably good enough.
+         *  vec2 startPoint = v_uv;
+         *  vec2 touchPoint = project(startPoint, angleWater, depth);
+         *  vec4 refractedPixel = texture2D(chessboard, touchPoint);
+         *  ```
          */
 
 
@@ -400,20 +352,15 @@ export class WaterObject extends EngineObject {
         //--------------- Step 4: positioning and grouping -------------------------------------------------------
         plane.position.set(0, 0, 0);
         plane.lookAt(0, 10, 0);
-        camera.lookAt(0, -1, 0);
-        plane.add(camera);
-        // camera.position.fromArray([0, -0.2, 0]);
         //--------------------------------------------------------------------------------------------------------
 
         super(plane);
 
         this.fluidSim = fluidSim;
-        this.cubeCam = camera;
     }
 
     update(time: number): void {
         this.fluidSim.update();
-        this.cubeCam.update(this.engine.renderer, this.engine.scene);
     }
 
     handleClick(evt: any) {

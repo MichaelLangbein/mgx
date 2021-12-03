@@ -220,6 +220,21 @@ export class WaterObject extends EngineObject {
             float dhdt =      - H * ( dudx + dvdy );
             float dudt = ( + f*v - b*u - g * dhdx );
             float dvdt = ( - f*u - b*v - g * dhdy );
+            
+            float easing = 0.02;
+            dhdt = (1.0 - easing) * dhdt - easing * h;
+            // dudt = (1.0 - easing) * dhdt - easing * u;
+            // dvdt = (1.0 - easing) * dhdt - easing * v;
+
+
+            float d = 1.5 * 1.0 / resolution.x;
+            if(position.x <= d || position.x > 1.0 - d ||
+                position.y <= d || position.y > 1.0 - d    ) {
+                    dhdt = 0.0;
+                    dudt = 0.0;
+                    dvdt = 0.0;
+            }
+
 
             gl_FragColor = vec4(dhdt, dudt, dvdt, 1.0);
         `;

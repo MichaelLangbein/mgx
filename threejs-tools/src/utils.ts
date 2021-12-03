@@ -285,16 +285,17 @@ export class WaterObject extends EngineObject {
                 float refractiveIndexWater = 1.333;
                 
                 vec3 up = vec3(0.0, 0.0, 1.0);
-                float angleAir = angle(cameraPosition, up);
-
+                float angleAir = angle(cameraPosition, v_normal) ;
                 float angleWater = asin( sin(angleAir) * refractiveIndexAir / refractiveIndexWater );
+                float angleNormal = angle( v_normal, up );
+                float totalAngleWater = angleWater + angleNormal;
 
                 float h = texture2D(huvData, v_uv).x;
                 float H = 30.0;
                 float depth = h + H;
 
                 vec2 normalizedViewDirection = normalize((v_worldPosition - cameraPosition).xy);
-                vec2 duv = normalizedViewDirection * depth * sin(angleWater) * vec2(1.0 / groundTextureSize.x, 1.0 / groundTextureSize.y);
+                vec2 duv = normalizedViewDirection * depth * sin(totalAngleWater) * vec2(1.0 / groundTextureSize.x, 1.0 / groundTextureSize.y);
 
                 vec3 camData = texture2D(groundTexture, v_uv + duv).xyz;
 

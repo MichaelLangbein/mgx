@@ -185,7 +185,7 @@ export class WaterObject extends EngineObject {
     
     private fluidSim: RungeKuttaRenderer;
 
-    constructor(renderer: WebGLRenderer, w: number, h: number, huvData: Float32Array, groundTexture: Texture) {
+    constructor(renderer: WebGLRenderer, wPixels: number, hPixels: number, wMeter: number, hMeter: number, huvData: Float32Array, groundTexture: Texture) {
 
         //------------------------ Step 1: fluid-motion compute-shader -------------------------------------------
         const fluidShader = `
@@ -223,12 +223,12 @@ export class WaterObject extends EngineObject {
 
             gl_FragColor = vec4(dhdt, dudt, dvdt, 1.0);
         `;
-        const fluidSim = new RungeKuttaRenderer(renderer, w, h, huvData, fluidShader);
+        const fluidSim = new RungeKuttaRenderer(renderer, wPixels, hPixels, huvData, fluidShader);
         //--------------------------------------------------------------------------------------------------------
 
 
 
-        //---------------------- Step 3: custom material ---------------------------------------------------------
+        //---------------------- Step 2: water material ---------------------------------------------------------
         const vertexShader = `
             uniform sampler2D huvData;
             varying vec3 v_normal;
@@ -270,6 +270,7 @@ export class WaterObject extends EngineObject {
             uniform sampler2D groundTexture;
             uniform vec2 huvDataSize;
             uniform vec2 groundTextureSize;
+            uniform vec2 fieldDimensionsMeter;
             varying vec3 v_normal;
             varying vec3 v_worldPosition;
             varying vec2 v_uv;
@@ -279,23 +280,28 @@ export class WaterObject extends EngineObject {
             }
 
             void main() {
+                vec3 worldCameraPosition = vec3(cameraPosition.x, -cameraPosition.z, cameraPosition.y);
+
                 vec3 baseColor = vec3(0.0, 0.0, 1.0);
 
                 float refractiveIndexAir = 1.0;
                 float refractiveIndexWater = 1.333;
                 
                 vec3 up = vec3(0.0, 0.0, 1.0);
-                float angleAir = angle(cameraPosition, v_normal) ;
-                float angleWater = asin( sin(angleAir) * refractiveIndexAir / refractiveIndexWater );
-                float angleNormal = angle( v_normal, up );
+                float angleAir        = angle(worldCameraPosition, v_normal);
+                float angleWater      = asin( sin(angleAir) * refractiveIndexAir / refractiveIndexWater );
+                float angleNormal     = angle( v_normal, up );
                 float totalAngleWater = angleWater + angleNormal;
 
-                float h = texture2D(huvData, v_uv).x;
-                float H = 30.0;
+                float h     = texture2D(huvData, v_uv).x;
+                float H     = 3.0;
                 float depth = h + H;
+                float lengthRayInWater           = depth / cos(totalAngleWater);                   // <-- assumes that depth on touch-point is the same as here ... which is good enough, I guess.
+                float distanceOnGround           = lengthRayInWater * sin(totalAngleWater);
+                float distanceOnGroundNormalized = distanceOnGround / max(fieldDimensionsMeter.x, fieldDimensionsMeter.y);
 
-                vec2 normalizedViewDirection = normalize((v_worldPosition - cameraPosition).xy);
-                vec2 duv = normalizedViewDirection * depth * sin(totalAngleWater) * vec2(1.0 / groundTextureSize.x, 1.0 / groundTextureSize.y);
+                vec2 viewDirectionNormalized = normalize((v_worldPosition - worldCameraPosition).xy);
+                vec2 duv = viewDirectionNormalized * distanceOnGroundNormalized;
 
                 vec3 camData = texture2D(groundTexture, v_uv + duv).xyz;
 
@@ -303,8 +309,8 @@ export class WaterObject extends EngineObject {
                 float transparency = 0.5;
                 vec3 color = transparency * camData + (1.0 - transparency) * baseColor;
 
-                float heightFactor = h / 0.125;
-                color = (1.0 - heightFactor) * color + heightFactor * vec3(1.0, 1.0, 1.0);
+                // float heightFactor = h / 0.125;
+                // color = (1.0 - heightFactor) * color + heightFactor * vec3(1.0, 1.0, 1.0);
                 gl_FragColor = vec4(color, 1.0);
             }
         `;
@@ -313,10 +319,10 @@ export class WaterObject extends EngineObject {
             vertexShader,
             uniforms: {
                 'huvData': {value: fluidSim.getOutputTexture()},
-                'huvDataSize': {value: [w, h]},
+                'huvDataSize': {value: [wPixels, hPixels]},
                 'groundTexture': { value: groundTexture },
-                // 'groundTextureSize': { value: [groundTexture.image.width, groundTexture.image.height] }
-                'groundTextureSize': { value: [499, 500] }
+                'groundTextureSize': { value: [groundTexture.image.width, groundTexture.image.height] },
+                'fieldDimensionsMeter': { value: [wMeter, hMeter] }
             }
         });
         const plane = new Mesh(
@@ -326,31 +332,7 @@ export class WaterObject extends EngineObject {
 
         //--------------------------------------------------------------------------------------------------------
 
-
-
-        /**
-         * @TODO:
-         * idea:
-         *  custom shader
-         *  with 'underneathMe' texture = chessboard
-         *  use normals and view-matrix to calculate which uv-coordinates of the chessboard to display.
-         * https://www.3dgep.com/understanding-the-view-matrix/
-         *  while the normals need to be passed in as a varying from the vertex shader, 
-         *  the rest should be entirely doable in the fragment shader.
-         * 
-         *  ```glsl
-         *  float angleAir = calculateAngleInFromViewMatrix(u_viewMatrix);
-         *  float angleWater = refraction(angleAir, densityAir, densityWater);  // https://en.wikipedia.org/wiki/Refraction
-         *  float depth = texture2D(H); // actually, this should be the depth under the touch-point... but this is probably good enough.
-         *  vec2 startPoint = v_uv;
-         *  vec2 touchPoint = project(startPoint, angleWater, depth);
-         *  vec4 refractedPixel = texture2D(chessboard, touchPoint);
-         *  ```
-         */
-
-
-
-        //--------------- Step 4: positioning and grouping -------------------------------------------------------
+        //--------------- Step 3: positioning and grouping -------------------------------------------------------
         plane.position.set(0, 0, 0);
         plane.lookAt(0, 10, 0);
         //--------------------------------------------------------------------------------------------------------

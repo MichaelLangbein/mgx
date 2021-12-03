@@ -48,7 +48,7 @@ function addElements(boardTexture: Texture) {
     }
   }
   
-  const waterObject = new WaterObject(engine.renderer, w, h, huv1Data, boardTexture);
+  const waterObject = new WaterObject(engine.renderer, w, h, 5, 5, huv1Data, boardTexture);
   waterObject.mesh.position.setY(1);
   engine.addObject(waterObject);
 }

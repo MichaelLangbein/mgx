@@ -16,7 +16,7 @@ const engine = new Engine({
   canvas: container
 });
 const loader = new TextureLoader();
-loader.load('./board.jpg', (boardTexture) => addElements(boardTexture));
+loader.load('./board2.jpg', (boardTexture) => addElements(boardTexture));
 
 
 //---------------------- Section 3: scene-objects ------------------------------------------------

@@ -221,7 +221,7 @@ export class WaterObject extends EngineObject {
             float dudt = ( + f*v - b*u - g * dhdx );
             float dvdt = ( - f*u - b*v - g * dhdy );
             
-            float easing = 0.02;
+            float easing = 0.03;
             dhdt = (1.0 - easing) * dhdt - easing * h;
             // dudt = (1.0 - easing) * dhdt - easing * u;
             // dvdt = (1.0 - easing) * dhdt - easing * v;
@@ -244,10 +244,16 @@ export class WaterObject extends EngineObject {
 
 
         //---------------------- Step 2: water material ---------------------------------------------------------
+        /**
+         * MS: modelSpace
+         * WS: worldSpace
+         * CS: cameraSpace
+         * SS: screenSpace = clippingSpace
+         */
         const vertexShader = `
             uniform sampler2D huvData;
-            varying vec3 v_normal;
-            varying vec3 v_worldPosition;
+            varying vec3 v_normalWS;
+            varying vec3 v_positionWS;
             varying vec2 v_uv;
             uniform vec2 huvDataSize;
             uniform vec2 groundTextureDataSize;
@@ -268,16 +274,19 @@ export class WaterObject extends EngineObject {
 
                 vec3 sx = vec3(dx, 0.0, h_px - h);
                 vec3 sy = vec3(0.0, dy, h_py - h);
+                vec3 normalMS = surfaceNormal(sx, sy);
+                
 
-                v_normal = surfaceNormal(sx, sy);
-
-                vec4 adjustedPosition = vec4(position.xy, h, 1.0);
-                vec4 worldPosition = modelMatrix * adjustedPosition;
-                v_worldPosition = worldPosition.xyz;
+                vec4 adjustedPositionMS = vec4(position.xy, h, 1.0);
+                vec4 adjustedPositionWS = modelMatrix * adjustedPositionMS; 
+                vec4 adjustedPositionCS = viewMatrix * adjustedPositionWS;
+                vec4 adjustedPositionSS = projectionMatrix * adjustedPositionCS;
+                gl_Position = adjustedPositionSS;
+                
 
                 v_uv = uv;
-
-                gl_Position = projectionMatrix * viewMatrix * worldPosition;
+                v_positionWS = adjustedPositionWS.xyz;
+                v_normalWS = normalize ( (modelMatrix * vec4(normalMS, 1.0)).xyz );
             }
         `;
         const fragmentShader = `
@@ -286,8 +295,8 @@ export class WaterObject extends EngineObject {
             uniform vec2 huvDataSize;
             uniform vec2 groundTextureSize;
             uniform vec2 fieldDimensionsMeter;
-            varying vec3 v_normal;
-            varying vec3 v_worldPosition;
+            varying vec3 v_normalWS;
+            varying vec3 v_positionWS;
             varying vec2 v_uv;
 
             float angle(vec3 a, vec3 b) {
@@ -295,37 +304,38 @@ export class WaterObject extends EngineObject {
             }
 
             void main() {
-                vec3 worldCameraPosition = vec3(cameraPosition.x, -cameraPosition.z, cameraPosition.y);
+                vec3 baseColor = vec3(0.0, 0.8, 1.0);
 
-                vec3 baseColor = vec3(0.0, 0.0, 1.0);
+                vec3 cameraPositionWS = cameraPosition;
 
+                vec3 viewDirectionWS = v_positionWS - cameraPositionWS;
+                
                 float refractiveIndexAir = 1.0;
                 float refractiveIndexWater = 1.333;
                 
-                vec3 up = vec3(0.0, 0.0, 1.0);
-                float angleAir        = angle(worldCameraPosition, v_normal);
+                vec3 upWS             = vec3( 0.0, 1.0, 0.0 );
+                float angleAir        = angle( -viewDirectionWS, v_normalWS );
                 float angleWater      = asin( sin(angleAir) * refractiveIndexAir / refractiveIndexWater );
-                float angleNormal     = angle( v_normal, up );
+                float angleNormal     = angle( v_normalWS, upWS );
                 float totalAngleWater = angleWater + angleNormal;
-
+                
                 float h     = texture2D(huvData, v_uv).x;
-                float H     = 3.0;
+                float H     = 1.0;
                 float depth = h + H;
-                float lengthRayInWater           = depth / cos(totalAngleWater);                   // <-- assumes that depth on touch-point is the same as here ... which is good enough, I guess.
-                float distanceOnGround           = lengthRayInWater * sin(totalAngleWater);
-                float distanceOnGroundNormalized = distanceOnGround / max(fieldDimensionsMeter.x, fieldDimensionsMeter.y);
-
-                vec2 viewDirectionNormalized = normalize((v_worldPosition - worldCameraPosition).xy);
-                vec2 duv = viewDirectionNormalized * distanceOnGroundNormalized;
+                float lengthRayInWater              = depth / cos(totalAngleWater);                   // <-- assumes that depth on touch-point is the same as here ... which is good enough, I guess.
+                float distanceOnGround              = lengthRayInWater * sin(totalAngleWater);
+                float distanceOnGroundNormalized    = distanceOnGround / max(fieldDimensionsMeter.x, fieldDimensionsMeter.y);
+                vec2 viewDirectionGroundNormalized  = normalize((viewDirectionWS).xz);
+                vec2 duv = viewDirectionGroundNormalized * distanceOnGroundNormalized;
+                duv.y = - duv.y;                                                        // <-- texture-coordinates have (0/0) at the top left: https://webglfundamentals.org/webgl/lessons/webgl-3d-textures.html
 
                 vec3 camData = texture2D(groundTexture, v_uv + duv).xyz;
-
 
                 float transparency = 0.5;
                 vec3 color = transparency * camData + (1.0 - transparency) * baseColor;
 
-                // float heightFactor = h / 0.125;
-                // color = (1.0 - heightFactor) * color + heightFactor * vec3(1.0, 1.0, 1.0);
+                float heightFactor = h / 0.125;
+                color = (1.0 - heightFactor) * color + heightFactor * vec3(1.0, 1.0, 1.0);
                 gl_FragColor = vec4(color, 1.0);
             }
         `;

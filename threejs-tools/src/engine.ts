@@ -8,7 +8,7 @@ export abstract class EngineObject {
 
     constructor(public mesh: Object3D) {}
 
-    abstract update(time: number): void;
+    abstract update(timeSinceAppStart: number): void;
 
     setEngine(engine: Engine) {
         this.engine = engine;
@@ -67,17 +67,17 @@ export class Engine {
         this.scene.add(object.mesh);
     }
 
-    render(time: number) {
+    render(timeSinceAppStart: number) {
         for (const object of this.objects) {
-            object.update(time);
+            object.update(timeSinceAppStart);
         }
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
 
     loop() {
-        this.renderer.setAnimationLoop((time, frame) => {
-            this.render(time);
+        this.renderer.setAnimationLoop((timeSinceAppStart, frame) => {
+            this.render(timeSinceAppStart);
         });
     }
 }

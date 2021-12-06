@@ -28,16 +28,7 @@ const xAxis = new AxisObject({
   range: [0, 5]
 });
 engine.addObject(xAxis);
-const yAxis = new AxisObject({
-  direction: new Vector3(0.3, 1, 0.3),
-  range: [0, 5]
-});
-engine.addObject(yAxis);
-const zAxis = new AxisObject({
-  direction: new Vector3(1, 0.3, 1),
-  range: [0, 5]
-});
-engine.addObject(zAxis);
+xAxis.grow(0, 5, 5000);
 
 function addElements(boardTexture: Texture) {
 

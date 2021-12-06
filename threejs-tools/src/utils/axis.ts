@@ -1,6 +1,6 @@
-import { ticks } from "d3-array";
 import { Line, Vector3, BufferGeometry, LineDashedMaterial, ColorRepresentation } from "three";
 import { EngineObject } from "../engine";
+import { Animation } from "./animation";
 
 
 
@@ -20,6 +20,7 @@ export interface AxisObjectOptions {
 export class AxisObject extends EngineObject {
     
     private axis: Line;
+    private animation: Animation;
     
     constructor(options: AxisObjectOptions) {
 
@@ -48,9 +49,9 @@ export class AxisObject extends EngineObject {
         let normal: Vector3;
         if (Math.max(adx, adz) > ady) {
             // obtained like this:
-            //   objective: get the vector v that is orthogonal to direction
+            //   objective: get the vector v (x, y, z) that is orthogonal to direction (a, d, c)
             //     and normal
-            //     and maximally aligned with -y
+            //     and maximally aligned with -y (0, -1, 0)
             //  For that:
             //     Use Lagrange multiplier constraint optimization
             //     maximizing f(x, z) = - sqrt(1 - x^2 - z^2)
@@ -97,8 +98,18 @@ export class AxisObject extends EngineObject {
         this.axis = axis;
     }
 
+    grow(startLength: number, endLength: number, duration: number, offset: number = 0) {
+        this.animation = new Animation(duration, offset, (frac: number) => {
+            console.log(frac);
+        });
+    }
 
-    update(time: number): void {
 
+    update(timeSinceAppStart: number): void {
+        if (this.animation) {
+            this.animation.update(timeSinceAppStart);
+        }
     }
 }
+
+

@@ -1,2 +1,4 @@
 export * from './engine';
-export * from './utils';
+export * from './utils/rungeKutta';
+export * from './utils/water';
+export * from './utils/axis';

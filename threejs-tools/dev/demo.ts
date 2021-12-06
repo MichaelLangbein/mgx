@@ -1,8 +1,11 @@
+import { scaleLinear } from "d3-scale";
 import { 
   AxesHelper, Mesh, MeshBasicMaterial,
-  PlaneGeometry, Texture, TextureLoader
+  PlaneGeometry, Texture, TextureLoader, Vector3
 } from "three";
-import { Engine, WaterObject } from "../src";
+import { Engine } from "../src";
+import { AxisObject } from "../src/utils/axis";
+import { WaterObject } from "../src/utils/water";
 
 
 
@@ -20,9 +23,21 @@ loader.load('./board2.jpg', (boardTexture) => addElements(boardTexture));
 
 
 //---------------------- Section 3: scene-objects ------------------------------------------------
-
-engine.scene.add(new AxesHelper(5));
-
+const xAxis = new AxisObject({
+  direction: new Vector3(1, 0, 0),
+  range: [0, 5]
+});
+engine.addObject(xAxis);
+const yAxis = new AxisObject({
+  direction: new Vector3(0.3, 1, 0.3),
+  range: [0, 5]
+});
+engine.addObject(yAxis);
+const zAxis = new AxisObject({
+  direction: new Vector3(1, 0.3, 1),
+  range: [0, 5]
+});
+engine.addObject(zAxis);
 
 function addElements(boardTexture: Texture) {
 

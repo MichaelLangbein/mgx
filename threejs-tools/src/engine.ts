@@ -1,4 +1,4 @@
-import { Mesh, PerspectiveCamera, PointLight, Scene, WebGLRenderer } from "three";
+import { Mesh, Object3D, PerspectiveCamera, PointLight, Scene, WebGLRenderer } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 
@@ -6,7 +6,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 export abstract class EngineObject {
     protected engine: Engine;
 
-    constructor(public mesh: Mesh) {}
+    constructor(public mesh: Object3D) {}
 
     abstract update(time: number): void;
 

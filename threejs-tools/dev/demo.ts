@@ -1,12 +1,11 @@
-import { scaleLinear } from "d3-scale";
 import { 
-  AxesHelper, Mesh, MeshBasicMaterial,
+  AxesHelper, DataTexture, Mesh, MeshBasicMaterial,
   PlaneGeometry, Texture, TextureLoader, Vector3
 } from "three";
 import { Engine } from "../src";
 import { AxisObject } from "../src/utils/axis";
 import { WaterObject } from "../src/utils/water";
-
+import { GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 
 
@@ -16,32 +15,27 @@ const container = document.getElementById('container') as HTMLCanvasElement;
 
 //----------------------- Section 2: threejs scaffold -------------------------------------------
 const engine = new Engine({
-  canvas: container
+  canvas: container,
+  cameraPosition: [-120, 120, 200]
 });
-const loader = new TextureLoader();
-loader.load('./board2.jpg', (boardTexture) => addElements(boardTexture));
 
 
 //---------------------- Section 3: scene-objects ------------------------------------------------
-const xAxis = new AxisObject({
-  direction: new Vector3(1, 0, 0),
-  range: [0, 5]
-});
-engine.addObject(xAxis);
-xAxis.grow(0, 5, 5000);
 
-function addElements(boardTexture: Texture) {
+const gltfLoader = new GLTFLoader();
+const textureLoader = new TextureLoader();
 
-  const plane = new Mesh(
-    new PlaneGeometry(5, 5, 2, 2),
-    new MeshBasicMaterial({
-      map: boardTexture
-    })
-  );
-  plane.lookAt(0, 1, 0);
-  engine.scene.add(plane);
-  
-  
+const islandObject$ = gltfLoader.loadAsync('./assets/island_glb/island.gltf');
+const depthTexture$ = textureLoader.loadAsync('./assets/island_glb/depth.png');
+const landTexture$ = textureLoader.loadAsync('./assets/island_glb/EXPORT_GOOGLE_SAT_WM.png');
+
+Promise.all([islandObject$, depthTexture$, landTexture$]).then(values => {
+  const island = values[0].scene.children[0];
+  engine.scene.add(island);
+
+  const depthTexture = values[1];
+  const landTexture = values[2];
+
   const w = 256;
   const h = 256;
   const huv1Data = new Float32Array( w * h * 4 );
@@ -54,11 +48,10 @@ function addElements(boardTexture: Texture) {
     }
   }
   
-  const waterObject = new WaterObject(engine.renderer, w, h, 5, 5, huv1Data, boardTexture);
-  waterObject.mesh.position.setY(1);
+  const waterObject = new WaterObject(engine.renderer, w, h, 700, 400, huv1Data, landTexture, depthTexture as DataTexture);
+  waterObject.mesh.position.setY(-5);
   engine.addObject(waterObject);
-}
-
+});
 
 
 //--------------------- Section 4: animation-loop -------------------------------------------------

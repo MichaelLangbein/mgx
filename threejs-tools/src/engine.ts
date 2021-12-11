@@ -1,4 +1,4 @@
-import { Mesh, Object3D, PerspectiveCamera, PointLight, Scene, WebGLRenderer } from "three";
+import { DirectionalLight, Light, Mesh, Object3D, PerspectiveCamera, PointLight, Scene, WebGLRenderer } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 
@@ -19,7 +19,9 @@ export abstract class EngineObject {
 
 
 export interface EngineOptions {
-    canvas: HTMLCanvasElement
+    canvas: HTMLCanvasElement,
+    cameraPosition?: [number, number, number],
+    lightPosition?: [number, number, number],
 };
 
 
@@ -30,9 +32,14 @@ export class Engine {
     controls: OrbitControls;
     scene: Scene;
     objects: EngineObject[] = [];
-    light: PointLight;
+    light: Light;
 
     constructor(options: EngineOptions) {
+
+        options = Object.assign({
+            cameraPosition: [10, 10, 10],
+            lightPosition: [0, 30, 0]
+        }, options);
 
 
         const renderer = new WebGLRenderer({
@@ -42,16 +49,16 @@ export class Engine {
         });
         renderer.setSize(options.canvas.clientWidth, options.canvas.clientHeight);
 
-        const camera = new PerspectiveCamera(50, options.canvas.width / options.canvas.height, 0.001, 100);
-        camera.position.fromArray([8, 8, 8]);
+        const camera = new PerspectiveCamera(50, options.canvas.width / options.canvas.height, 0.001, 10000);
+        camera.position.fromArray(options.cameraPosition);
         camera.lookAt(0, 0, 0);
 
         const controls = new OrbitControls(camera, options.canvas);
 
         const scene = new Scene();
 
-        const light = new PointLight('#ffffff', 1);
-        light.position.fromArray([0, 10, 0]);
+        const light = new DirectionalLight('#ffffff', 2);
+        light.position.fromArray(options.lightPosition);
         scene.add(light);
 
         this.renderer = renderer;

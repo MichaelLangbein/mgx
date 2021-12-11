@@ -1,4 +1,4 @@
-import { WebGLRenderer, Texture, ShaderMaterial, Mesh, PlaneBufferGeometry } from "three";
+import { WebGLRenderer, Texture, ShaderMaterial, Mesh, PlaneBufferGeometry, DataTexture } from "three";
 import { EngineObject } from "..";
 import { RungeKuttaRenderer } from "./rungeKutta";
 
@@ -8,7 +8,7 @@ export class WaterObject extends EngineObject {
     
     private fluidSim: RungeKuttaRenderer;
 
-    constructor(renderer: WebGLRenderer, wPixels: number, hPixels: number, wMeter: number, hMeter: number, huvData: Float32Array, groundTexture: Texture) {
+    constructor(renderer: WebGLRenderer, wPixels: number, hPixels: number, wMeter: number, hMeter: number, huvData: Float32Array, groundTexture: Texture, depthTexture: DataTexture) {
 
         //------------------------ Step 1: fluid-motion compute-shader -------------------------------------------
         const fluidShader = `
@@ -28,7 +28,8 @@ export class WaterObject extends EngineObject {
             float umy = data_my[1];
             float vmy = data_my[2];
 
-            float H  = 15.0;
+            float H_tex = texture2D(hTexture, position).x;
+            float H  = 10.714 - H_tex * 10.0 / 168.0;
             float dx = 0.05;
             float dy = 0.05;
             float f = 0.001;
@@ -61,7 +62,7 @@ export class WaterObject extends EngineObject {
 
             gl_FragColor = vec4(dhdt, dudt, dvdt, 1.0);
         `;
-        const fluidSim = new RungeKuttaRenderer(renderer, wPixels, hPixels, huvData, fluidShader);
+        const fluidSim = new RungeKuttaRenderer(renderer, wPixels, hPixels, huvData, fluidShader, { 'hTexture': depthTexture });
         //--------------------------------------------------------------------------------------------------------
 
 
@@ -174,7 +175,7 @@ export class WaterObject extends EngineObject {
             }
         });
         const plane = new Mesh(
-            new PlaneBufferGeometry(5, 5, 100, 100),
+            new PlaneBufferGeometry(wMeter, hMeter, 100, 100),
             customMaterial
         );
 

@@ -141,7 +141,7 @@ export class RungeKuttaRenderer {
         const data0Texture = new DataTexture(data, this.w, this.h, RGBAFormat, FloatType);
         this.differentialShader.uniforms.dataTexture.value = data0Texture;
         for (const key in this.textures) {
-            this.differentialShader.uniforms[key].value = this.textures[key];
+            this.differentialShader.uniforms[key] = {value: this.textures[key] };
         }
         this.differentialShader.uniforms.dk.value = 0.0;
         this.gpgpu.doRenderTarget(this.differentialShader, this.k1Target);

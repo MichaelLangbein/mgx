@@ -1,4 +1,4 @@
-import { WebGLRenderer, Texture, ShaderMaterial, Mesh, PlaneBufferGeometry, DataTexture } from "three";
+import { WebGLRenderer, Texture, ShaderMaterial, Mesh, PlaneBufferGeometry, DataTexture, Raycaster } from "three";
 import { EngineObject } from "..";
 import { RungeKuttaRenderer } from "./rungeKutta";
 
@@ -7,8 +7,29 @@ import { RungeKuttaRenderer } from "./rungeKutta";
 export class WaterObject extends EngineObject {
     
     private fluidSim: RungeKuttaRenderer;
+    private plane: Mesh<PlaneBufferGeometry, ShaderMaterial>;
+    private wPixels: number;
+    private hPixels: number;
+    private wMeter: number;
+    private hMeter: number;
+    private huvData: Float32Array;
+    private groundTexture: Texture;
+    private depthTexture: DataTexture;
+    rayCaster: Raycaster;
 
-    constructor(renderer: WebGLRenderer, wPixels: number, hPixels: number, wMeter: number, hMeter: number, huvData: Float32Array, groundTexture: Texture, depthTexture: DataTexture) {
+    constructor(
+        renderer: WebGLRenderer,
+        wPixels: number,
+        hPixels: number,
+        wMeter: number,
+        hMeter: number,
+        huvData: Float32Array,
+        groundTexture: Texture,
+        depthTexture: DataTexture,
+        maxDepthMeter: number,
+        depthTextureValueMaxDepth: number,
+        depthTextureValue00: number
+    ) {
 
         //------------------------ Step 1: fluid-motion compute-shader -------------------------------------------
         const fluidShader = `
@@ -28,8 +49,16 @@ export class WaterObject extends EngineObject {
             float umy = data_my[1];
             float vmy = data_my[2];
 
-            float H_tex = texture2D(hTexture, position).x;
-            float H  = 10.714 - H_tex * 10.0 / 168.0;
+            float H_tex = texture2D(HData, position).x;
+            float H_max = ${maxDepthMeter.toFixed(2)};
+            float H_min = 0.0;
+            float tex_max = ${depthTextureValueMaxDepth.toFixed(2)} / 255.0;
+            float tex_min = ${depthTextureValue00.toFixed(2)} / 255.0;
+            float alpha = (H_max - H_min) / (tex_max - tex_min);
+            float beta = H_min - alpha * tex_min;
+            float H = alpha * H_tex + beta;
+            H = max(H, 0.0);
+
             float dx = 0.05;
             float dy = 0.05;
             float f = 0.001;
@@ -45,8 +74,8 @@ export class WaterObject extends EngineObject {
             float dudt = ( + f*v - b*u - g * dhdx );
             float dvdt = ( - f*u - b*v - g * dhdy );
             
-            float easing = 0.03;
-            dhdt = (1.0 - easing) * dhdt - easing * h;
+            // float easing = 0.03;
+            // dhdt = (1.0 - easing) * dhdt - easing * h;
             // dudt = (1.0 - easing) * dhdt - easing * u;
             // dvdt = (1.0 - easing) * dhdt - easing * v;
 
@@ -62,7 +91,7 @@ export class WaterObject extends EngineObject {
 
             gl_FragColor = vec4(dhdt, dudt, dvdt, 1.0);
         `;
-        const fluidSim = new RungeKuttaRenderer(renderer, wPixels, hPixels, huvData, fluidShader, { 'hTexture': depthTexture });
+        const fluidSim = new RungeKuttaRenderer(renderer, wPixels, hPixels, huvData, fluidShader, { 'HData': depthTexture });
         //--------------------------------------------------------------------------------------------------------
 
 
@@ -114,6 +143,7 @@ export class WaterObject extends EngineObject {
             }
         `;
         const fragmentShader = `
+            uniform sampler2D HData;
             uniform sampler2D huvData;
             uniform sampler2D groundTexture;
             uniform vec2 huvDataSize;
@@ -144,7 +174,18 @@ export class WaterObject extends EngineObject {
                 float totalAngleWater = angleWater + angleNormal;
                 
                 float h     = texture2D(huvData, v_uv).x;
-                float H     = 1.0;
+
+
+                float H_tex = texture2D(HData, v_uv).x;
+                float H_max = ${maxDepthMeter.toFixed(2)};
+                float H_min = 0.0;
+                float tex_max = ${depthTextureValueMaxDepth.toFixed(2)} / 255.0;
+                float tex_min = ${depthTextureValue00.toFixed(2)} / 255.0;
+                float alpha = (H_max - H_min) / (tex_max - tex_min);
+                float beta = H_min - alpha * tex_min;
+                float H = alpha * H_tex + beta;
+                H = max(H, 0.0);
+
                 float depth = h + H;
                 float lengthRayInWater              = depth / cos(totalAngleWater);                   // <-- assumes that depth on touch-point is the same as here ... which is good enough, I guess.
                 float distanceOnGround              = lengthRayInWater * sin(totalAngleWater);
@@ -158,7 +199,7 @@ export class WaterObject extends EngineObject {
                 float transparency = 0.5;
                 vec3 color = transparency * camData + (1.0 - transparency) * baseColor;
 
-                float heightFactor = h / 0.125;
+                float heightFactor = (h / H) * 1.0;
                 color = (1.0 - heightFactor) * color + heightFactor * vec3(1.0, 1.0, 1.0);
                 gl_FragColor = vec4(color, 1.0);
             }
@@ -167,15 +208,16 @@ export class WaterObject extends EngineObject {
             fragmentShader,
             vertexShader,
             uniforms: {
-                'huvData': {value: fluidSim.getOutputTexture()},
-                'huvDataSize': {value: [wPixels, hPixels]},
+                'HData': { value: depthTexture },
+                'huvData': { value: fluidSim.getOutputTexture()},
+                'huvDataSize': { value: [wPixels, hPixels]},
                 'groundTexture': { value: groundTexture },
                 'groundTextureSize': { value: [groundTexture.image.width, groundTexture.image.height] },
                 'fieldDimensionsMeter': { value: [wMeter, hMeter] }
             }
         });
         const plane = new Mesh(
-            new PlaneBufferGeometry(wMeter, hMeter, 100, 100),
+            new PlaneBufferGeometry(wMeter, hMeter, wPixels, hPixels),
             customMaterial
         );
 
@@ -189,6 +231,15 @@ export class WaterObject extends EngineObject {
         super(plane);
 
         this.fluidSim = fluidSim;
+        this.plane = plane;
+        this.rayCaster = new Raycaster();
+        this.wPixels = wPixels;
+        this.hPixels = hPixels;
+        this.wMeter = wMeter;
+        this.hMeter = hMeter;
+        this.huvData = huvData;
+        this.groundTexture = groundTexture;
+        this.depthTexture = depthTexture;
     }
 
     update(time: number): void {
@@ -196,10 +247,45 @@ export class WaterObject extends EngineObject {
     }
 
     handleClick(evt: any) {
-        // container.addEventListener('click', (evt) => {
-        //     plane.material.uniforms['huvData'].value = fluidSim.updateInputTexture(huv1Data);
-        //     plane.material.needsUpdate = true;
-        // });
+
+        const canvas = this.engine.options.canvas;
+        const rect = canvas.getBoundingClientRect();
+        const x_ = (evt.clientX - rect.left) * canvas.width  / rect.width;
+        const y_ = (evt.clientY - rect.top ) * canvas.height / rect.height;
+        const x = (x_ / canvas.width ) * 2 - 1;
+        const y = (y_ / canvas.height) * -2 + 1;
+        this.rayCaster.setFromCamera({x, y}, this.engine.camera);
+        const intersections = this.rayCaster.intersectObject(this.plane);
+        if (intersections && intersections[0]) {
+
+            const intersection = intersections[0];
+            const fracW = 0.5 + (0.5 * 2 / this.wMeter) * intersection.point.x;
+            const fracH = 0.5 - (0.5 * 2 / this.hMeter) * intersection.point.z;
+            const cc = this.wPixels * fracW;
+            const cr = this.hPixels * fracH;
+            
+            const newData: number[][][] = [];
+            // const oldData = this.fluidSim.getOutputTexture().image;
+            for (let r = 0; r < this.hPixels; r++) {
+                newData.push([]);
+                for (let c = 0; c < this.wPixels; c++) {
+                    // const oldH = oldData[r * 256 * 4 + c * 4 + 0];
+                    // const oldU = oldData[r * 256 * 4 + c * 4 + 1];
+                    // const oldV = oldData[r * 256 * 4 + c * 4 + 2];
+                    const oldH = 0;
+                    const oldU = 0.0;
+                    const oldV = 0.0;
+                    if (Math.abs(r - cr) < 5 && Math.abs(c - cc) < 5) {
+                        newData[r].push([oldH + 50, oldU, oldV, 1]);
+                    } else {
+                        newData[r].push([oldH, oldU, oldV, 1]);
+                    }
+                }
+            }
+            const newHuvBuffer = new Float32Array(newData.flat().flat());
+            this.plane.material.uniforms['huvData'].value = this.fluidSim.updateInputTexture(newHuvBuffer);
+            this.plane.material.needsUpdate = true;
+        }
     }
 
 }

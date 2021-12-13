@@ -1,4 +1,4 @@
-import { DirectionalLight, Light, Mesh, Object3D, PerspectiveCamera, PointLight, Scene, WebGLRenderer } from "three";
+import { DirectionalLight, Intersection, Light, Mesh, Object3D, PerspectiveCamera, PointLight, Raycaster, Scene, WebGLRenderer } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 
@@ -33,8 +33,9 @@ export class Engine {
     scene: Scene;
     objects: EngineObject[] = [];
     light: Light;
+    rayCaster: Raycaster;
 
-    constructor(options: EngineOptions) {
+    constructor(public options: EngineOptions) {
 
         options = Object.assign({
             cameraPosition: [10, 10, 10],
@@ -49,7 +50,7 @@ export class Engine {
         });
         renderer.setSize(options.canvas.clientWidth, options.canvas.clientHeight);
 
-        const camera = new PerspectiveCamera(50, options.canvas.width / options.canvas.height, 0.001, 10000);
+        const camera = new PerspectiveCamera(50, options.canvas.width / options.canvas.height, 0.01, 1000);
         camera.position.fromArray(options.cameraPosition);
         camera.lookAt(0, 0, 0);
 
@@ -61,11 +62,14 @@ export class Engine {
         light.position.fromArray(options.lightPosition);
         scene.add(light);
 
+        const rayCaster = new Raycaster();
+
         this.renderer = renderer;
         this.camera = camera;
         this.controls = controls;
         this.scene = scene;
         this.light = light;
+        this.rayCaster = rayCaster;
     }
 
     addObject(object: EngineObject) {
@@ -86,5 +90,17 @@ export class Engine {
         this.renderer.setAnimationLoop((timeSinceAppStart, frame) => {
             this.render(timeSinceAppStart);
         });
+    }
+
+    getIntersections<T extends Object3D>(evt: MouseEvent, candidateObjects: T[]): Intersection<T>[] {
+        const canvas = this.options.canvas;
+        const rect = canvas.getBoundingClientRect();
+        const x_ = (evt.clientX - rect.left) * canvas.width  / rect.width;
+        const y_ = (evt.clientY - rect.top ) * canvas.height / rect.height;
+        const x = (x_ / canvas.width ) * 2 - 1;
+        const y = (y_ / canvas.height) * -2 + 1;
+        this.rayCaster.setFromCamera({x, y}, this.camera);
+        const intersections = this.rayCaster.intersectObjects<T>(candidateObjects);
+        return intersections;
     }
 }

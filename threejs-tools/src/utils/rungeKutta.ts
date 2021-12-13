@@ -1,4 +1,4 @@
-import { ShaderMaterial, WebGLRenderTarget, WebGLRenderer, DataTexture, RepeatWrapping, NearestFilter, RGBAFormat, FloatType } from "three";
+import { ShaderMaterial, WebGLRenderTarget, WebGLRenderer, DataTexture, ClampToEdgeWrapping, RepeatWrapping, NearestFilter, RGBAFormat, FloatType } from "three";
 import { GPUComputationRenderer } from "three/examples/jsm/misc/GPUComputationRenderer";
 
 export class RungeKuttaRenderer {
@@ -73,12 +73,12 @@ export class RungeKuttaRenderer {
 
         this.differentialShader = this.gpgpu.createShaderMaterial(differentialShaderCode, { dataTexture: { value: null }, kTexture: { value: null }, dk: { value: null } });
         this.summarizeShader = this.gpgpu.createShaderMaterial(summarizeShaderCode, { dataTexture: { value: null }, k1Texture: { value: null }, k2Texture: { value: null }, k3Texture: { value: null }, k4Texture: { value: null } });
-        this.k1Target = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
-        this.k2Target = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
-        this.k3Target = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
-        this.k4Target = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
-        this.summaryTarget1 = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
-        this.summaryTarget2 = this.gpgpu.createRenderTarget(w, h, RepeatWrapping, RepeatWrapping, NearestFilter, NearestFilter);
+        this.k1Target = this.gpgpu.createRenderTarget(w, h, ClampToEdgeWrapping, ClampToEdgeWrapping, NearestFilter, NearestFilter);
+        this.k2Target = this.gpgpu.createRenderTarget(w, h, ClampToEdgeWrapping, ClampToEdgeWrapping, NearestFilter, NearestFilter);
+        this.k3Target = this.gpgpu.createRenderTarget(w, h, ClampToEdgeWrapping, ClampToEdgeWrapping, NearestFilter, NearestFilter);
+        this.k4Target = this.gpgpu.createRenderTarget(w, h, ClampToEdgeWrapping, ClampToEdgeWrapping, NearestFilter, NearestFilter);
+        this.summaryTarget1 = this.gpgpu.createRenderTarget(w, h, ClampToEdgeWrapping, ClampToEdgeWrapping, NearestFilter, NearestFilter);
+        this.summaryTarget2 = this.gpgpu.createRenderTarget(w, h, ClampToEdgeWrapping, ClampToEdgeWrapping, NearestFilter, NearestFilter);
 
         this.initTextures(data0);
     }

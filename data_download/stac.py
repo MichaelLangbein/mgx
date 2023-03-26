@@ -1,11 +1,18 @@
+#%%
 import os
 from urllib.parse import urlparse
 import rasterio as rio
 from pyproj.transformer import Transformer
 from pystac_client import Client
 import requests as req
+import numpy as np
+import shutil
 
+#%%
 
+def readTif(targetFilePath):
+    fh = rio.open(targetFilePath, "r", driver="GTiff")
+    return fh
 
 def saveToTif(targetFilePath: str, data: np.ndarray, crs: str, transform, noDataVal):
     h, w = data.shape
@@ -23,39 +30,55 @@ def saveToTif(targetFilePath: str, data: np.ndarray, crs: str, transform, noData
     with rio.open(targetFilePath, 'w', **options) as dst:
         dst.write(data, 1)
 
-def tifGetPixels(fh, r0, r1, c0, c1):
-    pass
+def tifGetPixelRowsCols(fh):
+    h = fh.height
+    w = fh.width
+    return (h, w)
 
-def tifPixelToCoords(fh, r, c):
-    pass
+def tifGetGeoExtent(fh):
+    bounds = fh.bounds
+    coordTransformer = Transformer.from_crs(fh.crs, "EPSG:4326")
+    bounds4326 = coordTransformer.transform_bounds(*bounds)
+    return bounds4326
 
-def tifCoordToPixel(fh, lon, lat, srcCrs="EPSG:4326"):
-    coordTransformer = Transformer.from_crs(srcCrs, fh.crs)
+def tifPixelToLonLat(fh, r, c):
+    x, y = fh.xy(r, c)
+    coordTransformer = Transformer.from_crs(fh.crs, "EPSG:4326")
+    lat, lon = coordTransformer.transform(x, y)
+    return lat, lon
+
+def tifCoordToPixel(fh, lon, lat):
+    coordTransformer = Transformer.from_crs("EPSG:4326", fh.crs)
     coordsTifCrs = coordTransformer.transform(lat, lon)
     pixel = fh.index(coordsTifCrs[0], coordsTifCrs[1])
     return pixel
 
-def tifGetBbox(bbox, fh):
-    pixelUpperLeft = tifCoordToPixel(fh, bbox[3], bbox[0])
-    pixelLowerRight = tifCoordToPixel(fh, bbox[1], bbox[2])
-    window = rio.windows.Window.from_slices(
-        ( pixelUpperLeft[0],  pixelLowerRight[0] ), 
-        ( pixelUpperLeft[1],  pixelLowerRight[1] )
-    )
+def tifGetBbox(fh, bbox):
+    r0, c0 = tifCoordToPixel(fh, bbox[3], bbox[0])
+    r1, c1 = tifCoordToPixel(fh, bbox[1], bbox[2])
+    return tifGetPixels(fh, r0, r1, c0, c1)
+
+def tifGetPixels(fh, r0, r1, c0, c1):
+    window = rio.windows.Window.from_slices(( r0,  r1 ), ( c0,  c1 ))
     subset = fh.read(1, window=window)
     return subset
 
-def downloadAndSaveS2(saveToDirPath, aoi, maxNrScenes=1, maxCloudCover=10, bands=None, downloadWindowOnly=True):
+def downloadAndSaveS2Data(saveToDirPath, aoi, maxNrScenes=1, maxCloudCover=10, bands=None, downloadWindowOnly=True):
     catalog = Client.open("https://earth-search.aws.element84.com/v0")
 
-    searchResults = catalog.search(
-        collections=['sentinel-s2-l2a-cogs'],
-        bbox=aoi,
-        max_items=maxNrScenes,
-        query={
-            "eo:cloud_cover": { "lt": maxCloudCover },
-            "sentinel:valid_cloud_cover": { "eq": True }  # we want to have the cloud mask in there, too.
+    collections = ['sentinel-s2-l2a-cogs']
+    queryParas = {
+        "eo:cloud_cover": { 
+            "lt": maxCloudCover
         },
+        "sentinel:valid_cloud_cover": { "eq": True }  # we want to have the cloud mask in there, too.
+    }
+
+    searchResults = catalog.search(
+        collections = collections,
+        bbox        = aoi,
+        max_items   = maxNrScenes,
+        query       = queryParas,
     )
 
     def shouldDownload(key, val):
@@ -74,25 +97,21 @@ def downloadAndSaveS2(saveToDirPath, aoi, maxNrScenes=1, maxCloudCover=10, bands
         return fullFilePath
 
     #  downloading only bbox-subset
-    fullData = {}
     for item in searchResults.get_items():
-        itemData = {}
         for key, val in item.assets.items():
             if shouldDownload(key, val):
-                if downloadWindowOnly:
-                    with rio.open(val.href) as fh:
-                        subset = tifGetBbox(aoi, fh)
-                        itemData[key] = subset
-                    fullFilePath = hrefToDownloadPath(val.href, item.id)
-                    # @TODO: adjust transform to window
-                    saveToTif(fullFilePath, subset, fh.crs, fh.transform, fh.nodata)
-                else:
-                    fullFilePath = hrefToDownloadPath(val.href, item.id)
-                    response = req.get(val.href)
-                    saveToTif(fullFilePath, response.content,  fh.crs, fh.transform, fh.nodata)
+                print(f"Getting {item.id}/{key} ...")
+                with rio.open(val.href) as fh:
+                    if downloadWindowOnly:
+                        subset = tifGetBbox(fh, aoi)
+                        fullFilePath = hrefToDownloadPath(val.href, item.id)
+                        # @TODO: adjust transform to window
+                        saveToTif(fullFilePath, subset, fh.crs, fh.transform, fh.nodata)
+                    else:
+                        fullFilePath = hrefToDownloadPath(val.href, item.id)
+                        response = req.get(val.href)
+                        with open(fullFilePath, 'wb') as out_file:
+                            shutil.copyfileobj(response.content, out_file)  
 
-        fullData[item.id] = itemData
-    return fullData
-
-
-# s2Data = downloadAndSaveS2(s2Dir, bbox, 1, 10, ["visual"])
+# downloadAndSaveSatelliteData(s2Dir, "s2", [11, 47, 12, 48], maxNrScenes=4, maxCloudCover=10, bands=None, downloadWindowOnly=False)
+# %%

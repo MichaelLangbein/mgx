@@ -6,7 +6,6 @@ from pyproj.transformer import Transformer
 from pystac_client import Client
 import requests as req
 import numpy as np
-import shutil
 
 #%%
 
@@ -110,8 +109,8 @@ def downloadAndSaveS2Data(saveToDirPath, aoi, maxNrScenes=1, maxCloudCover=10, b
                     else:
                         fullFilePath = hrefToDownloadPath(val.href, item.id)
                         response = req.get(val.href)
-                        with open(fullFilePath, 'wb') as out_file:
-                            shutil.copyfileobj(response.content, out_file)  
+                        with open(fullFilePath, 'wb') as tfh:
+                            tfh.write(response.content)  
 
 # downloadAndSaveSatelliteData(s2Dir, "s2", [11, 47, 12, 48], maxNrScenes=4, maxCloudCover=10, bands=None, downloadWindowOnly=False)
 # %%

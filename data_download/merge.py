@@ -19,7 +19,7 @@ os.makedirs(osmDir, exist_ok=True)
 os.makedirs(s2Dir, exist_ok=True)
 
 #%% 1: Download scene
-s.downloadAndSaveS2(s2Dir, bbox, 1, 10, ["visible"], False)
+s.downloadAndSaveS2Data(s2Dir, bbox, 1, 10, None, False)
 
 #%% 2: From scene, get subsets and associated bounding-shapes
 fileName = "/Users/michaellangbein/Desktop/code.nosync/geo/assets/s2/S2B_32UPU_20230210_0_L2A/TCI.tif"

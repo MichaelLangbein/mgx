@@ -1,0 +1,28 @@
+version: "3.8"
+services:
+        
+  db:
+    build: ./psqlh3
+    restart: always
+    ports:
+      - "54320:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./data/:/var/usr/externaldata
+    networks:
+      - pg
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: michael.langbein@dlr.de
+      PGADMIN_DEFAULT_PASSWORD: postgres
+    networks:
+      - pg
+
+networks:
+  pg:

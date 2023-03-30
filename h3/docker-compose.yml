@@ -11,6 +11,7 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - ./data/:/var/usr/externaldata
+      - pg-data:/var/lib/postgresql/data     # volume to maintain state
     networks:
       - pg
   pgadmin:
@@ -19,10 +20,16 @@ services:
     ports:
       - "5050:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: michael.langbein@dlr.de
+      PGADMIN_DEFAULT_EMAIL: name@test.com
       PGADMIN_DEFAULT_PASSWORD: postgres
+    volumes:
+    - pgadmin-data:/var/lib/pgadmin    # volume to remember configuration
     networks:
       - pg
 
 networks:
   pg:
+
+volumes:
+  pg-data:
+  pgadmin-data:

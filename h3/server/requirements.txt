@@ -10,3 +10,4 @@ setuptools==67.6.1
 six==1.16.0
 Werkzeug==2.2.3
 wheel==0.40.0
+h3==4.0.0b2

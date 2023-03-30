@@ -2,6 +2,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psycopg2 as p2
+import h3
 
 
 #%% database-api
@@ -50,6 +51,19 @@ def getData():
     data = fetchCells(bbox, resolution)
     return jsonify(data)
 
+
+@app.route('/getResolved', methods=["GET"])
+def getResolved():
+    args = request.args
+    resolution = args.get("resolution")
+    bboxStr = args.get("bbox")
+    bbox = [float(e) for e in bboxStr.split(",")]
+    data = fetchCells(bbox, resolution)
+    resolved = [
+        { "coords": h3.cell_to_latlng(entry[1]),  "value": entry[3] }
+        for entry in data
+    ]
+    return jsonify(resolved)
 
 # %%
 if __name__ == "__main__":

@@ -105,10 +105,13 @@ def copyStyle(style):
 def createVectorTiles(dataUrl, style, hostedAt):
     print(f"Downloading {dataUrl} ...")
     pbf = downloadPbf(dataUrl)
+    print(f"Downloaded data to {pbf}")
     print(f"Converting to mbt ...")
     mbt = pbf2mbt(pbf)
+    print(f"Converted data to {mbt}")
     print(f"Creating pyramid ...")
     pyramidDir = mbt2xyz(mbt)
+    print(f"Created pyramid at {pyramidDir}")
     print(f"Copying fonts ...")
     copyFonts()
     print(f"Copying style: {style} ...")

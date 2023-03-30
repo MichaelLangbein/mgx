@@ -69,7 +69,7 @@ queryString = """
 insert into heat11 (h3index, time, value)
 select slct.pidx as h3index, TO_DATE('30/03/2023', 'DD/MM/YYYY') as time, slct.val as value
 from (
-	select round(avg(h12.value)) as val, h3_cell_to_parent(h12.h3index) as pidx
+	select round(avg(h12.value)) as val, h3_cell_to_parent(h12.h3index, 11) as pidx
 	from heat12 as h12
 	group by pidx
 ) as slct;
@@ -81,7 +81,7 @@ queryString = """
 insert into heat10 (h3index, time, value)
 select slct.pidx as h3index, TO_DATE('30/03/2023', 'DD/MM/YYYY') as time, slct.val as value
 from (
-	select round(avg(h11.value)) as val, h3_cell_to_parent(h11.h3index) as pidx
+	select round(avg(h11.value)) as val, h3_cell_to_parent(h11.h3index, 10) as pidx
 	from heat11 as h11
 	group by pidx
 ) as slct;
@@ -93,8 +93,20 @@ queryString = """
 insert into heat9 (h3index, time, value)
 select slct.pidx as h3index, TO_DATE('30/03/2023', 'DD/MM/YYYY') as time, slct.val as value
 from (
-	select round(avg(h10.value)) as val, h3_cell_to_parent(h10.h3index) as pidx
+	select round(avg(h10.value)) as val, h3_cell_to_parent(h10.h3index, 9) as pidx
 	from heat10 as h10
+	group by pidx
+) as slct;
+"""
+cursor.execute(queryString)
+conn.commit()
+
+queryString = """
+insert into heat8 (h3index, time, value)
+select slct.pidx as h3index, TO_DATE('30/03/2023', 'DD/MM/YYYY') as time, slct.val as value
+from (
+	select round(avg(h9.value)) as val, h3_cell_to_parent(h9.h3index, 8) as pidx
+	from heat9 as h9
 	group by pidx
 ) as slct;
 """
@@ -104,3 +116,5 @@ conn.commit()
 #%%
 conn.close()
 
+
+# %%

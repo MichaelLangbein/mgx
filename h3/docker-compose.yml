@@ -14,6 +14,7 @@ services:
       - pg-data:/var/lib/postgresql/data     # volume to maintain state
     networks:
       - pg
+
   pgadmin:
     image: dpage/pgadmin4
     restart: always
@@ -24,6 +25,14 @@ services:
       PGADMIN_DEFAULT_PASSWORD: postgres
     volumes:
     - pgadmin-data:/var/lib/pgadmin    # volume to remember configuration
+    networks:
+      - pg
+
+  api:
+    build: ./server
+    restart: always
+    ports:
+      - "5000:5000"
     networks:
       - pg
 

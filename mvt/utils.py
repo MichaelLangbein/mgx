@@ -29,10 +29,10 @@ def doToEachFileIn(dir, action):
             action(dirpath, fileName)
 
 
-def replaceInFile(file, search, replace):
-    with open(file, 'r') as file:
-        data = file.read()
+def replaceInFile(filePath, search, replace):
+    with open(filePath, 'r') as fh:
+        data = fh.read()
         data = data.replace(search, replace)    
-    with open(file, 'w') as file:
-        file.write(data)
+    with open(filePath, 'w') as fh:
+        fh.write(data)
 

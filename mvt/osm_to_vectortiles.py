@@ -42,7 +42,7 @@ from utils import downloadFromUrlTo, replaceInFile
 
 #%% Part 0: directories
 thisDir = os.getcwd()
-tileMakerDir = os.path.join(thisDir, 'tilemaker')
+tileMakerDir = os.path.join(thisDir, 'processing')
 assetDir = os.path.realpath(os.path.join(thisDir, 'data'))
 tmpDir = os.path.join(assetDir, 'tmp')
 vectorTileDir = os.path.join(assetDir, 'vectorTiles')
@@ -79,7 +79,12 @@ def pbf2mbt(pbfPath):
     if os.path.exists(mbtPath):
         print(f"Already exists: {mbtPath}.")
         return mbtPath
-    result = os.system(f"{tileMakerDir}/tilemaker --input {pbfPath} --output {mbtPath} --process {tileMakerDir}/config/process-openmaptiles.lua --config {thisDir}/tilemaker/config/config-openmaptiles.json")
+    if  os.stat(mbtPath).st_size <= 0:
+        print(f"Weird: {mbtPath} has size 0. Maybe investigate!")
+    command = f"{tileMakerDir}/tilemaker --input {pbfPath} --output {mbtPath} --process {tileMakerDir}/config/process-openmaptiles.lua --config {tileMakerDir}/config/config-openmaptiles.json"
+    result = os.system(command)
+    if result != 0:
+        raise Exception(f"Something went wrong trying to execute {command}: {result}")
     return mbtPath
 
 
@@ -94,24 +99,24 @@ def mbt2xyz(mbtPath):
 def copyFonts():
     fontDir = os.path.join(tileMakerDir, 'fonts')
     fontTargetDir = os.path.join(vectorTileDir, 'fonts')
+    if os.path.exists(fontTargetDir):
+        shu.rmtree(fontTargetDir)
     shu.copytree(fontDir, fontTargetDir, dirs_exist_ok=True)
 
 
 def copyStyle(style):
     styleFile = os.path.join(tileMakerDir, 'styles', style + '.json')
     shu.copy(styleFile, vectorTileDir)
+    return os.path.join(vectorTileDir, style + ".json")
 
 
 def createVectorTiles(dataUrl, style, hostedAt):
     print(f"Downloading {dataUrl} ...")
     pbf = downloadPbf(dataUrl)
-    print(f"Downloaded data to {pbf}")
     print(f"Converting to mbt ...")
     mbt = pbf2mbt(pbf)
-    print(f"Converted data to {mbt}")
     print(f"Creating pyramid ...")
     pyramidDir = mbt2xyz(mbt)
-    print(f"Created pyramid at {pyramidDir}")
     print(f"Copying fonts ...")
     copyFonts()
     print(f"Copying style: {style} ...")
@@ -127,9 +132,9 @@ def createVectorTiles(dataUrl, style, hostedAt):
 #%%
 if __name__ == '__main__':
     parser = ap.ArgumentParser(description='Downloads OSM data and converts it into vector-tiles')
-    parser.add_argument('--data',       required=True, type=str, default="https://download.geofabrik.de/europe/germany/bayern/oberfranken-latest.osm.pbf",   help='Url to pbf files. Example: --data https://download.geofabrik.de/europe/germany/bayern/oberfranken-latest.osm.pbf')
-    parser.add_argument('--style',      required=True, type=str, default="basic",                                                                            help='Name of style-file to use. Possible values: basic, 3d, positron, terrain')
-    parser.add_argument('--hosted-at',  required=True, type=str, default="http://localhost:8080/assets/",                                                    help='Under which url will data be hosted? Example: http://localhost:8080/assets/')
+    parser.add_argument('--data',       required=False, type=str, default="https://download.geofabrik.de/europe/germany/bayern/oberfranken-latest.osm.pbf",   help='Url to pbf files. Example: --data https://download.geofabrik.de/europe/germany/bayern/oberfranken-latest.osm.pbf')
+    parser.add_argument('--style',      required=False, type=str, default="basic",                                                                            help='Name of style-file to use. Possible values: basic, 3d, positron, terrain')
+    parser.add_argument('--hosted-at',  required=False, type=str, default="http://localhost:8080/assets/",                                                    help='Under which url will data be hosted? Example: http://localhost:8080/assets/')
 
     args = parser.parse_args()
 

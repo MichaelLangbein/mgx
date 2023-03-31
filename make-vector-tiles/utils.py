@@ -18,9 +18,9 @@ def downloadFromUrlTo(url, targetPath):
         fh.write(response.content)
     if targetFile.endswith('.zip'):
         unzippedTargetFile = targetFile.strip('.zip')
-        with z.ZipFile(targetFile) as z:
+        with z.ZipFile(targetFile) as zf:
             with open(unzippedTargetFile, 'wb') as f:
-                f.write(z.read(unzippedTargetFile))
+                f.write(zf.read(unzippedTargetFile))
 
 
 def doToEachFileIn(dir, action):

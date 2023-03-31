@@ -24,7 +24,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: name@test.com
       PGADMIN_DEFAULT_PASSWORD: postgres
     volumes:
-    - pgadmin-data:/var/lib/pgadmin    # volume to remember configuration
+      - pgadmin-data:/var/lib/pgadmin    # volume to remember configuration
     networks:
       - pg
 
@@ -35,6 +35,14 @@ services:
       - "5000:5000"
     networks:
       - pg
+
+  vectortiles:
+    build: ./vectortiles
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/vectorTiles/:/app/static/
 
 networks:
   pg:

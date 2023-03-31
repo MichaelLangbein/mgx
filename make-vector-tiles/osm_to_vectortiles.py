@@ -7,7 +7,7 @@
         - openmaptiles (one-time-pay)
 2. extract data
     2.1. mb-util: `mb-util --scheme=xyz --image_format=pbf 2017-07-03_germany_bamberg.mbtiles extractedDir`
-    2.2. rename: `find . -name '*.gz' -exec mv '{}' '{}'.gz  \;`
+    2.2. rename: `find . -name '*.pbf' -exec mv '{}' '{}'.gz  \;`
     2.3. extract: ` find . -name '*.gz' -exec gunzip '{}' \;`  (otherwise Error: Unimplemented type: 3)
 3. Download style
     - https://openmaptiles.org/styles/
@@ -88,11 +88,11 @@ def pbf2mbt(pbfPath):
     return mbtPath
 
 
-def mbt2xyz(mbtPath):
+def mbt2xyz(mbtPath, format="pbf"):
     pyramidDir = os.path.join(vectorTileDir, 'xyz')
     if os.path.exists(pyramidDir):
         shu.rmtree(pyramidDir)
-    mb.mbtiles_to_disk(mbtPath, pyramidDir, scheme='xyz', format='pbf')
+    mb.mbtiles_to_disk(mbtPath, pyramidDir, scheme='xyz', format=format)
     return pyramidDir
 
 
@@ -110,13 +110,13 @@ def copyStyle(style):
     return os.path.join(vectorTileDir, style + ".json")
 
 
-def createVectorTiles(dataUrl, style, hostedAt):
+def createVectorTiles(dataUrl, style, hostedAt, format):
     print(f"Downloading {dataUrl} ...")
     pbf = downloadPbf(dataUrl)
     print(f"Converting to mbt ...")
     mbt = pbf2mbt(pbf)
     print(f"Creating pyramid ...")
-    pyramidDir = mbt2xyz(mbt)
+    pyramidDir = mbt2xyz(mbt, format)
     print(f"Copying fonts ...")
     copyFonts()
     print(f"Copying style: {style} ...")
@@ -134,9 +134,10 @@ if __name__ == '__main__':
     parser = ap.ArgumentParser(description='Downloads OSM data and converts it into vector-tiles')
     parser.add_argument('--data',       required=False, type=str, default="https://download.geofabrik.de/europe/germany/bayern/oberfranken-latest.osm.pbf",   help='Url to pbf files. Example: --data https://download.geofabrik.de/europe/germany/bayern/oberfranken-latest.osm.pbf')
     parser.add_argument('--style',      required=False, type=str, default="basic",                                                                            help='Name of style-file to use. Possible values: basic, 3d, positron, terrain')
+    parser.add_argument('--format',     required=False, type=str, default="pbf",                                                                              help='What kind of files to produce. Possible values: pbf, png')
     parser.add_argument('--hosted-at',  required=False, type=str, default="http://localhost:8080/assets/",                                                    help='Under which url will data be hosted? Example: http://localhost:8080/assets/')
 
     args = parser.parse_args()
 
-    createVectorTiles(args.data, args.style, args.hosted_at)
+    createVectorTiles(args.data, args.style, args.hosted_at, args.format)
 

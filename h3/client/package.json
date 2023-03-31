@@ -13,6 +13,7 @@
     "vite": "^4.2.0"
   },
   "dependencies": {
-    "deck.gl": "^8.9.4"
+    "deck.gl": "^8.9.4",
+    "maplibre-gl": "^2.4.0"
   }
 }

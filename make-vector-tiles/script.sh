@@ -70,4 +70,12 @@ if [ ! -f ./mbutil.py ]; then
     rm -rf mbutil
 fi
 
-python osm_to_vectortiles.py --data https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf --style basic --hosted-at http://localhost:8080/assets/
+# getting osm-data and 
+# converting osm.pbf to .mbtiles to pyramid
+python osm_to_vectortiles.py --data https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf --style basic --hosted-at http://localhost:8080/assets/ --format pbf
+
+# create gziped files per default ... without adding a .gz extension to them.
+# unzipping them.
+cd ./data/vectortiles/xyz
+find . -name '*.pbf' -exec mv '{}' '{}'.gz  \;
+find . -name '*.gz' -exec gunzip '{}' \;

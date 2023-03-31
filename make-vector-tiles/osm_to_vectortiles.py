@@ -78,9 +78,9 @@ def pbf2mbt(pbfPath):
     mbtPath = pbfPath.replace('pbf', 'mbtiles')
     if os.path.exists(mbtPath):
         print(f"Already exists: {mbtPath}.")
+        if  os.stat(mbtPath).st_size <= 0:
+            print(f"Weird: {mbtPath} has size 0. Maybe investigate!")
         return mbtPath
-    if  os.stat(mbtPath).st_size <= 0:
-        print(f"Weird: {mbtPath} has size 0. Maybe investigate!")
     command = f"{tileMakerDir}/tilemaker --input {pbfPath} --output {mbtPath} --process {tileMakerDir}/config/process-openmaptiles.lua --config {tileMakerDir}/config/config-openmaptiles.json"
     result = os.system(command)
     if result != 0:

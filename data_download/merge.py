@@ -4,12 +4,12 @@ import stac as s
 import osm as o
 
 # %% 0: Directory-structure
-bbox = [
-    11.213092803955078,
-    48.06580565720895,
-    11.300640106201172,
-    48.09161057547795
-]
+bbox = {
+    "lonMin": 11.213092803955078,
+    "latMin": 48.06580565720895,
+    "lonMax": 11.300640106201172,
+    "latMax": 48.09161057547795
+}
 
 thisDir = os.getcwd()
 assetDir = os.path.join(thisDir, 'assets')
@@ -22,7 +22,7 @@ os.makedirs(s2Dir, exist_ok=True)
 s.downloadAndSaveS2Data(s2Dir, bbox, 1, 10, None, False)
 
 #%% 2: From scene, get subsets and associated bounding-shapes
-fileName = "/Users/michaellangbein/Desktop/code.nosync/geo/assets/s2/S2B_32UPU_20230210_0_L2A/TCI.tif"
+fileName = f"{s2Dir}/S2B_32UPU_20230210_0_L2A/TCI.tif"
 fh = s.readTif(fileName)
 height, width = s.tifGetPixelRowsCols(fh)
 
@@ -42,7 +42,7 @@ for i in range(2 * width // W  - 1):
 
 #%% 3: For every subset, get osm-data
 for bbox in bboxes:
-    osmData = o.downloadAndSaveOSM(osmDir, [bbox["lonMin"], bbox["latMin"], bbox["lonMax"], bbox["latMax"]])
+    osmData = o.downloadAndSaveOSM(osmDir, bbox)
     
 
 #%% 4: Rasterize osm together with cloud-mask

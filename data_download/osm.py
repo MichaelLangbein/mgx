@@ -63,7 +63,11 @@ def osmToGeojson(data, saveFreeNodes=False):
 def downloadAndSaveOSM(saveToDirPath, bbox, getBuildings=True, getTrees=True, getWater=True):
     overpass_url = "http://overpass-api.de/api/interpreter"
 
-    stringifiedBbox = f"{bbox[1]},{bbox[0]},{bbox[3]},{bbox[2]}"
+    lonMin = bbox["lonMin"]
+    latMin = bbox["latMin"]
+    lonMax = bbox["lonMax"]
+    latMax = bbox["latMax"]
+    stringifiedBbox = f"{latMin},{lonMin},{latMax},{lonMax}"
 
     buildingQuery = f"""
         [out:json];     /* output in json format */
@@ -91,6 +95,8 @@ def downloadAndSaveOSM(saveToDirPath, bbox, getBuildings=True, getTrees=True, ge
     """
 
     fullData = {}
+
+    os.makedirs(os.path.join(saveToDirPath, stringifiedBbox), exist_ok=True)
 
     if getBuildings:
         response = req.get(overpass_url, params={'data': buildingQuery})
@@ -144,7 +150,10 @@ def rasterizeGeojson(geojson, bbox, imgShape):
     imgH -= 1
     imgW -= 1
 
-    lonMin, latMin, lonMax, latMax = bbox
+    lonMin = bbox["lonMin"]
+    latMin = bbox["latMin"]
+    lonMax = bbox["lonMax"]
+    latMax = bbox["latMax"]
 
     scaleX = (lonMax - lonMin) / imgW
     transX = lonMin

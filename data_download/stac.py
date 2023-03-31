@@ -53,8 +53,8 @@ def tifCoordToPixel(fh, lon, lat):
     return pixel
 
 def tifGetBbox(fh, bbox):
-    r0, c0 = tifCoordToPixel(fh, bbox[3], bbox[0])
-    r1, c1 = tifCoordToPixel(fh, bbox[1], bbox[2])
+    r0, c0 = tifCoordToPixel(fh, bbox["latMax"], bbox["lonMin"])
+    r1, c1 = tifCoordToPixel(fh, bbox["latMin"], bbox["lonMax"])
     return tifGetPixels(fh, r0, r1, c0, c1)
 
 def tifGetPixels(fh, r0, r1, c0, c1):
@@ -62,8 +62,13 @@ def tifGetPixels(fh, r0, r1, c0, c1):
     subset = fh.read(1, window=window)
     return subset
 
-def downloadAndSaveS2Data(saveToDirPath, aoi, maxNrScenes=1, maxCloudCover=10, bands=None, downloadWindowOnly=True):
+def downloadAndSaveS2Data(saveToDirPath, bbox, maxNrScenes=1, maxCloudCover=10, bands=None, downloadWindowOnly=True):
     catalog = Client.open("https://earth-search.aws.element84.com/v0")
+
+    lonMin = bbox["lonMin"]
+    latMin = bbox["latMin"]
+    lonMax = bbox["lonMax"]
+    latMax = bbox["latMax"]
 
     collections = ['sentinel-s2-l2a-cogs']
     queryParas = {
@@ -75,7 +80,7 @@ def downloadAndSaveS2Data(saveToDirPath, aoi, maxNrScenes=1, maxCloudCover=10, b
 
     searchResults = catalog.search(
         collections = collections,
-        bbox        = aoi,
+        bbox        = [lonMin, latMin, lonMax, latMax],
         max_items   = maxNrScenes,
         query       = queryParas,
     )
@@ -102,7 +107,7 @@ def downloadAndSaveS2Data(saveToDirPath, aoi, maxNrScenes=1, maxCloudCover=10, b
                 print(f"Getting {item.id}/{key} ...")
                 with rio.open(val.href) as fh:
                     if downloadWindowOnly:
-                        subset = tifGetBbox(fh, aoi)
+                        subset = tifGetBbox(fh, bbox)
                         fullFilePath = hrefToDownloadPath(val.href, item.id)
                         # @TODO: adjust transform to window
                         saveToTif(fullFilePath, subset, fh.crs, fh.transform, fh.nodata)

@@ -25,12 +25,12 @@ const hexLayer = new H3HexagonLayer({
     pickable: true,
     wireframe: false,
     filled: true,
-    extruded: true,
+    extruded: false,
     getHexagon: d => d[1],
-    getFillColor: d => [255 * (d[3] - 6200) / 1000, 125, 0],
-    getElevation: d => (d[3] - 6400) / 1000,
-    elevationScale: 5000,
-    opacity: 0.5
+    getFillColor: d => [255 * (d[3] - 6200) / 1000, 125, 0, 0.2 * 256],
+    // getElevation: d => (d[3] - 6400) / 1000,
+    // elevationScale: 5000,
+    // opacity: 0.5
 });
 
 const heatLayer = new HeatmapLayer({
@@ -40,7 +40,7 @@ const heatLayer = new HeatmapLayer({
     getWeight: d => (d.value - 6400) / 1000,
     aggregation: 'MEAN',
     radiusPixels: 100,
-    opacity: 0.3
+    opacity: 0.1
 });
 
 const layers = [

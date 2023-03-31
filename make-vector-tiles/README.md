@@ -9,10 +9,13 @@ https://github.com/openmaptiles/openmaptiles
     - `*.pbf` files
     - osm-data
     - hosted at geofabrik
-2. Convert to `*.mbtiles`:
-    - mbtiles: a sqlite-db with particular schema
-    - convert pbf -> mbtiles: systemed/tilemaker
-    - a c++-app, requires glibc to be right version.
+2. 
+    -a) Convert to `*.mbtiles`:
+        - mbtiles: a sqlite-db with particular schema
+        - convert pbf -> mbtiles: systemed/tilemaker
+        - a c++-app, requires glibc to be right version.
+    - b) Download mbtiles directly:
+        - https://data.maptiler.com/downloads/tileset/osm/europe/germany/bamberg/ <- requires attribution
 3. Host
     -a) Convert to pyramid:
         - with mapbox/mbutil

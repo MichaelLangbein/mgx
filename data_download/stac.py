@@ -44,7 +44,7 @@ def tifPixelToLonLat(fh, r, c):
     x, y = fh.xy(r, c)
     coordTransformer = Transformer.from_crs(fh.crs, "EPSG:4326")
     lat, lon = coordTransformer.transform(x, y)
-    return lat, lon
+    return lon, lat
 
 def tifCoordToPixel(fh, lon, lat):
     coordTransformer = Transformer.from_crs("EPSG:4326", fh.crs)
@@ -53,8 +53,8 @@ def tifCoordToPixel(fh, lon, lat):
     return pixel
 
 def tifGetBbox(fh, bbox):
-    r0, c0 = tifCoordToPixel(fh, bbox["latMax"], bbox["lonMin"])
-    r1, c1 = tifCoordToPixel(fh, bbox["latMin"], bbox["lonMax"])
+    r0, c0 = tifCoordToPixel(fh, bbox["lonMin"], bbox["latMax"])
+    r1, c1 = tifCoordToPixel(fh, bbox["lonMax"], bbox["latMin"])
     return tifGetPixels(fh, r0, r1, c0, c1)
 
 def tifGetPixels(fh, r0, r1, c0, c1):

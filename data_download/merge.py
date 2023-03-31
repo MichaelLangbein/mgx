@@ -2,6 +2,7 @@
 import os
 import stac as s
 import osm as o
+import json
 
 # %% 0: Directory-structure
 bbox = {
@@ -46,4 +47,38 @@ for bbox in bboxes:
     
 
 #%% 4: Rasterize osm together with cloud-mask
-#%% 5: Save subset as image and rasterized osm as image
+
+def clamp(start, val, end):
+    if val < start:
+        return start
+    if val > end:
+        return end
+    return val
+
+dirs = os.listdir(osmDir)
+for dir in dirs:
+    box = [float(v) for v in dir.split(',')]
+    bbox = {"latMin": box[0], "lonMin": box[1], "latMax": box[2], "lonMax": box[3]}
+
+    buildingsFile = open(os.path.join(osmDir, dir, "buildings.geo.json"))
+    buildings     = json.load(buildingsFile)
+    treesFile     = open(os.path.join(osmDir, dir, "trees.geo.json"))
+    trees         = json.load(treesFile)
+    waterFile     = open(os.path.join(osmDir, dir, "water.geo.json"))
+    water         = json.load(waterFile)
+
+    buildingsRaster = o.rasterizeGeojson(buildings, bbox, (H, W))
+    treesRaster     = o.rasterizeGeojson(trees, bbox, (H, W))
+    waterRaster     = o.rasterizeGeojson(water, bbox, (H, W))
+    #  @TODO: cloud mask
+    labelData = 1 * buildingsRaster + 2 * treesRaster + 3 * waterRaster
+
+    r0, c0 = s.tifCoordToPixel(fh, bbox["lonMin"], bbox["latMax"])
+    r0 = clamp(0, r0, height)
+    c0 = clamp(0, c0, width)
+    baseData = s.tifGetPixels(fh, r0, r0 + H, c0, c0 + W)
+
+
+
+    
+

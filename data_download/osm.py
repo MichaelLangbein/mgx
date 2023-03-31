@@ -3,7 +3,7 @@ import json
 import requests as req
 import rasterio.features as riof
 import rasterio.transform as riot
-
+import numpy as np
 
 # Tested with http://overpass-turbo.eu/#
 

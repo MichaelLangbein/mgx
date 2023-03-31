@@ -57,9 +57,9 @@ def tifGetBbox(fh, bbox):
     r1, c1 = tifCoordToPixel(fh, bbox["lonMax"], bbox["latMin"])
     return tifGetPixels(fh, r0, r1, c0, c1)
 
-def tifGetPixels(fh, r0, r1, c0, c1):
+def tifGetPixels(fh, r0, r1, c0, c1, channels=None):
     window = rio.windows.Window.from_slices(( r0,  r1 ), ( c0,  c1 ))
-    subset = fh.read(1, window=window)
+    subset = fh.read(channels, window=window)
     return subset
 
 def downloadAndSaveS2Data(saveToDirPath, bbox, maxNrScenes=1, maxCloudCover=10, bands=None, downloadWindowOnly=True):

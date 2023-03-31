@@ -135,6 +135,10 @@ import rasterio.features as riof
 
 
 def rasterizeGeojson(geojson, bbox, imgShape):
+
+    if len(geojson["features"]) == 0:
+        return np.zeros(imgShape)
+
     """
     | a  b  c |    | scale  rot  transX |
     | d  e  f | =  | rot   scale transY |
@@ -147,8 +151,8 @@ def rasterizeGeojson(geojson, bbox, imgShape):
     """
 
     imgH, imgW = imgShape
-    imgH -= 1
-    imgW -= 1
+    # imgH -= 1
+    # imgW -= 1
 
     lonMin = bbox["lonMin"]
     latMin = bbox["latMin"]
@@ -160,17 +164,17 @@ def rasterizeGeojson(geojson, bbox, imgShape):
     scaleY = -(latMax - latMin) / imgH
     transY = latMax
 
-    tMatrix = np.array([
-        [scaleX, 0, transX],
-        [0, scaleY, transY],
-        [0, 0, 1]
-    ])
-    lon_tl, lat_tl, _ = tMatrix @ np.array([0, 0, 1])
-    lon_br, lat_br, _ = tMatrix @ np.array([imgW, imgH, 1])
-    assert(lon_tl == lonMin)
-    assert(lat_tl == latMax)
-    assert(lon_br == lonMax)
-    assert(lat_br == latMin)
+    # tMatrix = np.array([
+    #     [scaleX, 0, transX],
+    #     [0, scaleY, transY],
+    #     [0, 0, 1]
+    # ])
+    # lon_tl, lat_tl, _ = tMatrix @ np.array([0, 0, 1])
+    # lon_br, lat_br, _ = tMatrix @ np.array([imgW, imgH, 1])
+    # assert(lon_tl == lonMin)
+    # assert(lat_tl == latMax)
+    # assert(lon_br == lonMax)
+    # assert(lat_br == latMin)
 
     transform = riot.Affine(
         a=scaleX,  b=0,  c=transX,

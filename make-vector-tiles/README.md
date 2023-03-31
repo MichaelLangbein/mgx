@@ -22,7 +22,22 @@ https://github.com/openmaptiles/openmaptiles
         - python script that reads database and writes out single files in xyz-pyramid
         - files are gzipped by default, need to unzip them first
     -b) Alternatively: host mbtiles directly:
-        - https://www.maptiler.com/server/download/
+        - https://www.maptiler.com/server/download/ <- requires license
+
+
+## Openmaptiles
+
+- raw data (pbf)
+- into postgis
+- select specific data from db (what data to select = schema)
+- create vectortiles
+- provide style-files
+- serve tiles and styles
+
+NB: the main company behind most vector-tyling technology is the swiss company klokantech.
+Their primary product is maptiler, a osm-to-tile converter and tile-server.
+They also maintain openmaptiles, an opensource-initiative.
+
 
 
 # Hosting

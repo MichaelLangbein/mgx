@@ -72,11 +72,12 @@ for y0 in np.arange(0, height-H, H//2):
         treesRaster     = o.rasterizeGeojson(trees, bbox, (H, W))
         waterRaster     = o.rasterizeGeojson(water, bbox, (H, W))
         #  @TODO: cloud mask
-        labelData = 1 * buildingsRaster + 2 * treesRaster + 3 * waterRaster
-        _h, _w = labelData.shape
+        labelData = np.stack((buildingsRaster, treesRaster, waterRaster))
+        _c, _h, _w = labelData.shape
+        paddingC = (0, 0)
         paddingH = (0, H - _h)
         paddingW = (0, W - _w)
-        labelDataPadded = np.pad(labelData, [paddingH, paddingW], mode='constant', constant_values=0)
+        labelDataPadded = np.pad(labelData, [paddingC, paddingH, paddingW], mode='constant', constant_values=0)
 
         #5 metadata
         metadata = {

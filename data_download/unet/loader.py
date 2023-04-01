@@ -39,7 +39,11 @@ class SparseLoader(k.utils.Sequence):
             inputFile = os.path.join(path, "input.npy")
             inputData = np.load(inputFile, allow_pickle=True)
             inputData = np.moveaxis(inputData, 0, -1)
-            x[j, :, :, :] = inputData / 128.0 - 0.5
+            if inputData.min() < 0:
+                inputData += inputData.min()
+            inputData = inputData / inputData.max()
+            inputData *= 255
+            x[j, :, :, :] = inputData
             outputFile = os.path.join(path, "output.npy")
             outputData = np.load(outputFile, allow_pickle=True)
             outputData = np.expand_dims(np.sum(outputData, axis=0), axis=2)
@@ -48,7 +52,12 @@ class SparseLoader(k.utils.Sequence):
         return x, y
 
 
-class Loader(k.utils.Sequence):
+class OneHotLoader(k.utils.Sequence):
+    """
+        Loads data such that it can be used
+        with the CategoricalCrossEntropy loss function.
+    """
+
     def __init__(self, batchSize, dataDirs, H, W, C, N_CLASSES):
         self.batchSize = batchSize
         self.dataDirs = dataDirs
@@ -74,7 +83,11 @@ class Loader(k.utils.Sequence):
             inputFile = os.path.join(path, "input.npy")
             inputData = np.load(inputFile, allow_pickle=True)
             inputData = np.moveaxis(inputData, 0, -1)
-            x[j, :, :, :] = inputData / 128.0 - 0.5
+            if inputData.min() < 0:
+                inputData += inputData.min()
+            inputData = inputData / inputData.max()
+            inputData *= 255
+            x[j, :, :, :] = inputData
             outputFile = os.path.join(path, "output.npy")
             outputData = np.load(outputFile, allow_pickle=True)
             outputData = np.moveaxis(outputData, 0, -1)

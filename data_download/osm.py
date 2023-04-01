@@ -60,7 +60,7 @@ def osmToGeojson(data, saveFreeNodes=False):
     }
     return json
 
-def downloadAndSaveOSM(saveToDirPath, bbox, getBuildings=True, getTrees=True, getWater=True):
+def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=True, getWater=True):
     overpass_url = "http://overpass-api.de/api/interpreter"
 
     lonMin = bbox["lonMin"]
@@ -96,34 +96,41 @@ def downloadAndSaveOSM(saveToDirPath, bbox, getBuildings=True, getTrees=True, ge
 
     fullData = {}
 
-    os.makedirs(os.path.join(saveToDirPath, stringifiedBbox), exist_ok=True)
+    if saveToDirPath is not None:
+        os.makedirs(os.path.join(saveToDirPath, stringifiedBbox), exist_ok=True)
 
     if getBuildings:
         response = req.get(overpass_url, params={'data': buildingQuery})
         data = response.json()
         geojson = osmToGeojson(data)
-        filePath = os.path.join(saveToDirPath, stringifiedBbox, 'buildings.geo.json')
-        with open(filePath, 'w') as fh:
-            json.dump(geojson, fh, indent=4)
         fullData["buildings"] = geojson
+
+        if saveToDirPath is not None:
+            filePath = os.path.join(saveToDirPath, stringifiedBbox, 'buildings.geo.json')
+            with open(filePath, 'w') as fh:
+                json.dump(geojson, fh, indent=4)
 
     if getTrees:
         response = req.get(overpass_url, params={'data': treesQuery})
         data = response.json()
         geojson = osmToGeojson(data)
-        filePath = os.path.join(saveToDirPath, stringifiedBbox, 'trees.geo.json')
-        with open(filePath, 'w') as fh:
-            json.dump(geojson, fh, indent=4)
         fullData["trees"] = geojson
+
+        if saveToDirPath is not None:
+            filePath = os.path.join(saveToDirPath, stringifiedBbox, 'trees.geo.json')
+            with open(filePath, 'w') as fh:
+                json.dump(geojson, fh, indent=4)
 
     if getWater:
         response = req.get(overpass_url, params={'data': waterQuery})
         data = response.json()
         geojson = osmToGeojson(data)
-        filePath = os.path.join(saveToDirPath, stringifiedBbox, 'water.geo.json')
-        with open(filePath, 'w') as fh:
-            json.dump(geojson, fh, indent=4)
         fullData["water"] = geojson
+
+        if saveToDirPath is not None:
+            filePath = os.path.join(saveToDirPath, stringifiedBbox, 'water.geo.json')
+            with open(filePath, 'w') as fh:
+                json.dump(geojson, fh, indent=4)
 
     return fullData
 

@@ -5,6 +5,13 @@ import numpy as np
 import random
 
 #%%
+def normalizeTo(x, xNewMin, xNewMax):
+    xMin = x.min()
+    xMax = x.max()
+    grad = (x - xMin) / (xMax - xMin)
+    xNew = xNewMin + grad * (xNewMax - xNewMin)
+    return xNew
+
 
 class SparseLoader(k.utils.Sequence):
     """
@@ -15,12 +22,13 @@ class SparseLoader(k.utils.Sequence):
     """
 
 
-    def __init__(self, batchSize, dataDirs, H, W, C):
+    def __init__(self, batchSize, dataDirs, H, W, C, normalizeX=False):
         self.batchSize = batchSize
         self.dataDirs = dataDirs
         self.H = H
         self.W = W
         self.C = C
+        self.normalizeX = normalizeX
 
     def __len__(self):
         """ Gives tf the amount of batches available """
@@ -39,10 +47,8 @@ class SparseLoader(k.utils.Sequence):
             inputFile = os.path.join(path, "input.npy")
             inputData = np.load(inputFile, allow_pickle=True)
             inputData = np.moveaxis(inputData, 0, -1)
-            if inputData.min() < 0:
-                inputData += inputData.min()
-            inputData = inputData / inputData.max()
-            inputData *= 255
+            if self.normalizeX:
+                inputData = normalizeTo(inputData, -1.0, 1.0)
             x[j, :, :, :] = inputData
             outputFile = os.path.join(path, "output.npy")
             outputData = np.load(outputFile, allow_pickle=True)
@@ -58,13 +64,14 @@ class OneHotLoader(k.utils.Sequence):
         with the CategoricalCrossEntropy loss function.
     """
 
-    def __init__(self, batchSize, dataDirs, H, W, C, N_CLASSES):
+    def __init__(self, batchSize, dataDirs, H, W, C, N_CLASSES, normalizeX=False):
         self.batchSize = batchSize
         self.dataDirs = dataDirs
         self.H = H
         self.W = W
         self.C = C
         self.N_CLASSES = N_CLASSES
+        self.normalizeX = normalizeX
 
     def __len__(self):
         """ Gives tf the amount of batches available """
@@ -83,10 +90,8 @@ class OneHotLoader(k.utils.Sequence):
             inputFile = os.path.join(path, "input.npy")
             inputData = np.load(inputFile, allow_pickle=True)
             inputData = np.moveaxis(inputData, 0, -1)
-            if inputData.min() < 0:
-                inputData += inputData.min()
-            inputData = inputData / inputData.max()
-            inputData *= 255
+            if self.normalizeX:
+                inputData = normalizeTo(inputData, -1.0, 1.0)
             x[j, :, :, :] = inputData
             outputFile = os.path.join(path, "output.npy")
             outputData = np.load(outputFile, allow_pickle=True)

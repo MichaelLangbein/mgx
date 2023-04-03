@@ -105,7 +105,7 @@ for y0 in np.arange(0, height-H, H//2):
             plt.suptitle(str(metadata["bbox"]))
             fig = plt.gcf() # getting current figure before it's shown
             plt.show()
-            fig.savefig(os.path.join(outDir, str(i) + ".png"))
+            fig.savefig(os.path.join(outDir, "..", "datasets_previews", str(i) + ".png"))
 
 
 # %%

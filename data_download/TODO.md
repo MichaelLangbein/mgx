@@ -7,3 +7,4 @@
 - water:
   - often rivers not included
   - often big lakes that only intersect the bbox not included
+  - <= didn't include relations. Make sure that islands aren't marked as water, though!

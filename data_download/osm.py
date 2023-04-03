@@ -95,7 +95,10 @@ def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=Tru
 
     waterQuery = f"""
         [out:json];
-        way[natural=water]( {stringifiedBbox} );
+        (
+            way[natural=water]( {stringifiedBbox} );
+            relation[natural=water]( {stringifiedBbox} );
+        );
         (._;>;);
         out geom;
     """

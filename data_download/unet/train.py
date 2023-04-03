@@ -158,7 +158,7 @@ callbacks = [
 # Train the model, doing validation at the end of each epoch.
 history = model.fit(
     trainingLoader, 
-    epochs=50,
+    epochs=15,
     # steps_per_epoch=40,
     batch_size=N_BATCH,
     validation_data=validationLoader, 
@@ -168,10 +168,13 @@ history = model.fit(
 
 
 #%% verifying model has learned something
-x, y = validationLoader[0]
+batchNr = np.random.randint(0, len(validationLoader))
+sampleNr = np.random.randint(0, N_BATCH)
+
+x, y = validationLoader[batchNr]
 ySim = model.predict(x)
 
-plotPred(x[0], ySim[0], y[0]).show()
+plotPred(x[sampleNr], ySim[sampleNr], y[sampleNr]).show()
 ySim.shape, y.shape
 
 

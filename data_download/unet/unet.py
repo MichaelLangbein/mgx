@@ -3,8 +3,12 @@ import keras as k
 from tensorflow.keras import layers
 
 
-def makeModel(w, h, c, numClasses):
+def makeModel(w, h, c, numClasses, filters=[64, 128, 256]):
     inputs = k.Input(shape=(w, h, c))
+
+    filtersDown = filters
+    filtersUp = filtersDown[::-1]
+    filtersUp.append(min(filtersDown) // 2)
 
     ### First half of model: downsampling inputs
 
@@ -15,7 +19,7 @@ def makeModel(w, h, c, numClasses):
     previousBlockActivation = x
 
     # Blocks 1, 2, 3 are identical apart from the feature depth
-    for filters in [64, 128, 256]:
+    for filters in filters:
         x = layers.Activation('relu')(x)
         x = layers.SeparableConv2D(filters, 3, padding='same')(x)
         x = layers.BatchNormalization()(x)
@@ -34,7 +38,7 @@ def makeModel(w, h, c, numClasses):
 
     ### Second half of network: upsampling inputs
 
-    for filters in [256, 128, 64, 32]:
+    for filters in filtersUp:
         x = layers.Activation('relu')(x)
         x = layers.Conv2DTranspose(filters, 3, padding='same')(x)
         x = layers.BatchNormalization()(x)

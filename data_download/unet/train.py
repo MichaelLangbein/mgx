@@ -54,8 +54,12 @@ class SparseLoader(k.utils.Sequence):
             x[j, :, :, :] = inputData
             outputFile = os.path.join(path, "output.npy")
             outputData = np.load(outputFile, allow_pickle=True)
-            outputData = np.sum(outputData, axis=0)
-            y[j, :, :] = outputData
+            C, H, W = outputData.shape
+            outputSparse = np.zeros((H, W))
+            outputSparse = np.max([outputSparse, outputData[0, :, :] * 1], axis=0)
+            outputSparse = np.max([outputSparse, outputData[1, :, :] * 2], axis=0)
+            outputSparse = np.max([outputSparse, outputData[2, :, :] * 3], axis=0)
+            y[j, :, :] = outputSparse
 
         return x, y
 
@@ -74,18 +78,23 @@ validationDirs = dataSubDirs[cutoffPoint:]
 trainingLoader = SparseLoader(N_BATCH, trainingDirs, H, W, C, normalizeX=True)
 validationLoader = SparseLoader(N_BATCH, validationDirs, H, W, C, normalizeX=True)
 
-#%%
+#%% verify that training-data makes sense.
+def plotPred(x, ySim, yTrue):
+    f, ax = plt.subplots(1, 3)    
+    ax[0].imshow(x + 1.0)
+    ax[1].imshow(ySim * 100)
+    ax[2].imshow(x + 1.0)
+    ax[2].imshow(yTrue * 100, alpha=0.7)
+    return f
+
+
 x, y = trainingLoader[np.random.randint(0, len(trainingLoader))]
-f, ax = plt.subplots(1, 3)
-ax[0].imshow(x[0] + 1.0)
-ax[1].imshow(y[0] * 256 / 3)
-ax[2].imshow(x[0] + 1.0)
-ax[2].imshow(y[0] * 256 / 2, alpha=0.3)
+plotPred(x[0], y[0], y[0]).show()
 x.max(), x.shape, y.max(), y.shape
 
 #%%
 k.backend.clear_session()
-# N_CLASSES = 2: is-forest and is-not-forest
+# N_CLASSES = always one more than given; extra class stands for "none of the above"
 model = makeModel(H, W, C, 4, [32, 64, 128, 256])
 model.summary()
 
@@ -93,25 +102,14 @@ model.summary()
 x, y = validationLoader[0]
 ySim = model.predict(x)
 
-fig, axes = plt.subplots(3, 3)
-axes[0][0].imshow(x[0] + 1.0)
-axes[0][1].imshow(ySim[0, :, :, 0:3])
-axes[0][2].imshow(y[0] * 100)
-axes[1][0].imshow(x[1] + 1.0)
-axes[1][1].imshow(ySim[1, :, :, 0:3])
-axes[1][2].imshow(y[1] * 100)
-axes[2][0].imshow(x[2] + 1.0)
-axes[2][1].imshow(ySim[2, :, :, 0:3])
-axes[2][2].imshow(y[2] * 100)
+plotPred(x[0], ySim[0, :, :, 0:3], y[0]).show()
 ySim.shape, y.shape
 
-# %%
-# Using 'auto'/'sum_over_batch_size' reduction type.
-cce = k.losses.SparseCategoricalCrossentropy(from_logits=False) #ignore_class=0 ? 
-cce(y[0], ySim[0]).numpy()
-
-
-#%%
+# %% verify that loss-function works
+# SCCE is very picky:
+#  - model-output in range [0:1] in default mode (otherwise set from_logits=true)
+#  - if model-output.shape = (batchsize, width, height, classes) => max(yTrue) == classes - 1
+cce = k.losses.SparseCategoricalCrossentropy(from_logits=False) 
 cce(y, ySim).numpy()
 
 
@@ -119,13 +117,14 @@ cce(y, ySim).numpy()
 
 class PredictCallback(k.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
-        batchNr = np.random.randint(0, len(validationLoader))
-        sampleNr = np.random.randint(0, N_BATCH)
-        x, y = validationLoader[batchNr]
-        ySim = model.predict(np.expand_dims(x[sampleNr], 0))
-        plt.imshow(x[sampleNr] + 1.0)
-        plt.imshow(ySim[0, :, :, 0:3], alpha=.4)
-        plt.savefig(f"./predictions/prediction_{epoch}.png")
+        batchNr = 10
+        sampleNr = 3
+        xs, ys = validationLoader[batchNr]
+        x = xs[sampleNr]
+        y = ys[sampleNr]
+        ySim = model.predict(np.expand_dims(x, 0))[0]
+        f = plotPred(x, ySim[:, :, 0:3], y)
+        f.savefig(f"./predictions/prediction_{epoch}.png")
 
 
 
@@ -159,16 +158,7 @@ history = model.fit(
 x, y = validationLoader[0]
 ySim = model.predict(x)
 
-fig, axes = plt.subplots(3, 3)
-axes[0][0].imshow(x[0] + 1.0)
-axes[0][1].imshow(ySim[0, :, :, 0:3])
-axes[0][2].imshow(y[0] * 100)
-axes[1][0].imshow(x[1] + 1.0)
-axes[1][1].imshow(ySim[1, :, :, 0:3])
-axes[1][2].imshow(y[1] * 100)
-axes[2][0].imshow(x[2] + 1.0)
-axes[2][1].imshow(ySim[2, :, :, 0:3])
-axes[2][2].imshow(y[2] * 100)
+plotPred(x[0], ySim[0, :, :, 0:3], y[0]).show()
 ySim.shape, y.shape
 
 # %%

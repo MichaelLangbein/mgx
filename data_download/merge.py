@@ -4,6 +4,7 @@ import stac as s
 import osm as o
 import json
 import numpy as np
+import matplotlib.pyplot as plt
 
 # %% 0: Directory-structure
 bbox = {
@@ -28,7 +29,7 @@ def clamp(start, val, end):
     return val
 
 #%% 1: Download scene
-s.downloadAndSaveS2Data(s2Dir, bbox, 1, 10, None, False)
+# s.downloadAndSaveS2Data(s2Dir, bbox, 1, 10, None, False)
 
 #%% 
 fileName = f"{s2Dir}/S2B_32UPU_20230210_0_L2A/TCI.tif"
@@ -39,6 +40,7 @@ H = 256
 W = 256
 
 i = 0
+I = len(np.arange(0, height-H, H//2)) * len(np.arange(0, width-W, W//2))
 for y0 in np.arange(0, height-H, H//2):
     for x0 in np.arange(0, width-W, W//2):
         i+= 1
@@ -49,6 +51,7 @@ for y0 in np.arange(0, height-H, H//2):
         lonBL, latBL = s.tifPixelToLonLat(fh, y1, x0)
         lonTR, latTR = s.tifPixelToLonLat(fh, y0, x1)
         bbox = { "lonMin": lonBL, "lonMax": lonTR, "latMin": latBL, "latMax": latTR }
+        print(f"{i}/{I}={100 * i / I}% -- {bbox})")
 
         # 3: For every subset, get osm-data
         osmData = o.downloadAndSaveOSM(bbox, None)
@@ -58,10 +61,7 @@ for y0 in np.arange(0, height-H, H//2):
     
 
         # 4: Rasterize osm together with cloud-mask
-        r0, c0 = s.tifCoordToPixel(fh, bbox["lonMin"], bbox["latMax"])
-        r0 = clamp(0, r0, height-H)
-        c0 = clamp(0, c0, width-W)
-        baseData = s.tifGetPixels(fh, r0, r0 + H, c0, c0 + W)
+        baseData = s.tifGetPixels(fh, y0, y1, x0, x1)
         _c, _h, _w = baseData.shape
         paddingC = (0, 0)
         paddingH = (0, H - _h)
@@ -97,8 +97,19 @@ for y0 in np.arange(0, height-H, H//2):
         np.save(os.path.join(dataPointDir, "output.npy"), labelDataPadded, allow_pickle=True)
 
 
+        # 7: plot occasionally
+        if i == 1 or i % 100 == 0:
+            plt.figure(figsize=(7, 7))
+            plt.imshow(np.moveaxis(baseDataPadded, 0, -1))
+            plt.imshow(np.moveaxis(labelDataPadded, 0, -1) * 200, alpha=0.25)
+            plt.suptitle(str(metadata["bbox"]))
+            fig = plt.gcf() # getting current figure before it's shown
+            plt.show()
+            fig.savefig(os.path.join(outDir, str(i) + ".png"))
+
+
 # %%
-#import matplotlib.pyplot as plt
+#
 assetNr = np.random.randint(1, len(os.listdir(outDir)))
 dataIn = np.load(os.path.join(outDir, str(assetNr), "input.npy"), 'r', allow_pickle=True)
 dataOut = np.load(os.path.join(outDir, str(assetNr), "output.npy"), 'r', allow_pickle=True)

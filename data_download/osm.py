@@ -22,7 +22,7 @@ def nodeToPoint(node):
 
 def nodeToPoly(node):
     coordinates = [[[e["lon"], e["lat"]] for e in node["geometry"]]]
-    properties = node["tags"]
+    properties = node["tags"] if "tags" in node else {}
     properties["id"] = node["id"]
     return {
         "type": "Feature",
@@ -36,9 +36,12 @@ def nodeToPoly(node):
 def osmToGeojson(data, saveFreeNodes=False):
     elements = data["elements"]
 
-    ways =  [e for e in elements if e["type"] == "way"]
-    polygons = [nodeToPoly(n) for n in ways]
-    features = polygons
+    try: 
+        ways =  [e for e in elements if e["type"] == "way"]
+        polygons = [nodeToPoly(n) for n in ways]
+        features = polygons
+    except Exception as e:
+        print(e)
 
     if saveFreeNodes:
         nodes = [e for e in elements if e["type"] == "node"]
@@ -82,6 +85,9 @@ def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=Tru
             way[landuse=forest]( {stringifiedBbox} );
             way[landuse=meadow]( {stringifiedBbox} );
             way[landuse=orchard]( {stringifiedBbox} );
+            relation[landuse=forest]( {stringifiedBbox} );  /* also including multi-polyons */
+            relation[landuse=meadow]( {stringifiedBbox} );  /* also including multi-polyons */
+            relation[landuse=orchard]( {stringifiedBbox} );  /* also including multi-polyons */
         );              /* union of the above statements */
         (._;>;);
         out geom;

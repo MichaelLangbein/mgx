@@ -6,7 +6,7 @@ import os
 import matplotlib.pyplot as plt
 import random
 import numpy as np
-from tensorflow.keras.preprocessing.image import load_img
+
 
 
 #%%
@@ -28,9 +28,11 @@ validationLoader = OneHotLoader(N_BATCH, validationDirs, H, W, C, N_CLASSES, nor
 # validationLoader = SparseLoader(N_BATCH, validationDirs, H, W, C, normalizeX=True)
 
 x, y = trainingLoader[0]
-f, ax = plt.subplots(1, 2)
+f, ax = plt.subplots(1, 3)
 ax[0].imshow(x[0] + 1.0)
 ax[1].imshow(y[0] * 255)
+ax[2].imshow(x[0] + 1.0)
+ax[2].imshow(y[0] * 255, alpha=0.3)
 x.max(), x.shape, y.max(), y.shape
 
 #%%
@@ -66,6 +68,18 @@ cce(y, ySim).numpy()
 
 #%%
 
+class PredictCallback(k.callbacks.Callback):
+    def on_epoch_end(self, epoch, logs=None):
+        batchNr = np.random.randint(0, len(validationLoader))
+        sampleNr = np.random.randint(0, N_BATCH)
+        x, y = validationLoader[batchNr]
+        ySim = model.predict(np.expand_dims(x[sampleNr], 0))
+        plt.imshow((x[sampleNr] + 1))
+        plt.imshow(ySim[0], alpha=.25)
+        plt.savefig(f"./predictions/prediction_{epoch}.png")
+
+
+
 model.compile(
     optimizer = k.optimizers.RMSprop(
         learning_rate = 0.00001,
@@ -74,13 +88,15 @@ model.compile(
 )
 
 callbacks = [
-    k.callbacks.ModelCheckpoint("unet.h5", save_best_only=True)
+    k.callbacks.ModelCheckpoint("unet.h5", save_best_only=True),
+    PredictCallback()
 ]
 
 # Train the model, doing validation at the end of each epoch.
 model.fit(
     trainingLoader, 
-    epochs=45,
+    epochs=10,
+    steps_per_epoch=30,
     batch_size=N_BATCH,
     validation_data=validationLoader, 
     callbacks=callbacks,

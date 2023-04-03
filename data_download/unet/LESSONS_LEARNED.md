@@ -1,17 +1,20 @@
 # LESSONS LEARNED
 
-- Loss function 
-    - categorical cross entropy for one-hot encoded output (batchsize * height * width * nrlabels) element of [0, 1]
-    - sparse cce for integer-encoded output (batchsize * height * width * 1) element of N
+- SCCE expects 
+            - yTrue to be of dimension (H, W)
+            - ySim to be of dimension (H, W, C)
+            - C == yTrue.max() + 1 <== model must output one dimension for each class and one for "no class"
+        
+        Note that if instead you want to have one-hot-encoded data, use *non*-sparse-cce.
+        CCE expects
+            - yTrue to be of dimension (H, W, C)
+            - ySim to be of dimension (H, W, C)
 
 - input should be normalized to [-1, 1]
 
-- logits: scales a prob from [0, 1] to [-inf, inf]. Useful if model-output is an arbitrary float, not a prob.
+- logits: scales a prob from [0, 1] to [-inf, inf]. Useful if model-output is an arbitrary float, not a prob. (https://en.wikipedia.org/wiki/Logit)
 
 
-
-
-Observations 03.04.2023
 
 - Hypothesis 1:
     - it's easier to predict "is forest" or "is not forest" instead of many classes
@@ -35,13 +38,5 @@ Observations 03.04.2023
     - water is causing issues
         - reason: there is little water in my trainings-dataset. The net stil tries to predict water sometimes, often in the middle of forests
 
-- Hypothesis 5:
-    - a small batch size seems to help
-        - reson: small batch size = can overfit to few images. actually a good thing, because there is so much variety within one class.
-        - test: make batch-size extremely small and extremely large. compare.
 
-Consequences:
-    Let's simplify things.
-        - only one class: forest or not  <== now requires spare cce, but worked!
-        - smaller waist for unet <== did work, no longer see rects
-        - small batch-size <== did work
+- 

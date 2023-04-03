@@ -21,6 +21,12 @@ class SparseLoader(k.utils.Sequence):
         SCCE expects 
             - yTrue to be of dimension (H, W)
             - ySim to be of dimension (H, W, C)
+            - yTrue.max() == C - 1
+        
+        Note that if instead you want to have one-hot-encoded data, use *non*-sparse-cce.
+        CCE expects
+            - yTrue to be of dimension (H, W, C)
+            - ySim to be of dimension (H, W, C)
     """
 
 
@@ -56,9 +62,9 @@ class SparseLoader(k.utils.Sequence):
             outputData = np.load(outputFile, allow_pickle=True)
             C, H, W = outputData.shape
             outputSparse = np.zeros((H, W))
-            outputSparse = np.max([outputSparse, outputData[0, :, :] * 1], axis=0)
-            outputSparse = np.max([outputSparse, outputData[1, :, :] * 2], axis=0)
-            outputSparse = np.max([outputSparse, outputData[2, :, :] * 3], axis=0)
+            outputSparse = np.max([outputSparse, outputData[0, :, :] * 1], axis=0) # I think this also works: outputSparse[np.where(outputData[0] == 1)] = 1
+            outputSparse = np.max([outputSparse, outputData[1, :, :] * 2], axis=0) # I think this also works: outputSparse[np.where(outputData[1] == 1)] = 2
+            outputSparse = np.max([outputSparse, outputData[2, :, :] * 3], axis=0) # I think this also works: outputSparse[np.where(outputData[2] == 1)] = 3
             y[j, :, :] = outputSparse
 
         return x, y
@@ -79,18 +85,25 @@ trainingLoader = SparseLoader(N_BATCH, trainingDirs, H, W, C, normalizeX=True)
 validationLoader = SparseLoader(N_BATCH, validationDirs, H, W, C, normalizeX=True)
 
 #%% verify that training-data makes sense.
-def plotPred(x, ySim, yTrue):
-    f, ax = plt.subplots(1, 3)    
-    ax[0].imshow(x + 1.0)
-    ax[1].imshow(ySim * 100)
-    ax[2].imshow(x + 1.0)
-    ax[2].imshow(yTrue * 100, alpha=0.7)
-    return f
-
 
 x, y = trainingLoader[np.random.randint(0, len(trainingLoader))]
-plotPred(x[0], y[0], y[0]).show()
 x.max(), x.shape, y.max(), y.shape
+
+#%%
+def plotPred(x, ySim, yTrue):
+    fig, axes = plt.subplots(1, 3)
+
+    axes[0].imshow(x + 1.0)
+    axes[0].set_title("input")
+
+    axes[1].imshow(ySim[:, :, 1:4])
+    axes[1].set_title("prediction")
+
+    truth = np.asarray([(yTrue == 1) * 255, (yTrue == 2) * 255, (yTrue == 3) * 255])
+    axes[2].imshow(np.moveaxis(truth, 0, -1))
+    axes[2].set_title("truth")
+
+    return fig
 
 #%%
 k.backend.clear_session()
@@ -102,7 +115,7 @@ model.summary()
 x, y = validationLoader[0]
 ySim = model.predict(x)
 
-plotPred(x[0], ySim[0, :, :, 0:3], y[0]).show()
+plotPred(x[0], ySim[0], y[0]).show()
 ySim.shape, y.shape
 
 # %% verify that loss-function works
@@ -123,7 +136,7 @@ class PredictCallback(k.callbacks.Callback):
         x = xs[sampleNr]
         y = ys[sampleNr]
         ySim = model.predict(np.expand_dims(x, 0))[0]
-        f = plotPred(x, ySim[:, :, 0:3], y)
+        f = plotPred(x, ySim, y)
         f.savefig(f"./predictions/prediction_{epoch}.png")
 
 
@@ -158,8 +171,9 @@ history = model.fit(
 x, y = validationLoader[0]
 ySim = model.predict(x)
 
-plotPred(x[0], ySim[0, :, :, 0:3], y[0]).show()
+plotPred(x[0], ySim[0], y[0]).show()
 ySim.shape, y.shape
+
 
 # %%
 plt.plot(history.history['loss'])

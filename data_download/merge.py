@@ -72,6 +72,7 @@ for y0 in np.arange(0, height-H, H//2):
         treesRaster     = o.rasterizeGeojson(trees, bbox, (H, W))
         waterRaster     = o.rasterizeGeojson(water, bbox, (H, W))
         #  @TODO: cloud mask
+        #                     red              green        blue
         labelData = np.stack((buildingsRaster, treesRaster, waterRaster))
         _c, _h, _w = labelData.shape
         paddingC = (0, 0)
@@ -97,10 +98,15 @@ for y0 in np.arange(0, height-H, H//2):
 
 
 # %%
-import matplotlib.pyplot as plt
-dataIn = np.load(os.path.join(outDir, str(1), "input.npy"), 'r', allow_pickle=True)
-dataOut = np.load(os.path.join(outDir, str(1), "output.npy"), 'r', allow_pickle=True)
-fig, axes = plt.subplots(1, 2)
-axes[0].imshow(np.moveaxis(dataIn, 0, -1))
-axes[1].imshow(dataOut)
+#import matplotlib.pyplot as plt
+assetNr = np.random.randint(1, len(os.listdir(outDir)))
+dataIn = np.load(os.path.join(outDir, str(assetNr), "input.npy"), 'r', allow_pickle=True)
+dataOut = np.load(os.path.join(outDir, str(assetNr), "output.npy"), 'r', allow_pickle=True)
+f = open(os.path.join(outDir, str(assetNr), "metadata.json"), 'r')
+metaData = json.load(f)
+plt.figure(figsize=(7, 7))
+plt.imshow(np.moveaxis(dataIn, 0, -1))
+plt.imshow(np.moveaxis(dataOut, 0, -1) * 200, alpha=0.25)
+plt.suptitle(str(metaData)[:50])
+plt.suptitle(str(metaData)[50:])
 # %%

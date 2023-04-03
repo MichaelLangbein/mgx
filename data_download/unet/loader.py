@@ -41,7 +41,7 @@ class SparseLoader(k.utils.Sequence):
         batchDirs = self.dataDirs[i : i + self.batchSize]
         
         x = np.zeros((self.batchSize, self.H, self.W, self.C), dtype=np.float32)
-        y = np.zeros((self.batchSize, self.H, self.W, 1),      dtype=np.uint8)
+        y = np.zeros((self.batchSize, self.H, self.W),      dtype=np.uint8)
 
         for j, path in enumerate(batchDirs):
             inputFile = os.path.join(path, "input.npy")
@@ -52,8 +52,8 @@ class SparseLoader(k.utils.Sequence):
             x[j, :, :, :] = inputData
             outputFile = os.path.join(path, "output.npy")
             outputData = np.load(outputFile, allow_pickle=True)
-            outputData = np.expand_dims(np.sum(outputData, axis=0), axis=2)
-            y[j, :, :, :] = outputData
+            outputData = np.sum(outputData, axis=0)
+            y[j, :, :] = outputData
 
         return x, y
 

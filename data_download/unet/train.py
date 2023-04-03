@@ -1,13 +1,63 @@
 #%%
 import keras as k
 from unet import makeModel
-from loader import SparseLoader, OneHotLoader, TrueFalseLoader
 import os
 import matplotlib.pyplot as plt
 import random
 import numpy as np
 
+#%%
+def normalizeTo(x, xNewMin, xNewMax):
+    xMin = x.min()
+    xMax = x.max()
+    grad = (x - xMin) / (xMax - xMin)
+    xNew = xNewMin + grad * (xNewMax - xNewMin)
+    return xNew
 
+
+class SparseLoader(k.utils.Sequence):
+    """
+        Loader for data that will be used with sparse-cat-cross-entropy.
+        SCCE expects 
+            - yTrue to be of dimension (H, W)
+            - ySim to be of dimension (H, W, C)
+    """
+
+
+    def __init__(self, batchSize, dataDirs, H, W, C, normalizeX=False):
+        self.batchSize = batchSize
+        self.dataDirs = dataDirs
+        self.H = H
+        self.W = W
+        self.C = C
+        self.normalizeX = normalizeX
+
+    def __len__(self):
+        """ Gives tf the amount of batches available """
+        return len(self.dataDirs) // self.batchSize
+
+    def __getitem__(self, idx):
+        """ Returns tuple (input, target) corresponding to batch #idx """
+        i = idx * self.batchSize
+        
+        batchDirs = self.dataDirs[i : i + self.batchSize]
+        
+        x = np.zeros((self.batchSize, self.H, self.W, self.C), dtype=np.float32)
+        y = np.zeros((self.batchSize, self.H, self.W),      dtype=np.uint8)
+
+        for j, path in enumerate(batchDirs):
+            inputFile = os.path.join(path, "input.npy")
+            inputData = np.load(inputFile, allow_pickle=True)
+            inputData = np.moveaxis(inputData, 0, -1)
+            if self.normalizeX:
+                inputData = normalizeTo(inputData, -1.0, 1.0)
+            x[j, :, :, :] = inputData
+            outputFile = os.path.join(path, "output.npy")
+            outputData = np.load(outputFile, allow_pickle=True)
+            outputData = np.sum(outputData, axis=0)
+            y[j, :, :] = outputData
+
+        return x, y
 
 #%%
 thisDir = os.getcwd()
@@ -21,25 +71,22 @@ N_BATCH = 32
 cutoffPoint = int( 0.9 * len(dataSubDirs))
 trainingDirs = dataSubDirs[:cutoffPoint]
 validationDirs = dataSubDirs[cutoffPoint:]
-trainingLoader = TrueFalseLoader(N_BATCH, trainingDirs, H, W, C, normalizeX=True)
-validationLoader = TrueFalseLoader(N_BATCH, validationDirs, H, W, C, normalizeX=True)
-# trainingLoader = OneHotLoader(N_BATCH, trainingDirs, H, W, C, N_CLASSES, normalizeX=True)
-# validationLoader = OneHotLoader(N_BATCH, validationDirs, H, W, C, N_CLASSES, normalizeX=True)
-# trainingLoader = SparseLoader(N_BATCH, trainingDirs, H, W, C, normalizeX=True)
-# validationLoader = SparseLoader(N_BATCH, validationDirs, H, W, C, normalizeX=True)
+trainingLoader = SparseLoader(N_BATCH, trainingDirs, H, W, C, normalizeX=True)
+validationLoader = SparseLoader(N_BATCH, validationDirs, H, W, C, normalizeX=True)
 
-x, y = trainingLoader[0]
+#%%
+x, y = trainingLoader[np.random.randint(0, len(trainingLoader))]
 f, ax = plt.subplots(1, 3)
 ax[0].imshow(x[0] + 1.0)
-ax[1].imshow(y[0] * 255)
+ax[1].imshow(y[0] * 256 / 3)
 ax[2].imshow(x[0] + 1.0)
-ax[2].imshow(y[0] * 255, alpha=0.3)
+ax[2].imshow(y[0] * 256 / 2, alpha=0.3)
 x.max(), x.shape, y.max(), y.shape
 
 #%%
 k.backend.clear_session()
 # N_CLASSES = 2: is-forest and is-not-forest
-model = makeModel(H, W, C, 2, [32, 64, 128, 256])
+model = makeModel(H, W, C, 4, [32, 64, 128, 256])
 model.summary()
 
 #%% verifying model works
@@ -48,14 +95,14 @@ ySim = model.predict(x)
 
 fig, axes = plt.subplots(3, 3)
 axes[0][0].imshow(x[0] + 1.0)
-axes[0][1].imshow(ySim[0, :, :, 1])
-axes[0][2].imshow(y[0] * 255)
+axes[0][1].imshow(ySim[0, :, :, 0:3])
+axes[0][2].imshow(y[0] * 100)
 axes[1][0].imshow(x[1] + 1.0)
-axes[1][1].imshow(ySim[1, :, :, 1])
-axes[1][2].imshow(y[1] * 255)
+axes[1][1].imshow(ySim[1, :, :, 0:3])
+axes[1][2].imshow(y[1] * 100)
 axes[2][0].imshow(x[2] + 1.0)
-axes[2][1].imshow(ySim[2, :, :, 1])
-axes[2][2].imshow(y[2] * 255)
+axes[2][1].imshow(ySim[2, :, :, 0:3])
+axes[2][2].imshow(y[2] * 100)
 ySim.shape, y.shape
 
 # %%
@@ -77,14 +124,14 @@ class PredictCallback(k.callbacks.Callback):
         x, y = validationLoader[batchNr]
         ySim = model.predict(np.expand_dims(x[sampleNr], 0))
         plt.imshow(x[sampleNr] + 1.0)
-        plt.imshow(ySim[0, :, :, 1], alpha=.4)
+        plt.imshow(ySim[0, :, :, 0:3], alpha=.4)
         plt.savefig(f"./predictions/prediction_{epoch}.png")
 
 
 
 model.compile(
     optimizer = k.optimizers.RMSprop(
-        learning_rate = 0.0001,
+        learning_rate = 0.001,
     ),
     # loss = k.losses.CategoricalCrossentropy()
     loss = k.losses.SparseCategoricalCrossentropy(from_logits=False)
@@ -99,8 +146,8 @@ callbacks = [
 # Train the model, doing validation at the end of each epoch.
 history = model.fit(
     trainingLoader, 
-    epochs=20,
-    steps_per_epoch=30,
+    epochs=50,
+    # steps_per_epoch=40,
     batch_size=N_BATCH,
     validation_data=validationLoader, 
     callbacks=callbacks,
@@ -114,14 +161,14 @@ ySim = model.predict(x)
 
 fig, axes = plt.subplots(3, 3)
 axes[0][0].imshow(x[0] + 1.0)
-axes[0][1].imshow(ySim[0, :, :, 0])
-axes[0][2].imshow(y[0] * 255)
+axes[0][1].imshow(ySim[0, :, :, 0:3])
+axes[0][2].imshow(y[0] * 100)
 axes[1][0].imshow(x[1] + 1.0)
-axes[1][1].imshow(ySim[1, :, :, 0])
-axes[1][2].imshow(y[1] * 255)
+axes[1][1].imshow(ySim[1, :, :, 0:3])
+axes[1][2].imshow(y[1] * 100)
 axes[2][0].imshow(x[2] + 1.0)
-axes[2][1].imshow(ySim[2, :, :, 0])
-axes[2][2].imshow(y[2] * 255)
+axes[2][1].imshow(ySim[2, :, :, 0:3])
+axes[2][2].imshow(y[2] * 100)
 ySim.shape, y.shape
 
 # %%

@@ -35,6 +35,8 @@ services:
       - "5000:5000"
     networks:
       - pg
+    volumes:
+      - ./server:/server
 
   vectortiles:
     build: ./vectortiles

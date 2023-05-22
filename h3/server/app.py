@@ -7,6 +7,7 @@ import h3
 
 #%% database-api
 def fetchCells(bbox, resolution):
+    resolution = int(float(resolution))
     conn = p2.connect(
         host     = "db",
         port     = 5432,

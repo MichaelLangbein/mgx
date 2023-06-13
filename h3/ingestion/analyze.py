@@ -1,0 +1,138 @@
+#%%
+import numpy as np
+import rasterio as rio
+import json
+from helpers import readTif, tifGetBbox
+from inspect import getsourcefile
+from os.path import abspath, dirname
+
+
+
+# clip AOI
+
+
+def extractClouds(data, qaPixelData):
+    """
+    extracts clouds
+    https://www.usgs.gov/landsat-missions/landsat-collection-2-quality-assessment-bands
+    https://pages.cms.hu-berlin.de/EOL/gcg_eo/02_data_quality.html
+    
+    I think I can do this with just the L1 QA_PIXEL bands.
+    Only take values where QA_PIXEL == 21824
+    There should be more information in L2 QA-layers, but those are not always available
+    (My suspicion is that landsat only has L2 onver the US)
+    """
+
+
+def readMetaData(pathToMetadataJsonFile):
+    fh = open(pathToMetadataJsonFile)
+    metadata = json.load(fh)
+    return metadata
+
+
+def scaleBandData(rawData, bandNr, metaData):
+    mult = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_RADIOMETRIC_RESCALING"][f"RADIANCE_MULT_BAND_{bandNr}"])
+    add = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_RADIOMETRIC_RESCALING"][f"RADIANCE_ADD_BAND_{bandNr}"])
+    return rawData * mult + add
+
+
+
+def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData):
+
+    """
+    Convert raw data to land-surface-temperature (LST) in celsius
+    
+    Based on [Avdan & Jovanovska](https://www.researchgate.net/journal/Journal-of-Sensors-1687-7268/publication/296414003_Algorithm_for_Automated_Mapping_of_Land_Surface_Temperature_Using_LANDSAT_8_Satellite_Data/links/618456aca767a03c14f69ab7/Algorithm-for-Automated-Mapping-of-Land-Surface-Temperature-Using-LANDSAT-8-Satellite-Data.pdf?__cf_chl_rt_tk=e64hIdi4FTDBdxR5Fz0aaWift_OPNow89iJrKJxXOpo-1686654949-0-gaNycGzNEZA)
+    
+    Raw data:
+    - Band 4: Red
+    - Band 5: NIR
+    - Band 10: Thermal radiance
+    """
+
+    ## Step 1.1: radiance to at-sensor temperature (brightness temperature BT)
+    k1ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K1_CONSTANT_BAND_10"])
+    k2ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K2_CONSTANT_BAND_10"])
+    toaBrightnessTemperature = k2ConstantBand10 / np.log((k1ConstantBand10 / toaSpectralRadiance) + 1.0)
+    toaBrightnessTemperatureCelsius = toaBrightnessTemperature - 273.15
+
+
+    ## Step 2.1: calculating NDVI
+    ndvi = (valuesNIR - valuesRed) / (valuesNIR + valuesRed)
+
+
+    ## Step 2.2: Vegetation proportion
+    ndviVegetation = 0.5
+    ndviSoil = 0.2
+    vegetationProportion = np.power((ndvi - ndviSoil) / (ndviVegetation - ndviSoil), 2)
+
+
+    ## Step 2.3: Land-surface emissivity
+    soilEmissivity       = 0.996
+    waterEmissivity      = 0.991
+    vegetationEmissivity = 0.973
+    surfaceRoughness     = 0.005
+    landSurfaceEmissivity = np.zeros(ndvi.shape)
+    # Probably water
+    landSurfaceEmissivity += np.where((ndvi <= 0.0), waterEmissivity, 0)
+    # Probably soil
+    landSurfaceEmissivity += np.where((0.0 < ndvi) & (ndvi <= 0.2), soilEmissivity, 0)
+    # Soil/vegetation mixture
+    weightedEmissivity = vegetationEmissivity * vegetationProportion + soilEmissivity * (1.0 - vegetationProportion) + surfaceRoughness
+    landSurfaceEmissivity += np.where((0.2 < ndvi) & (ndvi <= 0.5), weightedEmissivity, 0)
+    # Vegetation only
+    landSurfaceEmissivity += np.where((0.5 < ndvi), vegetationEmissivity, 0)
+
+
+    # Step 3.1: land-surface-temperature
+    emittedRadianceWavelength = 10.895
+    factor = emittedRadianceWavelength * toaBrightnessTemperatureCelsius / 0.01438
+    landSurfaceTemperature = toaBrightnessTemperatureCelsius / (1.0 + np.log(landSurfaceEmissivity) * factor)
+
+
+    return landSurfaceTemperature
+
+# account for wind
+
+# match to buildings
+
+
+def processFile(pathToFile, fileNameBase, aoi):
+
+    base = f"{pathToFile}/{fileNameBase}"
+
+    metaData                = readMetaData(base + "MTL.json")
+
+    qaPixelFh               = readTif(base + "QA_PIXEL.TIF")
+    valuesRedFh             = readTif(base + "B4.TIF")
+    valuesNIRFh             = readTif(base + "B5.TIF")
+    toaSpectralRadianceFh   = readTif(base + "B10.TIF")
+
+    qaPixelAOI              = tifGetBbox(qaPixelFh, aoi)
+    valuesRedAOI            = tifGetBbox(valuesRedFh, aoi)
+    valuesNIRAOI            = tifGetBbox(valuesNIRFh, aoi)
+    toaSpectralRadianceAOI  = tifGetBbox(toaSpectralRadianceFh, aoi)
+
+    valuesRedNoClouds           = extractClouds(valuesRedAOI, qaPixelAOI)
+    valuesNIRNoClouds           = extractClouds(valuesNIRAOI, qaPixelAOI)
+    toaSpectralRadianceNoClouds = extractClouds(toaSpectralRadianceAOI, qaPixelAOI)
+
+    valuesRed = valuesRedNoClouds  # no need to scale these - only used for ndvi
+    valuesNIR = valuesNIRNoClouds  # no need to scale these - only used for ndvi
+    toaSpectralRadiance = scaleBandData(toaSpectralRadianceNoClouds, 10, metaData)
+
+    lst = rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData)
+
+    return lst
+
+
+# execute
+
+if __name__ == "__main__":
+    thisFilePath = dirname(abspath(getsourcefile(lambda:0)))
+    pathToFile = f"{thisFilePath}/data/LC08_L1TP_193027_20221006_20221013_02_T1"
+    fileNameBase = "LC08_L1TP_193027_20221006_20221013_02_T1_"
+    aoi = { "lonMin": 11.214, "latMin": 48.064, "lonMax": 11.338, "latMax": 48.117 }
+    lst = processFile(pathToFile, fileNameBase, aoi)
+    
+# %%

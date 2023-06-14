@@ -19,3 +19,7 @@ Provides LST, but only at 5km resolution.
 # Analyze
 This seems to be a good source for calculations:
 https://custom-scripts.sentinel-hub.com/landsat-8/land_surface_temperature_mapping/
+
+
+
+## Emissivity

@@ -4,9 +4,16 @@ import json
 from helpers import readTif, tifGetBbox
 from inspect import getsourcefile
 from os.path import abspath, dirname
+import matplotlib.pyplot as plt
 
 
+def plotHist(data, noDataMask):
+    dataWithNan = np.where(noDataMask, np.nan, data)
+    plt.hist(dataWithNan.flatten())
 
+def plotImg(data, noDataMask):
+    dataWithNan = np.where(noDataMask, np.nan, data)
+    plt.imshow(dataWithNan)
 
 
 def extractClouds(data, qaPixelData, noDataValue = -9999):
@@ -20,17 +27,18 @@ def extractClouds(data, qaPixelData, noDataValue = -9999):
     There should be more information in L2 QA-layers, but those are not always available
     (My suspicion is that landsat only has L2 onver the US)
 
-    code = 0
-    code |= 0 << 0  # image data only
-    code |= 0 << 1  # no dilated clouds
-    code |= 0 << 2  # no cirrus
-    code |= 0 << 3  # no cloud
-    code |= 0 << 4  # no cloud shadow
-    code |= 0 << 5  # no snow
-    code |= 1 << 6  # clear sky
-    code |= 0 << 7  # no water
-
     @TODO: get data for all confidence intervals, not only 21824
+    ```
+        code = 0
+        code |= 0 << 0  # image data only
+        code |= 0 << 1  # no dilated clouds
+        code |= 0 << 2  # no cirrus
+        code |= 0 << 3  # no cloud
+        code |= 0 << 4  # no cloud shadow
+        code |= 0 << 5  # no snow
+        code |= 1 << 6  # clear sky
+        code |= 0 << 7  # no water
+    ```
     """
 
     dataFiltered = np.zeros(data.shape)
@@ -65,16 +73,20 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
     - Band 10: Thermal radiance
     """
 
+    noDataMask = (toaSpectralRadiance == noDataValue) | (valuesNIR == noDataValue) | (valuesRed == noDataValue)
+
+
     ## Step 1.1: radiance to at-sensor temperature (brightness temperature BT)
     k1ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K1_CONSTANT_BAND_10"])
     k2ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K2_CONSTANT_BAND_10"])
     toaBrightnessTemperature = k2ConstantBand10 / np.log((k1ConstantBand10 / toaSpectralRadiance) + 1.0)
     toaBrightnessTemperatureCelsius = toaBrightnessTemperature - 273.15
+    toaBrightnessTemperatureCelsius = np.where(noDataMask, noDataValue, toaBrightnessTemperatureCelsius)
 
 
     ## Step 2.1: calculating NDVI
     ndvi = (valuesNIR - valuesRed) / (valuesNIR + valuesRed)
-    ndvi = np.where((valuesNIR != noDataValue) & (valuesRed != noDataValue), ndvi, noDataValue)
+    ndvi = np.where(noDataMask, ndvi, noDataValue)
 
 
     ## Step 2.2: Vegetation proportion
@@ -92,21 +104,21 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
     # Probably water
     landSurfaceEmissivity += np.where((ndvi <= 0.0), waterEmissivity, 0)
     # Probably soil
-    landSurfaceEmissivity += np.where((0.0 < ndvi) & (ndvi <= 0.2), soilEmissivity, 0)
+    landSurfaceEmissivity += np.where((0.0 < ndvi) & (ndvi <= ndviSoil), soilEmissivity, 0)
     # Soil/vegetation mixture
     weightedEmissivity = vegetationEmissivity * vegetationProportion + soilEmissivity * (1.0 - vegetationProportion) + surfaceRoughness
-    landSurfaceEmissivity += np.where((0.2 < ndvi) & (ndvi <= 0.5), weightedEmissivity, 0)
+    landSurfaceEmissivity += np.where((ndviSoil < ndvi) & (ndvi <= ndviVegetation), weightedEmissivity, 0)
     # Vegetation only
-    landSurfaceEmissivity += np.where((0.5 < ndvi), vegetationEmissivity, 0)
+    landSurfaceEmissivity += np.where((ndviVegetation < ndvi), vegetationEmissivity, 0)
     # No data
-    noDataMask = (toaSpectralRadiance == noDataValue) | (valuesNIR == noDataValue) | (valuesRed == noDataValue)
     landSurfaceEmissivity = np.where(noDataMask, noDataValue, landSurfaceEmissivity)
 
 
     # Step 3.1: land-surface-temperature
-    emittedRadianceWavelength = 10.895
-    factor = emittedRadianceWavelength * toaBrightnessTemperatureCelsius / 0.01438
-    landSurfaceTemperature = toaBrightnessTemperatureCelsius / (1.0 + np.log(landSurfaceEmissivity) * factor)
+    emittedRadianceWavelength = 0.000010895     # [m]
+    rho = 0.01438                               # [mK]; rho = Planck * light-speed / Boltzmann
+    scale = 1.0 + emittedRadianceWavelength * toaBrightnessTemperatureCelsius * np.log(landSurfaceEmissivity)  / rho
+    landSurfaceTemperature = toaBrightnessTemperatureCelsius / scale
     landSurfaceTemperature = np.where(noDataMask, noDataValue, landSurfaceTemperature)
 
 
@@ -120,6 +132,7 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
 def processFile(pathToFile, fileNameBase, aoi):
 
     base = f"{pathToFile}/{fileNameBase}"
+    # `noDataValue` must not be np.nan, because then `==` doesn't work as expected
     noDataValue = -9999
 
     metaData                = readMetaData(base + "MTL.json")
@@ -143,8 +156,9 @@ def processFile(pathToFile, fileNameBase, aoi):
     toaSpectralRadiance = scaleBandData(toaSpectralRadianceNoClouds, 10, metaData)
 
     lst = rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue)
+    lstWithNan = np.where(lst == noDataValue, np.nan, lst)
 
-    return lst
+    return lstWithNan
 
 
 # execute
@@ -155,4 +169,10 @@ if __name__ == "__main__":
     fileNameBase = "LC08_L1TP_193027_20221006_20221013_02_T1_"
     aoi = { "lonMin": 11.214, "latMin": 48.064, "lonMax": 11.338, "latMax": 48.117 }
     lst = processFile(pathToFile, fileNameBase, aoi)
+
+    fig, axes = plt.subplots(1, 2)
+    axes[0].imshow(lst)
+    axes[1].hist(lst.flatten())
     
+
+# %%

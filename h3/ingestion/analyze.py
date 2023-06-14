@@ -1,6 +1,5 @@
 #%%
 import numpy as np
-import rasterio as rio
 import json
 from helpers import readTif, tifGetBbox
 from inspect import getsourcefile
@@ -8,10 +7,9 @@ from os.path import abspath, dirname
 
 
 
-# clip AOI
 
 
-def extractClouds(data, qaPixelData):
+def extractClouds(data, qaPixelData, noDataValue = -9999):
     """
     extracts clouds
     https://www.usgs.gov/landsat-missions/landsat-collection-2-quality-assessment-bands
@@ -21,7 +19,24 @@ def extractClouds(data, qaPixelData):
     Only take values where QA_PIXEL == 21824
     There should be more information in L2 QA-layers, but those are not always available
     (My suspicion is that landsat only has L2 onver the US)
+
+    code = 0
+    code |= 0 << 0  # image data only
+    code |= 0 << 1  # no dilated clouds
+    code |= 0 << 2  # no cirrus
+    code |= 0 << 3  # no cloud
+    code |= 0 << 4  # no cloud shadow
+    code |= 0 << 5  # no snow
+    code |= 1 << 6  # clear sky
+    code |= 0 << 7  # no water
+
+    @TODO: get data for all confidence intervals, not only 21824
     """
+
+    dataFiltered = np.zeros(data.shape)
+    dataFiltered = np.where(qaPixelData == 21824, data, noDataValue)
+
+    return dataFiltered
 
 
 def readMetaData(pathToMetadataJsonFile):
@@ -37,7 +52,7 @@ def scaleBandData(rawData, bandNr, metaData):
 
 
 
-def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData):
+def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue = -9999):
 
     """
     Convert raw data to land-surface-temperature (LST) in celsius
@@ -59,6 +74,7 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData):
 
     ## Step 2.1: calculating NDVI
     ndvi = (valuesNIR - valuesRed) / (valuesNIR + valuesRed)
+    ndvi = np.where((valuesNIR != noDataValue) & (valuesRed != noDataValue), ndvi, noDataValue)
 
 
     ## Step 2.2: Vegetation proportion
@@ -82,12 +98,16 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData):
     landSurfaceEmissivity += np.where((0.2 < ndvi) & (ndvi <= 0.5), weightedEmissivity, 0)
     # Vegetation only
     landSurfaceEmissivity += np.where((0.5 < ndvi), vegetationEmissivity, 0)
+    # No data
+    noDataMask = (toaSpectralRadiance == noDataValue) | (valuesNIR == noDataValue) | (valuesRed == noDataValue)
+    landSurfaceEmissivity = np.where(noDataMask, noDataValue, landSurfaceEmissivity)
 
 
     # Step 3.1: land-surface-temperature
     emittedRadianceWavelength = 10.895
     factor = emittedRadianceWavelength * toaBrightnessTemperatureCelsius / 0.01438
     landSurfaceTemperature = toaBrightnessTemperatureCelsius / (1.0 + np.log(landSurfaceEmissivity) * factor)
+    landSurfaceTemperature = np.where(noDataMask, noDataValue, landSurfaceTemperature)
 
 
     return landSurfaceTemperature
@@ -100,6 +120,7 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData):
 def processFile(pathToFile, fileNameBase, aoi):
 
     base = f"{pathToFile}/{fileNameBase}"
+    noDataValue = -9999
 
     metaData                = readMetaData(base + "MTL.json")
 
@@ -108,20 +129,20 @@ def processFile(pathToFile, fileNameBase, aoi):
     valuesNIRFh             = readTif(base + "B5.TIF")
     toaSpectralRadianceFh   = readTif(base + "B10.TIF")
 
-    qaPixelAOI              = tifGetBbox(qaPixelFh, aoi)
-    valuesRedAOI            = tifGetBbox(valuesRedFh, aoi)
-    valuesNIRAOI            = tifGetBbox(valuesNIRFh, aoi)
-    toaSpectralRadianceAOI  = tifGetBbox(toaSpectralRadianceFh, aoi)
+    qaPixelAOI              = tifGetBbox(qaPixelFh, aoi)[0]
+    valuesRedAOI            = tifGetBbox(valuesRedFh, aoi)[0]
+    valuesNIRAOI            = tifGetBbox(valuesNIRFh, aoi)[0]
+    toaSpectralRadianceAOI  = tifGetBbox(toaSpectralRadianceFh, aoi)[0]
 
-    valuesRedNoClouds           = extractClouds(valuesRedAOI, qaPixelAOI)
-    valuesNIRNoClouds           = extractClouds(valuesNIRAOI, qaPixelAOI)
-    toaSpectralRadianceNoClouds = extractClouds(toaSpectralRadianceAOI, qaPixelAOI)
+    valuesRedNoClouds           = extractClouds(valuesRedAOI, qaPixelAOI, noDataValue)
+    valuesNIRNoClouds           = extractClouds(valuesNIRAOI, qaPixelAOI, noDataValue)
+    toaSpectralRadianceNoClouds = extractClouds(toaSpectralRadianceAOI, qaPixelAOI, noDataValue)
 
     valuesRed = valuesRedNoClouds  # no need to scale these - only used for ndvi
     valuesNIR = valuesNIRNoClouds  # no need to scale these - only used for ndvi
     toaSpectralRadiance = scaleBandData(toaSpectralRadianceNoClouds, 10, metaData)
 
-    lst = rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData)
+    lst = rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue)
 
     return lst
 
@@ -135,4 +156,3 @@ if __name__ == "__main__":
     aoi = { "lonMin": 11.214, "latMin": 48.064, "lonMax": 11.338, "latMax": 48.117 }
     lst = processFile(pathToFile, fileNameBase, aoi)
     
-# %%

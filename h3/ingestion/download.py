@@ -15,18 +15,24 @@ datasets = {
     "Landsat 9 Collection 2 Level 2":       "landsat_ot_c2_l2"
 }
 
-def download(bbox, startDate, endDate, maxResults, outputDir = "./data", maxClouds = 50, dataset = "landsat_ot_c2_l1"):
+def downloadLandsat(bbox, startDate, endDate, maxResults, outputDir = "./data", maxClouds = 50, dataset = "landsat_ot_c2_l1"):
 
     config = dotenv_values(".env")
 
     api = API(config["username"], config["password"])
     ee = EarthExplorer(config["username"], config["password"])
 
+    lonMin = bbox["lonMin"]
+    latMin = bbox["latMin"]
+    lonMax = bbox["lonMax"]
+    latMax = bbox["latMax"]
+    bboxArr = [lonMin, latMin, lonMax, latMax]
+
     scenes = api.search(
         dataset=dataset,
         start_date=startDate,
         end_date=endDate,
-        bbox=bbox,
+        bbox=bboxArr,
         max_cloud_cover=maxClouds,
         max_results=maxResults
     )
@@ -56,6 +62,6 @@ if __name__ == "__main__":
     end = "2023-01-01"
     limit = 10
     outputDir = "./data"
-    paths = download(bbox, start, end, limit, outputDir, clouds)
+    paths = downloadLandsat(bbox, start, end, limit, outputDir, clouds)
     print(paths)
 

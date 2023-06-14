@@ -106,7 +106,7 @@ def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=Tru
     fullData = {}
 
     if saveToDirPath is not None:
-        os.makedirs(os.path.join(saveToDirPath, stringifiedBbox), exist_ok=True)
+        os.makedirs(saveToDirPath, exist_ok=True)
 
     if getBuildings:
         response = req.get(overpass_url, params={'data': buildingQuery})
@@ -115,7 +115,7 @@ def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=Tru
         fullData["buildings"] = geojson
 
         if saveToDirPath is not None:
-            filePath = os.path.join(saveToDirPath, stringifiedBbox, 'buildings.geo.json')
+            filePath = os.path.join(saveToDirPath, 'buildings.geo.json')
             with open(filePath, 'w') as fh:
                 json.dump(geojson, fh, indent=4)
 
@@ -126,7 +126,7 @@ def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=Tru
         fullData["trees"] = geojson
 
         if saveToDirPath is not None:
-            filePath = os.path.join(saveToDirPath, stringifiedBbox, 'trees.geo.json')
+            filePath = os.path.join(saveToDirPath, 'trees.geo.json')
             with open(filePath, 'w') as fh:
                 json.dump(geojson, fh, indent=4)
 
@@ -137,7 +137,7 @@ def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=Tru
         fullData["water"] = geojson
 
         if saveToDirPath is not None:
-            filePath = os.path.join(saveToDirPath, stringifiedBbox, 'water.geo.json')
+            filePath = os.path.join(saveToDirPath, 'water.geo.json')
             with open(filePath, 'w') as fh:
                 json.dump(geojson, fh, indent=4)
 

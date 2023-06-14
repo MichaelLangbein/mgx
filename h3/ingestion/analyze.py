@@ -1,7 +1,7 @@
 #%%
 import numpy as np
 import json
-from helpers import readTif, tifGetBbox
+from helpers import readTif, tifGetBbox, saveToTif
 from inspect import getsourcefile
 from os.path import abspath, dirname
 import matplotlib.pyplot as plt
@@ -162,7 +162,11 @@ def processFile(pathToFile, fileNameBase, aoi):
     lst = rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue)
     lstWithNan = np.where(lst == noDataValue, np.nan, lst)
 
-    return lstWithNan
+    # adding projection metadata
+    saveToTif(f"{pathToFile}/lst.tif", lst, qaPixelFh.crs, qaPixelFh.transform, noDataValue)
+    lstTif = readTif(f"{pathToFile}/lst.tif")
+
+    return lstWithNan, lstTif
 
 
 
@@ -171,8 +175,8 @@ def processFile(pathToFile, fileNameBase, aoi):
 
 if __name__ == "__main__":
     thisFilePath = dirname(abspath(getsourcefile(lambda:0)))
-    pathToFile = f"{thisFilePath}/data/LC08_L1TP_193027_20221006_20221013_02_T1"
-    fileNameBase = "LC08_L1TP_193027_20221006_20221013_02_T1_"
+    pathToFile = f"{thisFilePath}/data/LC08_L1TP_193026_20220803_20220806_02_T1"
+    fileNameBase = "LC08_L1TP_193026_20220803_20220806_02_T1_"
     aoi = { "lonMin": 11.214, "latMin": 48.064, "lonMax": 11.338, "latMax": 48.117 }
     lst = processFile(pathToFile, fileNameBase, aoi)
 

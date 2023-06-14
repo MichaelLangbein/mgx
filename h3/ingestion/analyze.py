@@ -124,10 +124,10 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
 
     return landSurfaceTemperature
 
+
 # account for wind
 
 # match to buildings
-
 
 def processFile(pathToFile, fileNameBase, aoi):
 
@@ -141,6 +141,10 @@ def processFile(pathToFile, fileNameBase, aoi):
     valuesRedFh             = readTif(base + "B4.TIF")
     valuesNIRFh             = readTif(base + "B5.TIF")
     toaSpectralRadianceFh   = readTif(base + "B10.TIF")
+
+    assert(qaPixelFh.res == valuesRedFh.res)
+    assert(valuesRedFh.res == valuesNIRFh.res)
+    assert(valuesNIRFh.res == toaSpectralRadianceFh.res)
 
     qaPixelAOI              = tifGetBbox(qaPixelFh, aoi)[0]
     valuesRedAOI            = tifGetBbox(valuesRedFh, aoi)[0]
@@ -159,6 +163,8 @@ def processFile(pathToFile, fileNameBase, aoi):
     lstWithNan = np.where(lst == noDataValue, np.nan, lst)
 
     return lstWithNan
+
+
 
 
 # execute

@@ -1,7 +1,7 @@
 #%%
 import numpy as np
 import json
-from helpers import readTif, tifGetBbox, saveToTif
+from helpers import readTif, tifGetBbox, saveToTif, makeTransform
 from inspect import getsourcefile
 from os.path import abspath, dirname
 import matplotlib.pyplot as plt
@@ -163,7 +163,9 @@ def processFile(pathToFile, fileNameBase, aoi):
     lstWithNan = np.where(lst == noDataValue, np.nan, lst)
 
     # adding projection metadata
-    saveToTif(f"{pathToFile}/lst.tif", lst, qaPixelFh.crs, qaPixelFh.transform, noDataValue)
+    imgH, imgW = lst.shape
+    transform = makeTransform(imgH, imgW, aoi)
+    saveToTif(f"{pathToFile}/lst.tif", lst, qaPixelFh.crs, transform, noDataValue)
     lstTif = readTif(f"{pathToFile}/lst.tif")
 
     return lstWithNan, lstTif

@@ -6,8 +6,44 @@ from pyproj.transformer import Transformer
 from pystac_client import Client
 import requests as req
 import numpy as np
+import rasterio.transform as riot
 
 #%%
+
+
+def makeTransform(imgH, imgW, bbox):
+
+    # imgH -= 1
+    # imgW -= 1
+
+    lonMin = bbox["lonMin"]
+    latMin = bbox["latMin"]
+    lonMax = bbox["lonMax"]
+    latMax = bbox["latMax"]
+
+    scaleX = (lonMax - lonMin) / imgW
+    transX = lonMin
+    scaleY = -(latMax - latMin) / imgH
+    transY = latMax
+
+    # tMatrix = np.array([
+    #     [scaleX, 0, transX],
+    #     [0, scaleY, transY],
+    #     [0, 0, 1]
+    # ])
+    # lon_tl, lat_tl, _ = tMatrix @ np.array([0, 0, 1])
+    # lon_br, lat_br, _ = tMatrix @ np.array([imgW, imgH, 1])
+    # assert(lon_tl == lonMin)
+    # assert(lat_tl == latMax)
+    # assert(lon_br == lonMax)
+    # assert(lat_br == latMin)
+
+    transform = riot.Affine(
+        a=scaleX,  b=0,  c=transX,
+        d=0,   e=scaleY,  f=transY
+    )
+
+    return transform
 
 def readTif(targetFilePath):
     fh = rio.open(targetFilePath, "r", driver="GTiff")

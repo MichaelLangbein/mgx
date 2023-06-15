@@ -2,6 +2,7 @@
 import numpy as np
 import json
 from helpers import readTif, tifGetBbox, saveToTif, makeTransform
+from rasterio import CRS
 from inspect import getsourcefile
 from os.path import abspath, dirname
 import matplotlib.pyplot as plt
@@ -165,7 +166,7 @@ def processFile(pathToFile, fileNameBase, aoi):
     # adding projection metadata
     imgH, imgW = lst.shape
     transform = makeTransform(imgH, imgW, aoi)
-    saveToTif(f"{pathToFile}/lst.tif", lst, qaPixelFh.crs, transform, noDataValue)
+    saveToTif(f"{pathToFile}/lst.tif", lst, CRS.from_epsg(4326), transform, noDataValue)
     lstTif = readTif(f"{pathToFile}/lst.tif")
 
     return lstWithNan, lstTif

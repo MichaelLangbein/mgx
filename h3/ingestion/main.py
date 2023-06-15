@@ -71,4 +71,6 @@ for ls8file in ls8files:
         pixels = tifGetBbox(lstFh, bbox)
         tempMean = np.mean(pixels)
 
+        print(f"Building {id} - temp-mean: {tempMean}")
+
         # ingest into database

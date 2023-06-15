@@ -47,8 +47,10 @@ def tifPixelToLonLat(fh, r, c):
     return lon, lat
 
 def tifLonLatToPixel(fh, lon, lat):
-    coordTransformer = Transformer.from_crs("EPSG:4326", fh.crs)
-    coordsTifCrs = coordTransformer.transform(lat, lon)
+    coordTransformer = Transformer.from_crs("EPSG:4326", fh.crs, always_xy=True)
+    # transform: (xx, yy), see: https://pyproj4.github.io/pyproj/stable/api/transformer.html
+    coordsTifCrs = coordTransformer.transform(lon, lat)
+    # index: (xx, yy), see: https://rasterio.readthedocs.io/en/stable/api/rasterio.io.html#rasterio.io.BufferedDatasetWriter.index
     pixel = fh.index(coordsTifCrs[0], coordsTifCrs[1])
     return pixel
 

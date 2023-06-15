@@ -71,6 +71,8 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
     Raw data:
     - Band 4: Red
     - Band 5: NIR
+    - Band 6: SWIR-1
+    - Band 7: SWIR-2
     - Band 10: Thermal radiance
     """
 
@@ -91,6 +93,17 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
 
 
     ## Step 2.1: calculating NDVI
+
+    # NDVI:
+    # -1.0 ... 0.0 :  water
+    # -0.1 ... 0.1 :  rock, sand, snow
+    #  0.2 ... 0.5 :  grassland, soil, agricultural, light vegetation
+    #  0.6 ... 1.0 :  deep vegetation
+    # 
+    # NDBI:
+    # -1.0 ... 0.0 : water
+    #  0.0 ... 1.0 : built up 
+
     ndvi = (valuesNIR - valuesRed) / (valuesNIR + valuesRed)
     ndvi = np.where(noDataMask, ndvi, noDataValue)
 
@@ -105,8 +118,12 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
     
     # Emissivity: fraction of actually emmited radiation relative to a black body. (Black bodies have maximum emissivity.)
     # Water and soil have high emissivity, asphalt has low (0.88). See https://en.wikipedia.org/wiki/Emissivity
-    # Note that this is only thermal radiation - but things are also cooled by convection and conduction.
     # @TODO: also account for asphalt, then?
+    # For that you might want to use NDBI https://pro.arcgis.com/en/pro-app/latest/arcpy/spatial-analyst/ndbi.htm
+    # NDBI = (SWIR - NIR) / (SWIR + NIR)
+    #
+    # Note that this is only thermal radiation - but things are also cooled by convection and conduction.
+    # However, we only care about current temperature - and that is not influenced by any of the other heat-flows.
 
     soilEmissivity       = 0.996
     waterEmissivity      = 0.991

@@ -1,7 +1,7 @@
+#%%
 import os
 import json
 import tarfile
-import fiona as f
 from helpers import tifGetBbox
 from osm import downloadAndSaveOSM
 from download import downloadLandsat
@@ -53,7 +53,7 @@ if len(ls8files) == 0:
     ls8files = downloadLandsat(bbox, startDate, endDate, 10, outputDir=f"{dirPath}/ls8")
 
 
-
+#%%
 for ls8file in ls8files:
 
     # extract
@@ -67,10 +67,14 @@ for ls8file in ls8files:
         geometry = building["geometry"]
         props = building["properties"]
         id = props["id"]
-        bbox = calcBbox(geometry["coordinates"][0])
-        pixels = tifGetBbox(lstFh, bbox)
-        tempMean = np.mean(pixels)
 
-        print(f"Building {id} - temp-mean: {tempMean}")
+        try: 
+            bbox = calcBbox(geometry["coordinates"][0])
+            pixels = tifGetBbox(lstFh, bbox)
+            tempMean = np.mean(pixels)
+            print(f"Building {id} - temp-mean: {tempMean}")
+        except Exception as e:
+            print("Error")
 
         # ingest into database
+# %%

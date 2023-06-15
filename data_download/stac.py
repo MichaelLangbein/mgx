@@ -60,7 +60,8 @@ def tifGetBbox(fh, bbox):
     return tifGetPixels(fh, r0, r1, c0, c1)
 
 def tifGetPixels(fh, r0, r1, c0, c1, channels=None):
-    window = rio.windows.Window.from_slices(( r0,  r1 ), ( c0,  c1 ))
+    # adding one so that end-index is also included
+    window = rio.windows.Window.from_slices(( r0,  r1+1 ), ( c0,  c1+1 ))
     subset = fh.read(channels, window=window)
     return subset
 

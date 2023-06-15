@@ -12,6 +12,9 @@ import rasterio.transform as riot
 
 
 def makeTransform(imgH, imgW, bbox):
+    """
+        Requires bbox to be given in EPSG:4326
+    """
 
     # imgH -= 1
     # imgW -= 1

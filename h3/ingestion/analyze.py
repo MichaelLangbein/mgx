@@ -78,6 +78,11 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
 
 
     ## Step 1.1: radiance to at-sensor temperature (brightness temperature BT)
+
+    # Brightness Temperature:
+    # If the TOA were a black-body, it would have to have this temperature
+    # so that the sensor would receive the measured brightness.
+
     k1ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K1_CONSTANT_BAND_10"])
     k2ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K2_CONSTANT_BAND_10"])
     toaBrightnessTemperature = k2ConstantBand10 / np.log((k1ConstantBand10 / toaSpectralRadiance) + 1.0)
@@ -97,6 +102,12 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
 
 
     ## Step 2.3: Land-surface emissivity
+    
+    # Emissivity: fraction of actually emmited radiation relative to a black body. (Black bodies have maximum emissivity.)
+    # Water and soil have high emissivity, asphalt has low (0.88). See https://en.wikipedia.org/wiki/Emissivity
+    # Note that this is only thermal radiation - but things are also cooled by convection and conduction.
+    # @TODO: also account for asphalt, then?
+
     soilEmissivity       = 0.996
     waterEmissivity      = 0.991
     vegetationEmissivity = 0.973

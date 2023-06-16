@@ -103,60 +103,58 @@ def tifGetPixels(fh, r0, r1, c0, c1, channels=None):
     subset = fh.read(channels, window=window)
     return subset
 
-def downloadAndSaveS2Data(saveToDirPath, bbox, maxNrScenes=1, maxCloudCover=10, bands=None, downloadWindowOnly=True):
-    catalog = Client.open("https://earth-search.aws.element84.com/v0")
+def rasterizeGeojson(geojson, bbox, imgShape):
+
+    if len(geojson["features"]) == 0:
+        return np.zeros(imgShape)
+
+    """
+    | a  b  c |    | scale  rot  transX |
+    | d  e  f | =  | rot   scale transY |
+    | 0  0  1 |    |  0      0     1    |
+
+    Transformation 
+        from pixel coordinates of source 
+        to the coordinate system of the input shapes. 
+    See the transform property of dataset objects.
+    """
+
+    imgH, imgW = imgShape
+    # imgH -= 1
+    # imgW -= 1
 
     lonMin = bbox["lonMin"]
     latMin = bbox["latMin"]
     lonMax = bbox["lonMax"]
     latMax = bbox["latMax"]
 
-    collections = ['sentinel-s2-l2a-cogs']
-    queryParas = {
-        "eo:cloud_cover": { 
-            "lt": maxCloudCover
-        },
-        "sentinel:valid_cloud_cover": { "eq": True }  # we want to have the cloud mask in there, too.
-    }
+    scaleX = (lonMax - lonMin) / imgW
+    transX = lonMin
+    scaleY = -(latMax - latMin) / imgH
+    transY = latMax
 
-    searchResults = catalog.search(
-        collections = collections,
-        bbox        = [lonMin, latMin, lonMax, latMax],
-        max_items   = maxNrScenes,
-        query       = queryParas,
+    # tMatrix = np.array([
+    #     [scaleX, 0, transX],
+    #     [0, scaleY, transY],
+    #     [0, 0, 1]
+    # ])
+    # lon_tl, lat_tl, _ = tMatrix @ np.array([0, 0, 1])
+    # lon_br, lat_br, _ = tMatrix @ np.array([imgW, imgH, 1])
+    # assert(lon_tl == lonMin)
+    # assert(lat_tl == latMax)
+    # assert(lon_br == lonMax)
+    # assert(lat_br == latMin)
+
+    transform = riot.Affine(
+        a=scaleX,  b=0,  c=transX,
+        d=0,   e=scaleY,  f=transY
     )
+    rasterized = riof.rasterize(
+        [(f["geometry"], 1) for f in geojson["features"]], 
+        (imgH, imgW),
+        all_touched=True,
+        transform=transform
+    )
+    return rasterized
 
-    def shouldDownload(key, val):
-        if not val.href.endswith('tif'):
-            return False
-        if bands is not None and key not in bands:
-            return False
-        return True
-        
-    def hrefToDownloadPath(href, id):
-        url = urlparse(href)
-        fileName = os.path.basename(url.path)
-        targetDir = os.path.join(saveToDirPath, id)
-        os.makedirs(targetDir, exist_ok=True)
-        fullFilePath = os.path.join(targetDir, fileName)
-        return fullFilePath
 
-    #  downloading only bbox-subset
-    for item in searchResults.get_items():
-        for key, val in item.assets.items():
-            if shouldDownload(key, val):
-                print(f"Getting {item.id}/{key} ...")
-                with rio.open(val.href) as fh:
-                    if downloadWindowOnly:
-                        subset = tifGetBbox(fh, bbox)
-                        fullFilePath = hrefToDownloadPath(val.href, item.id)
-                        # @TODO: adjust transform to window
-                        saveToTif(fullFilePath, subset, fh.crs, fh.transform, fh.nodata)
-                    else:
-                        fullFilePath = hrefToDownloadPath(val.href, item.id)
-                        response = req.get(val.href)
-                        with open(fullFilePath, 'wb') as tfh:
-                            tfh.write(response.content)  
-
-# downloadAndSaveSatelliteData(s2Dir, "s2", [11, 47, 12, 48], maxNrScenes=4, maxCloudCover=10, bands=None, downloadWindowOnly=False)
-# %%

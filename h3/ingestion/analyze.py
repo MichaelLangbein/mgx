@@ -1,20 +1,12 @@
 #%%
 import numpy as np
 import json
-from helpers import readTif, tifGetBbox, saveToTif, makeTransform
+from raster import readTif, tifGetBbox, saveToTif, makeTransform, rasterizeGeojson
 from rasterio import CRS
 from inspect import getsourcefile
 from os.path import abspath, dirname
 import matplotlib.pyplot as plt
 
-
-def plotHist(data, noDataMask):
-    dataWithNan = np.where(noDataMask, np.nan, data)
-    plt.hist(dataWithNan.flatten())
-
-def plotImg(data, noDataMask):
-    dataWithNan = np.where(noDataMask, np.nan, data)
-    plt.imshow(dataWithNan)
 
 
 def extractClouds(data, qaPixelData, noDataValue = -9999):
@@ -81,33 +73,8 @@ def brightnessTemperature2LST(toaBrightnessTemperatureCelsius, emissivity, emitt
     return landSurfaceTemperature
 
 
-def rawDataToLSTAvdanJovanovska(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue = -9999):
-
-    """
-    Convert raw data to land-surface-temperature (LST) in celsius
-    
-    Based on [Avdan & Jovanovska](https://www.researchgate.net/journal/Journal-of-Sensors-1687-7268/publication/296414003_Algorithm_for_Automated_Mapping_of_Land_Surface_Temperature_Using_LANDSAT_8_Satellite_Data/links/618456aca767a03c14f69ab7/Algorithm-for-Automated-Mapping-of-Land-Surface-Temperature-Using-LANDSAT-8-Satellite-Data.pdf?__cf_chl_rt_tk=e64hIdi4FTDBdxR5Fz0aaWift_OPNow89iJrKJxXOpo-1686654949-0-gaNycGzNEZA)
-    https://www.youtube.com/watch?v=FDmYCI_xYlA
-    https://cimss.ssec.wisc.edu/rss/geoss/source/RS_Fundamentals_Day1.ppt
-
-    Raw data:
-    - Band 4: Red
-    - Band 5: NIR
-    - Band 6: SWIR-1
-    - Band 7: SWIR-2
-    - Band 10: Thermal radiance
-    """
-
-    noDataMask = (toaSpectralRadiance == noDataValue) | (valuesNIR == noDataValue) | (valuesRed == noDataValue)
-
-
-    ## Step 1.1: radiance to at-sensor temperature (brightness temperature BT)
-    toaBrightnessTemperatureCelsius = radiance2BrightnessTemperature(toaSpectralRadiance, metaData)
-    toaBrightnessTemperatureCelsius = np.where(noDataMask, noDataValue, toaBrightnessTemperatureCelsius)
-
-
+def emissivityFromNDVI(valuesNIR, valuesRed):
     ## Step 2.1: calculating NDVI
-
     # NDVI:
     # -1.0 ... 0.0 :  water
     # -0.1 ... 0.1 :  rock, sand, snow
@@ -119,7 +86,6 @@ def rawDataToLSTAvdanJovanovska(valuesRed, valuesNIR, toaSpectralRadiance, metaD
     #  0.0 ... 1.0 : built up 
 
     ndvi = (valuesNIR - valuesRed) / (valuesNIR + valuesRed)
-    ndvi = np.where(noDataMask, ndvi, noDataValue)
 
 
     ## Step 2.2: Vegetation proportion
@@ -160,19 +126,62 @@ def rawDataToLSTAvdanJovanovska(valuesRed, valuesNIR, toaSpectralRadiance, metaD
     landSurfaceEmissivity += np.where((ndviSoil < ndvi) & (ndvi <= ndviVegetation), weightedEmissivity, 0)
     # Vegetation only
     landSurfaceEmissivity += np.where((ndviVegetation < ndvi), vegetationEmissivity, 0)
-    # No data
+
+    return landSurfaceEmissivity
+
+
+def emissivityFromOSM(bbox, shape, osmBuildings, osmVegetation):
+    soilEmissivity       = 0.996
+    waterEmissivity      = 0.991
+    vegetationEmissivity = 0.973
+    buildingEmissivity   = 0.9
+
+    buildingsRaster = rasterizeGeojson(osmBuildings, bbox, shape)
+    vegetationRaster = rasterizeGeojson(osmVegetation, bbox, shape)
+
+    emissivity = np.zeros(shape)
+    emissivity += soilEmissivity
+    emissivity = np.where(vegetationRaster, vegetationEmissivity, emissivity)
+    emissivity = np.where(buildingsRaster, buildingEmissivity, emissivity)
+
+    return emissivity
+
+
+def estimateLSTfromNDVI(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue = -9999):
+
+    """
+    Convert raw data to land-surface-temperature (LST) in celsius
+    
+    Based on [Avdan & Jovanovska](https://www.researchgate.net/journal/Journal-of-Sensors-1687-7268/publication/296414003_Algorithm_for_Automated_Mapping_of_Land_Surface_Temperature_Using_LANDSAT_8_Satellite_Data/links/618456aca767a03c14f69ab7/Algorithm-for-Automated-Mapping-of-Land-Surface-Temperature-Using-LANDSAT-8-Satellite-Data.pdf?__cf_chl_rt_tk=e64hIdi4FTDBdxR5Fz0aaWift_OPNow89iJrKJxXOpo-1686654949-0-gaNycGzNEZA)
+    https://www.youtube.com/watch?v=FDmYCI_xYlA
+    https://cimss.ssec.wisc.edu/rss/geoss/source/RS_Fundamentals_Day1.ppt
+
+    Raw data:
+    - Band 4: Red
+    - Band 5: NIR
+    - Band 6: SWIR-1
+    - Band 7: SWIR-2
+    - Band 10: Thermal radiance
+    """
+
+    noDataMask = (toaSpectralRadiance == noDataValue) | (valuesNIR == noDataValue) | (valuesRed == noDataValue)
+
+    # Step 1: radiance to at-sensor temperature (brightness temperature BT)
+    toaBrightnessTemperatureCelsius = radiance2BrightnessTemperature(toaSpectralRadiance, metaData)
+    toaBrightnessTemperatureCelsius = np.where(noDataMask, noDataValue, toaBrightnessTemperatureCelsius)
+
+    # Step 2: 
+    landSurfaceEmissivity = emissivityFromNDVI(valuesNIR, valuesRed)
     landSurfaceEmissivity = np.where(noDataMask, noDataValue, landSurfaceEmissivity)
 
-
-    # Step 3.1: land-surface-temperature
+    # Step 3: land-surface-temperature
     landSurfaceTemperature = brightnessTemperature2LST(toaBrightnessTemperatureCelsius, landSurfaceEmissivity)
     landSurfaceTemperature = np.where(noDataMask, noDataValue, landSurfaceTemperature)
-
 
     return landSurfaceTemperature
 
 
-def radianceToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, emissivity = 0.9, noDataValue = -9999):
+def estimateLSTfromOSM(toaSpectralRadiance, metaData, osmBuildings, osmVegetation, noDataValue = -9999):
     """
         - toaSpectralRadiance: [W/m² angle]
         - emissivity:        (https://en.wikipedia.org/wiki/Emissivity)
@@ -185,24 +194,28 @@ def radianceToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, emissivity =
 
         Steps:
             1. toaSpectralRadiance to toaBlackbodyTemperature (aka BrightnessTemperature) with Planck's law
-            2. blackBodyTemperature to landSurfaceTemperature
+            2. estimate emissivity from OSM data
+            3. blackBodyTemperature to landSurfaceTemperature
 
     """
 
+    noDataMask = (toaSpectralRadiance == noDataValue)
+
     # Step 1: radiance to at-sensor temperature (brightness temperature BT)
     toaBrightnessTemperatureCelsius = radiance2BrightnessTemperature(toaSpectralRadiance, metaData)
+    toaBrightnessTemperatureCelsius = np.where(noDataMask, noDataValue, toaBrightnessTemperatureCelsius)
 
-    # Step 2: black-body-temperature to land-surface-temperature
+    # Step 2: estimate emissivity from OSM data
+    emissivity = emissivityFromOSM(toaSpectralRadiance.shape, osmBuildings, osmVegetation)
+
+    # Step 3: black-body-temperature to land-surface-temperature
     landSurfaceTemperature = brightnessTemperature2LST(toaBrightnessTemperatureCelsius, emissivity)
-
-    # Step 3: cut out no-data values
-    landSurfaceTemperature = np.where(toaSpectralRadiance == noDataValue, noDataValue, landSurfaceTemperature)
+    landSurfaceTemperature = np.where(noDataMask, noDataValue, landSurfaceTemperature)
 
     return landSurfaceTemperature
 
 
-
-def processFileToLST(pathToFile, fileNameBase, aoi):
+def lstFromFile_Avdan(pathToFile, fileNameBase, aoi):
 
     base = f"{pathToFile}/{fileNameBase}"
     # `noDataValue` must not be np.nan, because then `==` doesn't work as expected
@@ -232,7 +245,7 @@ def processFileToLST(pathToFile, fileNameBase, aoi):
     valuesNIR = valuesNIRNoClouds  # no need to scale these - only used for ndvi
     toaSpectralRadiance = scaleBandData(toaSpectralRadianceNoClouds, 10, metaData)
 
-    lst = rawDataToLSTAvdanJovanovska(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue)
+    lst = estimateLSTfromNDVI(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue)
     lstWithNan = np.where(lst == noDataValue, np.nan, lst)
 
     # adding projection metadata
@@ -244,9 +257,7 @@ def processFileToLST(pathToFile, fileNameBase, aoi):
     return lstWithNan, lstTif
 
 
-
-
-def processFileToBuildingTemperature(pathToFile, fileNameBase, aoi):
+def lstFromFile_OSM(pathToFile, fileNameBase, aoi, osmBuildings, osmVegetation):
 
     base = f"{pathToFile}/{fileNameBase}"
     # `noDataValue` must not be np.nan, because then `==` doesn't work as expected
@@ -262,17 +273,11 @@ def processFileToBuildingTemperature(pathToFile, fileNameBase, aoi):
     toaSpectralRadianceAOI  = tifGetBbox(toaSpectralRadianceFh, aoi)[0]
 
     toaSpectralRadianceNoClouds = extractClouds(toaSpectralRadianceAOI, qaPixelAOI, noDataValue)
-    # TODO: mask out everything that isn't a building
 
     # Converting raw scaled sensor-data to spectral radiance [W/m²]
     toaSpectralRadiance = scaleBandData(toaSpectralRadianceNoClouds, 10, metaData)
 
-    # We only care about buildings here, so we need not calculate vegetation-percentage.
-    # We can just use buildings' emissivity (0.9).
-    # But: buildings reflect light sometimes (glass, solar-pannels, ...)
-    # We detect reflection by very high white light and cut it out
-    buildingEmissivity = 0.9
-    lst = radianceToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, buildingEmissivity)
+    lst = estimateLSTfromOSM(toaSpectralRadiance, metaData, osmBuildings, osmVegetation, noDataValue)
     lstWithNan = np.where(lst == noDataValue, np.nan, lst)
 
     # TODO: are there materials that strongly reflect thermal?
@@ -281,7 +286,7 @@ def processFileToBuildingTemperature(pathToFile, fileNameBase, aoi):
     # ... mirrors reflect lots of visible light, but not much thermal.
     # So, yes, there are such materials. Aluminum foil reflects thermal. You can place such foil behind your radiator.
     # Snow is, too: that's why it doesn't melt until long in the summer (it also reflects visible, which is why it's white).
-    # Thermal does not go through glass, but easily through plastic. Alluminum is a very good IR reflector: https://www.youtube.com/watch?v=baJtBDJDQDQ
+    # Thermal does not go through glass, but easily through plastic. Aluminum is a very good IR reflector: https://www.youtube.com/watch?v=baJtBDJDQDQ
     # For now my suspicion is that there is no material on the outside of buildings that reflects heat very strongly... so we can ignore this for now.
 
     # adding projection metadata
@@ -293,6 +298,26 @@ def processFileToBuildingTemperature(pathToFile, fileNameBase, aoi):
     return lstWithNan, lstTif
 
 
+def getBuildingsWithExcessiveEmissivity(pathToFile, fileNameBase, aoi, osmBuildings):
+
+    base = f"{pathToFile}/{fileNameBase}"
+    # `noDataValue` must not be np.nan, because then `==` doesn't work as expected
+    noDataValue = -9999
+
+    metaData                = readMetaData(base + "MTL.json")
+
+    qaPixelFh               = readTif(base + "QA_PIXEL.TIF")
+    toaSpectralRadianceFh   = readTif(base + "B10.TIF")
+    assert(qaPixelFh.res == toaSpectralRadianceFh.res)
+
+    qaPixelAOI              = tifGetBbox(qaPixelFh, aoi)[0]
+    toaSpectralRadianceAOI  = tifGetBbox(toaSpectralRadianceFh, aoi)[0]
+
+    toaSpectralRadianceNoClouds = extractClouds(toaSpectralRadianceAOI, qaPixelAOI, noDataValue)
+
+    bbRad = radiance2BrightnessTemperature(toaSpectralRadianceNoClouds, metaData)
+    
+
 
 
 # execute
@@ -302,7 +327,7 @@ if __name__ == "__main__":
     pathToFile = f"{thisFilePath}/data/LC08_L1TP_193026_20220803_20220806_02_T1"
     fileNameBase = "LC08_L1TP_193026_20220803_20220806_02_T1_"
     aoi = { "lonMin": 11.214, "latMin": 48.064, "lonMax": 11.338, "latMax": 48.117 }
-    lst = processFile(pathToFile, fileNameBase, aoi)
+    lst = lstFromFile_Avdan(pathToFile, fileNameBase, aoi)
 
     fig, axes = plt.subplots(1, 2)
     axes[0].imshow(lst)

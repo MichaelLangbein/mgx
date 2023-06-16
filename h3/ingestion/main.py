@@ -2,10 +2,10 @@
 import os
 import json
 import tarfile
-from helpers import tifGetBbox
+from raster import tifGetBbox
 from osm import downloadAndSaveOSM
 from download import downloadLandsat
-from analyze import processFile
+from analyze import lstFromFile_Avdan
 import numpy as np
 
 dirPath = os.path.dirname(os.path.realpath(__file__))
@@ -23,7 +23,6 @@ def readGeoJson(path):
         return data
     except:
         return None
-
 
 def extractLs8Tar(path):
     pathExtracted = path.replace(".tar", "")
@@ -54,27 +53,3 @@ if len(ls8files) == 0:
 
 
 #%%
-for ls8file in ls8files:
-
-    # extract
-    pathExtracted, fileNameBase = extractLs8Tar(ls8file)
-    
-    # analyze landsat8
-    lst, lstFh = processFile(pathExtracted, fileNameBase, bbox)
-
-    # merge buildings with lst
-    for building in buildings["features"]:
-        geometry = building["geometry"]
-        props = building["properties"]
-        id = props["id"]
-
-        try: 
-            bbox = calcBbox(geometry["coordinates"][0])
-            pixels = tifGetBbox(lstFh, bbox)
-            tempMean = np.mean(pixels)
-            print(f"Building {id} - temp-mean: {tempMean}")
-        except Exception as e:
-            print("Error")
-
-        # ingest into database
-# %%

@@ -56,7 +56,7 @@ def downloadLandsat(bbox, startDate, endDate, maxResults, outputDir = "./data", 
 
 
 if __name__ == "__main__":
-    bbox = [11.214026877579727, 48.06498094193711, 11.338031979211422, 48.117561211533626]
+    bbox = {"lonMin": 11.214026877579727, "latMin": 48.06498094193711, "lonMax": 11.338031979211422, "latMax": 48.117561211533626}
     clouds = 10
     start = "2022-01-01"
     end = "2023-01-01"

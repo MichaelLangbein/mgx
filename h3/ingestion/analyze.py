@@ -60,14 +60,15 @@ def scaleBandData(rawData, bandNr, metaData):
     return rawData * mult + add
 
 
-
-def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue = -9999):
+def rawDataToLSTAvdanJovanovska(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue = -9999):
 
     """
     Convert raw data to land-surface-temperature (LST) in celsius
     
     Based on [Avdan & Jovanovska](https://www.researchgate.net/journal/Journal-of-Sensors-1687-7268/publication/296414003_Algorithm_for_Automated_Mapping_of_Land_Surface_Temperature_Using_LANDSAT_8_Satellite_Data/links/618456aca767a03c14f69ab7/Algorithm-for-Automated-Mapping-of-Land-Surface-Temperature-Using-LANDSAT-8-Satellite-Data.pdf?__cf_chl_rt_tk=e64hIdi4FTDBdxR5Fz0aaWift_OPNow89iJrKJxXOpo-1686654949-0-gaNycGzNEZA)
-    
+    https://www.youtube.com/watch?v=FDmYCI_xYlA
+    https://cimss.ssec.wisc.edu/rss/geoss/source/RS_Fundamentals_Day1.ppt
+
     Raw data:
     - Band 4: Red
     - Band 5: NIR
@@ -84,6 +85,7 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
     # Brightness Temperature:
     # If the TOA were a black-body, it would have to have this temperature
     # so that the sensor would receive the measured brightness.
+    # Obtained using Planck's law, solved for T (see `black_body_temperature`) and calibrated to sensor.
 
     k1ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K1_CONSTANT_BAND_10"])
     k2ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K2_CONSTANT_BAND_10"])
@@ -124,6 +126,13 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
     #
     # Note that this is only thermal radiation - but things are also cooled by convection and conduction.
     # However, we only care about current temperature - and that is not influenced by any of the other heat-flows.
+    # But a problem that *does* occur here is this:
+    # Real objects are not black bodies - they dont absorb all incident radiation. They also reflect some of it.
+    # Soil and vegetation are not very reflective - so that's good. Water is, but we can mask it out.
+    # But buildings are, and we're mostly interested in those. So some very reflective buildings will send out a lot of radiation,
+    # leading us to overestimate their temperature.
+    # We can mitigate this, though: just look for pixels with a high whight-light value and filter those out.
+    # Wait! No, we can't! Materials that reflect visible light don't neccessarily reflect thermal.
 
     soilEmissivity       = 0.996
     waterEmissivity      = 0.991
@@ -154,11 +163,49 @@ def rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValu
     return landSurfaceTemperature
 
 
-# account for wind
 
-# match to buildings
+def rawDataToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, emissivity = 0.9, noDataValue = -9999):
+    """
+        - toaSpectralRadiance: [W/m² angle]
+        - emissivity:        (https://en.wikipedia.org/wiki/Emissivity)
+             - soil:        0.996
+             - water:       0.991
+             - vegetation:  0.973
+             - concrete:    0.91
+             - brick:       0.90
+             - asphalt:     0.88
 
-def processFile(pathToFile, fileNameBase, aoi):
+        Steps:
+            1. toaSpectralRadiance to toaBlackbodyTemperature (aka BrightnessTemperature) with Planck's law
+            2. blackBodyTemperature to landSurfaceTemperature
+
+    """
+
+    # Step 1: radiance to at-sensor temperature (brightness temperature BT)
+    # Brightness Temperature:
+    # If the TOA were a black-body, it would have to have this temperature
+    # so that the sensor would receive the measured radiance.
+    # Obtained using Planck's law, solved for T (see `black_body_temperature`) and calibrated to sensor.
+
+    k1ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K1_CONSTANT_BAND_10"])
+    k2ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K2_CONSTANT_BAND_10"])
+    toaBrightnessTemperature = k2ConstantBand10 / np.log((k1ConstantBand10 / toaSpectralRadiance) + 1.0)
+    toaBrightnessTemperatureCelsius = toaBrightnessTemperature - 273.15
+
+    # Step 2: black-body-temperature to land-surface-temperature
+    buildingEmissivity = 0.9
+    emittedRadianceWavelength = 0.000010895     # [m]
+    rho = 0.01438                               # [mK]; rho = Planck * light-speed / Boltzmann
+    scale = 1.0 + emittedRadianceWavelength * toaBrightnessTemperatureCelsius * np.log(buildingEmissivity)  / rho
+    landSurfaceTemperature = toaBrightnessTemperatureCelsius / scale
+    landSurfaceTemperature = np.where(toaSpectralRadiance == noDataValue, noDataValue, landSurfaceTemperature)
+
+    return landSurfaceTemperature
+
+
+
+
+def processFileToLST(pathToFile, fileNameBase, aoi):
 
     base = f"{pathToFile}/{fileNameBase}"
     # `noDataValue` must not be np.nan, because then `==` doesn't work as expected
@@ -188,8 +235,57 @@ def processFile(pathToFile, fileNameBase, aoi):
     valuesNIR = valuesNIRNoClouds  # no need to scale these - only used for ndvi
     toaSpectralRadiance = scaleBandData(toaSpectralRadianceNoClouds, 10, metaData)
 
-    lst = rawDataToLST(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue)
+    lst = rawDataToLSTAvdanJovanovska(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue)
     lstWithNan = np.where(lst == noDataValue, np.nan, lst)
+
+    # adding projection metadata
+    imgH, imgW = lst.shape
+    transform = makeTransform(imgH, imgW, aoi)
+    saveToTif(f"{pathToFile}/lst.tif", lst, CRS.from_epsg(4326), transform, noDataValue)
+    lstTif = readTif(f"{pathToFile}/lst.tif")
+
+    return lstWithNan, lstTif
+
+
+
+
+def processFileToBuildingTemperature(pathToFile, fileNameBase, aoi):
+
+    base = f"{pathToFile}/{fileNameBase}"
+    # `noDataValue` must not be np.nan, because then `==` doesn't work as expected
+    noDataValue = -9999
+
+    metaData                = readMetaData(base + "MTL.json")
+
+    qaPixelFh               = readTif(base + "QA_PIXEL.TIF")
+    toaSpectralRadianceFh   = readTif(base + "B10.TIF")
+    assert(qaPixelFh.res == toaSpectralRadianceFh.res)
+
+    qaPixelAOI              = tifGetBbox(qaPixelFh, aoi)[0]
+    toaSpectralRadianceAOI  = tifGetBbox(toaSpectralRadianceFh, aoi)[0]
+
+    toaSpectralRadianceNoClouds = extractClouds(toaSpectralRadianceAOI, qaPixelAOI, noDataValue)
+    # TODO: mask out everything that isn't a building
+
+    # Converting raw scaled sensor-data to spectral radiance [W/m²]
+    toaSpectralRadiance = scaleBandData(toaSpectralRadianceNoClouds, 10, metaData)
+
+    # We only care about buildings here, so we need not calculate vegetation-percentage.
+    # We can just use buildings' emissivity (0.9).
+    # But: buildings reflect light sometimes (glass, solar-pannels, ...)
+    # We detect reflection by very high white light and cut it out
+    buildingEmissivity = 0.9
+    lst = rawDataToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, buildingEmissivity)
+    lstWithNan = np.where(lst == noDataValue, np.nan, lst)
+
+    # TODO: are there materials that strongly reflect thermal?
+    # If so, detect them and cut them out.
+    # Just detecting lots of white light probably doesn't help ...
+    # ... mirrors reflect lots of visible light, but not much thermal.
+    # So, yes, there are such materials. Aluminum foil reflects thermal. You can place such foil behind your radiator.
+    # Snow is, too: that's why it doesn't melt until long in the summer (it also reflects visible, which is why it's white).
+    # Thermal does not go through glass, but easily through plastic. Alluminum is a very good IR reflector: https://www.youtube.com/watch?v=baJtBDJDQDQ
+    # For now my suspicion is that there is no material on the outside of buildings that reflects heat very strongly... so we can ignore this for now.
 
     # adding projection metadata
     imgH, imgW = lst.shape

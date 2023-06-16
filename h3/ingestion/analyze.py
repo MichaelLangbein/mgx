@@ -81,16 +81,7 @@ def rawDataToLSTAvdanJovanovska(valuesRed, valuesNIR, toaSpectralRadiance, metaD
 
 
     ## Step 1.1: radiance to at-sensor temperature (brightness temperature BT)
-
-    # Brightness Temperature:
-    # If the TOA were a black-body, it would have to have this temperature
-    # so that the sensor would receive the measured brightness.
-    # Obtained using Planck's law, solved for T (see `black_body_temperature`) and calibrated to sensor.
-
-    k1ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K1_CONSTANT_BAND_10"])
-    k2ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K2_CONSTANT_BAND_10"])
-    toaBrightnessTemperature = k2ConstantBand10 / np.log((k1ConstantBand10 / toaSpectralRadiance) + 1.0)
-    toaBrightnessTemperatureCelsius = toaBrightnessTemperature - 273.15
+    toaBrightnessTemperatureCelsius = radiance2BrightnessTemperature(toaSpectralRadiance, metaData)
     toaBrightnessTemperatureCelsius = np.where(noDataMask, noDataValue, toaBrightnessTemperatureCelsius)
 
 
@@ -153,10 +144,7 @@ def rawDataToLSTAvdanJovanovska(valuesRed, valuesNIR, toaSpectralRadiance, metaD
 
 
     # Step 3.1: land-surface-temperature
-    emittedRadianceWavelength = 0.000010895     # [m]
-    rho = 0.01438                               # [mK]; rho = Planck * light-speed / Boltzmann
-    scale = 1.0 + emittedRadianceWavelength * toaBrightnessTemperatureCelsius * np.log(landSurfaceEmissivity)  / rho
-    landSurfaceTemperature = toaBrightnessTemperatureCelsius / scale
+    landSurfaceTemperature = brightnessTemperature2LST(toaBrightnessTemperatureCelsius, landSurfaceEmissivity)
     landSurfaceTemperature = np.where(noDataMask, noDataValue, landSurfaceTemperature)
 
 
@@ -164,7 +152,28 @@ def rawDataToLSTAvdanJovanovska(valuesRed, valuesNIR, toaSpectralRadiance, metaD
 
 
 
-def rawDataToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, emissivity = 0.9, noDataValue = -9999):
+def radiance2BrightnessTemperature(toaSpectralRadiance, metaData):
+    # Brightness Temperature:
+    # If the TOA were a black-body, it would have to have this temperature
+    # so that the sensor would receive the measured radiance.
+    # Obtained using Planck's law, solved for T (see `black_body_temperature`) and calibrated to sensor.
+
+    k1ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K1_CONSTANT_BAND_10"])
+    k2ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K2_CONSTANT_BAND_10"])
+    toaBrightnessTemperature = k2ConstantBand10 / np.log((k1ConstantBand10 / toaSpectralRadiance) + 1.0)
+    toaBrightnessTemperatureCelsius = toaBrightnessTemperature - 273.15
+
+    return toaBrightnessTemperatureCelsius
+
+
+def brightnessTemperature2LST(toaBrightnessTemperatureCelsius, emissivity, emittedRadianceWavelength = 0.000010895):
+    rho = 0.01438                               # [mK]; rho = Planck * light-speed / Boltzmann
+    scale = 1.0 + emittedRadianceWavelength * toaBrightnessTemperatureCelsius * np.log(emissivity)  / rho
+    landSurfaceTemperature = toaBrightnessTemperatureCelsius / scale
+    return landSurfaceTemperature
+
+
+def radianceToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, emissivity = 0.9, noDataValue = -9999):
     """
         - toaSpectralRadiance: [W/m² angle]
         - emissivity:        (https://en.wikipedia.org/wiki/Emissivity)
@@ -182,22 +191,12 @@ def rawDataToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, emissivity = 
     """
 
     # Step 1: radiance to at-sensor temperature (brightness temperature BT)
-    # Brightness Temperature:
-    # If the TOA were a black-body, it would have to have this temperature
-    # so that the sensor would receive the measured radiance.
-    # Obtained using Planck's law, solved for T (see `black_body_temperature`) and calibrated to sensor.
-
-    k1ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K1_CONSTANT_BAND_10"])
-    k2ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K2_CONSTANT_BAND_10"])
-    toaBrightnessTemperature = k2ConstantBand10 / np.log((k1ConstantBand10 / toaSpectralRadiance) + 1.0)
-    toaBrightnessTemperatureCelsius = toaBrightnessTemperature - 273.15
+    toaBrightnessTemperatureCelsius = radiance2BrightnessTemperature(toaSpectralRadiance, metaData)
 
     # Step 2: black-body-temperature to land-surface-temperature
-    buildingEmissivity = 0.9
-    emittedRadianceWavelength = 0.000010895     # [m]
-    rho = 0.01438                               # [mK]; rho = Planck * light-speed / Boltzmann
-    scale = 1.0 + emittedRadianceWavelength * toaBrightnessTemperatureCelsius * np.log(buildingEmissivity)  / rho
-    landSurfaceTemperature = toaBrightnessTemperatureCelsius / scale
+    landSurfaceTemperature = brightnessTemperature2LST(toaBrightnessTemperatureCelsius, emissivity)
+
+    # Step 3: cut out no-data values
     landSurfaceTemperature = np.where(toaSpectralRadiance == noDataValue, noDataValue, landSurfaceTemperature)
 
     return landSurfaceTemperature
@@ -275,7 +274,7 @@ def processFileToBuildingTemperature(pathToFile, fileNameBase, aoi):
     # But: buildings reflect light sometimes (glass, solar-pannels, ...)
     # We detect reflection by very high white light and cut it out
     buildingEmissivity = 0.9
-    lst = rawDataToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, buildingEmissivity)
+    lst = radianceToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, buildingEmissivity)
     lstWithNan = np.where(lst == noDataValue, np.nan, lst)
 
     # TODO: are there materials that strongly reflect thermal?

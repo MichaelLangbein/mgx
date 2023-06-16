@@ -23,7 +23,7 @@ rho = 5.670e-8    # S.Bolzmann [W/(m²K⁴)]
 """
 UV
 VIS
-IR
+IR: NIR, thermal
 Micro
 Radio
 """

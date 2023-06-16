@@ -60,6 +60,27 @@ def scaleBandData(rawData, bandNr, metaData):
     return rawData * mult + add
 
 
+def radiance2BrightnessTemperature(toaSpectralRadiance, metaData):
+    # Brightness Temperature:
+    # If the TOA were a black-body, it would have to have this temperature
+    # so that the sensor would receive the measured radiance.
+    # Obtained using Planck's law, solved for T (see `black_body_temperature`) and calibrated to sensor.
+
+    k1ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K1_CONSTANT_BAND_10"])
+    k2ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K2_CONSTANT_BAND_10"])
+    toaBrightnessTemperature = k2ConstantBand10 / np.log((k1ConstantBand10 / toaSpectralRadiance) + 1.0)
+    toaBrightnessTemperatureCelsius = toaBrightnessTemperature - 273.15
+
+    return toaBrightnessTemperatureCelsius
+
+
+def brightnessTemperature2LST(toaBrightnessTemperatureCelsius, emissivity, emittedRadianceWavelength = 0.000010895):
+    rho = 0.01438                               # [mK]; rho = Planck * light-speed / Boltzmann
+    scale = 1.0 + emittedRadianceWavelength * toaBrightnessTemperatureCelsius * np.log(emissivity)  / rho
+    landSurfaceTemperature = toaBrightnessTemperatureCelsius / scale
+    return landSurfaceTemperature
+
+
 def rawDataToLSTAvdanJovanovska(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noDataValue = -9999):
 
     """
@@ -151,28 +172,6 @@ def rawDataToLSTAvdanJovanovska(valuesRed, valuesNIR, toaSpectralRadiance, metaD
     return landSurfaceTemperature
 
 
-
-def radiance2BrightnessTemperature(toaSpectralRadiance, metaData):
-    # Brightness Temperature:
-    # If the TOA were a black-body, it would have to have this temperature
-    # so that the sensor would receive the measured radiance.
-    # Obtained using Planck's law, solved for T (see `black_body_temperature`) and calibrated to sensor.
-
-    k1ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K1_CONSTANT_BAND_10"])
-    k2ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K2_CONSTANT_BAND_10"])
-    toaBrightnessTemperature = k2ConstantBand10 / np.log((k1ConstantBand10 / toaSpectralRadiance) + 1.0)
-    toaBrightnessTemperatureCelsius = toaBrightnessTemperature - 273.15
-
-    return toaBrightnessTemperatureCelsius
-
-
-def brightnessTemperature2LST(toaBrightnessTemperatureCelsius, emissivity, emittedRadianceWavelength = 0.000010895):
-    rho = 0.01438                               # [mK]; rho = Planck * light-speed / Boltzmann
-    scale = 1.0 + emittedRadianceWavelength * toaBrightnessTemperatureCelsius * np.log(emissivity)  / rho
-    landSurfaceTemperature = toaBrightnessTemperatureCelsius / scale
-    return landSurfaceTemperature
-
-
 def radianceToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, emissivity = 0.9, noDataValue = -9999):
     """
         - toaSpectralRadiance: [W/m² angle]
@@ -200,7 +199,6 @@ def radianceToLSTwithFixedEmissivity(toaSpectralRadiance, metaData, emissivity =
     landSurfaceTemperature = np.where(toaSpectralRadiance == noDataValue, noDataValue, landSurfaceTemperature)
 
     return landSurfaceTemperature
-
 
 
 

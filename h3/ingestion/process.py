@@ -88,6 +88,20 @@ def black_body_irradiance(temperature):
 
 
 
+# Facts about thermal:
+# - can be taken by day and night (because it's being emmited, not reflected)
+# - atmosphere aborbs some thermal, so only a few specific bands can be measured
+# - but atmospheric *scattering* is minimal, so need not account for that
+# - thermal sensors are cooled to close to absolute zero, so they don't radiate themselves
+# - thermal resolution is often broader than optical, because waves have less energy
+# - mirrors reflect lots of visible light, but not much thermal
+# - Aluminum foil reflects thermal. You can place such foil behind your radiator
+# - Snow is, too: that's why it doesn't melt until long in the summer (it also reflects visible, which is why it's white)
+# - Thermal does not go through glass, but easily through plastic. Alluminum is a very good IR reflector: https://www.youtube.com/watch?v=baJtBDJDQDQ
+# - 
+# For now my suspicion is that there is no material on the outside of buildings that reflects heat very strongly... so we can ignore this for now.
+
+
 
 #%%
 if __name__ == '__main__':

@@ -66,12 +66,48 @@ def radiance2BrightnessTemperature(toaSpectralRadiance, metaData):
     return toaBrightnessTemperatureCelsius
 
 
-def brightnessTemperature2LST(toaBrightnessTemperatureCelsius, emissivity, emittedRadianceWavelength = 0.000010895):
+def bt2lstSingleWindow(toaBrightnessTemperatureCelsius, emissivity, emittedRadianceWavelength = 0.000010895):
     rho = 0.01438                               # [mK]; rho = Planck * light-speed / Boltzmann
     scale = 1.0 + emittedRadianceWavelength * toaBrightnessTemperatureCelsius * np.log(emissivity)  / rho
     landSurfaceTemperature = toaBrightnessTemperatureCelsius / scale
     return landSurfaceTemperature
 
+
+def bt2lstSplitWindow(toaBT10, toaBT11, emissivity10, emissivity11, cwv = None):
+    """
+        as per "A practical split-window algorithm for estimating LST", 
+        by Cen Du, Huazhong Ren, Remote Sens, 2015
+        - `cwv`: column water vapor [g/cm^2]
+    """
+
+    def getCoeffsForCWV(cwv):
+        # See table 1 of paper
+        if cwv == None:  # Default values
+            return -0.41165, 1.00522, 0.14543, -0.27297, 4.06655, -6.92512, -18.27461, 0.24468
+        if 0 <= cwv <=2.25:
+            return -2.78009, 1.01408, 0.15833, -0.34991, 4.04487, 3.55414, -8.88394, 0.09152
+        elif 2.25 < cwv <= 3.25:
+            return 11.00824, 0.95995, 0.17243, -0.28852, 7.11492, 0.42684, -6.62025, -0.06381
+        elif 3.25 < cwv <= 4.25:
+            return 9.62610, 0.96202, 0.13834, -0.17262, 7.87883, 5.17910, -13.26611, -0.07603
+        elif 4.25 < cwv <= 5.25:
+            return 0.61258, 0.99124, 0.10051, -0.09664, 7.85758, 6.86626, -15.00742, -0.01185
+        elif 5.25 < cwv <= 6.3:
+            return -0.34808, 0.98123, 0.05599, -0.03518, 11.96444, 9.06710, -14.74085, -0.20471
+        else:
+            raise Exception(f"Unknown value for column water vapor: {cwv}")
+
+
+    emissivityDelta = emissivity10 - emissivity11
+    emissivityMean = (emissivity10 + emissivity11) / 2.0
+    b0, b1, b2, b3, b4, b5, b6, b7 = getCoeffsForCWV(cwv)
+
+    term0 = b0
+    term1 = (b1 + b2 * (1 - emissivityMean) / emissivityMean  + b3 * emissivityDelta / np.power(emissivityMean, 2)) * (toaBT10 + toaBT11) / 2
+    term2 = (b4 + b5 * (1 - emissivityMean) / emissivityMean  + b6 * emissivityDelta / np.power(emissivityMean, 2)) * (toaBT10 + toaBT11) / 2
+    term3 = b7 * np.power(toaBT10 - toaBT11, 2)
+    lst = term0 + term1 + term2 + term3
+    return lst
 
 def emissivityFromNDVI(valuesNIR, valuesRed):
     ## Step 2.1: calculating NDVI
@@ -130,11 +166,22 @@ def emissivityFromNDVI(valuesNIR, valuesRed):
     return landSurfaceEmissivity
 
 
-def emissivityFromOSM(bbox, shape, osmBuildings, osmVegetation):
-    soilEmissivity       = 0.996
-    waterEmissivity      = 0.991
-    vegetationEmissivity = 0.973
-    buildingEmissivity   = 0.9
+def emissivityFromOSM(band, bbox, shape, osmBuildings, osmVegetation):
+    """
+        emissivity values as per table 3 of paper
+    """
+    if band == 10:
+        soilEmissivity       = 0.970
+        waterEmissivity      = 0.992
+        vegetationEmissivity = 0.973
+        buildingEmissivity   = 0.973
+    elif band == 11:
+        soilEmissivity       = 0.971
+        waterEmissivity      = 0.998
+        vegetationEmissivity = 0.973
+        buildingEmissivity   = 0.981
+    else:
+        raise Exception(f"Invalid band for emissivity: {band}")
 
     buildingsRaster = rasterizeGeojson(osmBuildings, bbox, shape)
     vegetationRaster = rasterizeGeojson(osmVegetation, bbox, shape)
@@ -175,7 +222,7 @@ def estimateLSTfromNDVI(valuesRed, valuesNIR, toaSpectralRadiance, metaData, noD
     landSurfaceEmissivity = np.where(noDataMask, noDataValue, landSurfaceEmissivity)
 
     # Step 3: land-surface-temperature
-    landSurfaceTemperature = brightnessTemperature2LST(toaBrightnessTemperatureCelsius, landSurfaceEmissivity)
+    landSurfaceTemperature = bt2lstSingleWindow(toaBrightnessTemperatureCelsius, landSurfaceEmissivity)
     landSurfaceTemperature = np.where(noDataMask, noDataValue, landSurfaceTemperature)
 
     return landSurfaceTemperature
@@ -209,11 +256,14 @@ def estimateLSTfromOSM(toaSpectralRadiance, metaData, osmBuildings, osmVegetatio
     emissivity = emissivityFromOSM(toaSpectralRadiance.shape, osmBuildings, osmVegetation)
 
     # Step 3: black-body-temperature to land-surface-temperature
-    landSurfaceTemperature = brightnessTemperature2LST(toaBrightnessTemperatureCelsius, emissivity)
+    landSurfaceTemperature = bt2lstSingleWindow(toaBrightnessTemperatureCelsius, emissivity)
     landSurfaceTemperature = np.where(noDataMask, noDataValue, landSurfaceTemperature)
 
     return landSurfaceTemperature
 
+
+
+#%%
 
 def lstFromFile_Avdan(pathToFile, fileNameBase, aoi):
 
@@ -266,57 +316,45 @@ def lstFromFile_OSM(pathToFile, fileNameBase, aoi, osmBuildings, osmVegetation):
     metaData                = readMetaData(base + "MTL.json")
 
     qaPixelFh               = readTif(base + "QA_PIXEL.TIF")
-    toaSpectralRadianceFh   = readTif(base + "B10.TIF")
-    assert(qaPixelFh.res == toaSpectralRadianceFh.res)
+    toaRadiance10Fh         = readTif(base + "B10.TIF")
+    toaRadiance11Fh         = readTif(base + "B11.TIF")
+    assert(qaPixelFh.res == toaRadiance10Fh.res)
+    assert(toaRadiance10Fh.res == toaRadiance11Fh.res)
 
     qaPixelAOI              = tifGetBbox(qaPixelFh, aoi)[0]
-    toaSpectralRadianceAOI  = tifGetBbox(toaSpectralRadianceFh, aoi)[0]
+    toaRadiance10AOI        = tifGetBbox(toaRadiance10Fh, aoi)[0]
+    toaRadiance11AOI        = tifGetBbox(toaRadiance11Fh, aoi)[0]
 
-    toaSpectralRadianceNoClouds = extractClouds(toaSpectralRadianceAOI, qaPixelAOI, noDataValue)
+    toaRadiance10NoClouds = extractClouds(toaRadiance10AOI, qaPixelAOI, noDataValue)
+    toaRadiance11NoClouds = extractClouds(toaRadiance11AOI, qaPixelAOI, noDataValue)
 
     # Converting raw scaled sensor-data to spectral radiance [W/m²]
-    toaSpectralRadiance = scaleBandData(toaSpectralRadianceNoClouds, 10, metaData)
+    toaRadiance10 = scaleBandData(toaRadiance10NoClouds, 10, metaData)
+    toaRadiance11 = scaleBandData(toaRadiance11NoClouds, 11, metaData)
 
-    lst = estimateLSTfromOSM(toaSpectralRadiance, metaData, osmBuildings, osmVegetation, noDataValue)
-    lstWithNan = np.where(lst == noDataValue, np.nan, lst)
+    noDataMask = (toaRadiance10 == noDataValue) | (toaRadiance11 == noDataValue)
 
-    # TODO: are there materials that strongly reflect thermal?
-    # If so, detect them and cut them out.
-    # Just detecting lots of white light probably doesn't help ...
-    # ... mirrors reflect lots of visible light, but not much thermal.
-    # So, yes, there are such materials. Aluminum foil reflects thermal. You can place such foil behind your radiator.
-    # Snow is, too: that's why it doesn't melt until long in the summer (it also reflects visible, which is why it's white).
-    # Thermal does not go through glass, but easily through plastic. Aluminum is a very good IR reflector: https://www.youtube.com/watch?v=baJtBDJDQDQ
-    # For now my suspicion is that there is no material on the outside of buildings that reflects heat very strongly... so we can ignore this for now.
+    # Step 1: radiance to at-sensor temperature (brightness temperature BT)
+    toaBT10 = radiance2BrightnessTemperature(toaRadiance10, metaData)
+    toaBT11 = radiance2BrightnessTemperature(toaRadiance11, metaData)
+    toaBT10 = np.where(noDataMask, noDataValue, toaBT10)
+    toaBT11 = np.where(noDataMask, noDataValue, toaBT11)
+
+    # Step 2: estimate emissivity from OSM data
+    emissivity10 = emissivityFromOSM(10, aoi, toaRadiance10.shape, osmBuildings, osmVegetation)
+    emissivity11 = emissivityFromOSM(11, aoi, toaRadiance10.shape, osmBuildings, osmVegetation)
+
+    # Step 3: black-body-temperature to land-surface-temperature
+    landSurfaceTemperature = bt2lstSplitWindow(toaBT10, toaBT11, emissivity10, emissivity11)
+    landSurfaceTemperature = np.where(noDataMask, np.nan, landSurfaceTemperature)
 
     # adding projection metadata
-    imgH, imgW = lst.shape
+    imgH, imgW = landSurfaceTemperature.shape
     transform = makeTransform(imgH, imgW, aoi)
-    saveToTif(f"{pathToFile}/lst.tif", lst, CRS.from_epsg(4326), transform, noDataValue)
+    saveToTif(f"{pathToFile}/lst.tif", landSurfaceTemperature, CRS.from_epsg(4326), transform, noDataValue)
     lstTif = readTif(f"{pathToFile}/lst.tif")
 
-    return lstWithNan, lstTif
-
-
-def getBuildingsWithExcessiveEmissivity(pathToFile, fileNameBase, aoi, osmBuildings):
-
-    base = f"{pathToFile}/{fileNameBase}"
-    # `noDataValue` must not be np.nan, because then `==` doesn't work as expected
-    noDataValue = -9999
-
-    metaData                = readMetaData(base + "MTL.json")
-
-    qaPixelFh               = readTif(base + "QA_PIXEL.TIF")
-    toaSpectralRadianceFh   = readTif(base + "B10.TIF")
-    assert(qaPixelFh.res == toaSpectralRadianceFh.res)
-
-    qaPixelAOI              = tifGetBbox(qaPixelFh, aoi)[0]
-    toaSpectralRadianceAOI  = tifGetBbox(toaSpectralRadianceFh, aoi)[0]
-
-    toaSpectralRadianceNoClouds = extractClouds(toaSpectralRadianceAOI, qaPixelAOI, noDataValue)
-
-    bbRad = radiance2BrightnessTemperature(toaSpectralRadianceNoClouds, metaData)
-    
+    return landSurfaceTemperature, lstTif
 
 
 
@@ -324,10 +362,16 @@ def getBuildingsWithExcessiveEmissivity(pathToFile, fileNameBase, aoi, osmBuildi
 
 if __name__ == "__main__":
     thisFilePath = dirname(abspath(getsourcefile(lambda:0)))
-    pathToFile = f"{thisFilePath}/data/LC08_L1TP_193026_20220803_20220806_02_T1"
+    pathToFile = f"{thisFilePath}/ls8/LC08_L1TP_193026_20220803_20220806_02_T1"
     fileNameBase = "LC08_L1TP_193026_20220803_20220806_02_T1_"
+    
     aoi = { "lonMin": 11.214, "latMin": 48.064, "lonMax": 11.338, "latMax": 48.117 }
-    lst = lstFromFile_Avdan(pathToFile, fileNameBase, aoi)
+    
+    fh = open("./osm/buildings.geo.json")
+    osmBuildings = json.load(fh)
+    osmVegetation = { "type": "FeatureCollection", "features": [] }
+
+    lst, lstFile = lstFromFile_OSM(pathToFile, fileNameBase, aoi, osmBuildings, osmVegetation)
 
     fig, axes = plt.subplots(1, 2)
     axes[0].imshow(lst)

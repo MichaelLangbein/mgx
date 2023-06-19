@@ -10,8 +10,8 @@ import numpy as np
 
 dirPath = os.path.dirname(os.path.realpath(__file__))
 bbox = { "lonMin": 11.214, "latMin": 48.064, "lonMax": 11.338, "latMax": 48.117 }
-startDate = "2022-01-01"
-endDate = "2023-06-01"
+startDate = "2020-11-01"
+endDate = "2021-03-01"
 
 
 # helpers
@@ -47,9 +47,9 @@ if not buildings:
 
 
 # get ls8 data
-ls8files = [os.path.abspath(os.path.join(f"{dirPath}/ls8", f)) for f in os.listdir(f"{dirPath}/ls8") if f.endswith(".tar")]
-if len(ls8files) == 0:
-    ls8files = downloadLandsat(bbox, startDate, endDate, 10, outputDir=f"{dirPath}/ls8")
+# ls8files = [os.path.abspath(os.path.join(f"{dirPath}/ls8", f)) for f in os.listdir(f"{dirPath}/ls8") if f.endswith(".tar")]
+# if len(ls8files) == 0:
+ls8files = downloadLandsat(bbox, startDate, endDate, 50, outputDir=f"{dirPath}/ls8")
 
 
 #%%

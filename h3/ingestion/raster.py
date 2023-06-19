@@ -2,9 +2,9 @@
 import os
 from urllib.parse import urlparse
 import rasterio as rio
+import rasterio.features as riof
 from pyproj.transformer import Transformer
 from pystac_client import Client
-import requests as req
 import numpy as np
 import rasterio.transform as riot
 

@@ -1,6 +1,4 @@
 #%%
-import os
-from urllib.parse import urlparse
 import rasterio as rio
 import rasterio.features as riof
 from pyproj.transformer import Transformer

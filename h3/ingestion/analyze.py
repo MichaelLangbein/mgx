@@ -61,9 +61,8 @@ def radiance2BrightnessTemperature(toaSpectralRadiance, metaData):
     k1ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K1_CONSTANT_BAND_10"])
     k2ConstantBand10 = float(metaData["LANDSAT_METADATA_FILE"]["LEVEL1_THERMAL_CONSTANTS"]["K2_CONSTANT_BAND_10"])
     toaBrightnessTemperature = k2ConstantBand10 / np.log((k1ConstantBand10 / toaSpectralRadiance) + 1.0)
-    toaBrightnessTemperatureCelsius = toaBrightnessTemperature - 273.15
 
-    return toaBrightnessTemperatureCelsius
+    return toaBrightnessTemperature
 
 
 def bt2lstSingleWindow(toaBrightnessTemperatureCelsius, emissivity, emittedRadianceWavelength = 0.000010895):
@@ -103,20 +102,18 @@ def bt2lstSplitWindow(toaBT10, toaBT11, emissivity10, emissivity11, cwv = None):
     b0, b1, b2, b3, b4, b5, b6, b7 = getCoeffsForCWV(cwv)
 
     term0 = b0
-    term1 = (b1 + b2 * (1 - emissivityMean) / emissivityMean  + b3 * emissivityDelta / np.power(emissivityMean, 2)) * (toaBT10 + toaBT11) / 2
-    term2 = (b4 + b5 * (1 - emissivityMean) / emissivityMean  + b6 * emissivityDelta / np.power(emissivityMean, 2)) * (toaBT10 + toaBT11) / 2
+    term1 = (b1 + b2 * ((1 - emissivityMean) / emissivityMean)  + b3 * (emissivityDelta / np.power(emissivityMean, 2))) * ((toaBT10 + toaBT11) / 2)
+    term2 = (b4 + b5 * ((1 - emissivityMean) / emissivityMean)  + b6 * (emissivityDelta / np.power(emissivityMean, 2))) * ((toaBT10 + toaBT11) / 2)
     term3 = b7 * np.power(toaBT10 - toaBT11, 2)
     lst = term0 + term1 + term2 + term3
     return lst
 
 def emissivityFromNDVI(valuesNIR, valuesRed):
-    ## Step 2.1: calculating NDVI
     # NDVI:
     # -1.0 ... 0.0 :  water
     # -0.1 ... 0.1 :  rock, sand, snow
     #  0.2 ... 0.5 :  grassland, soil, agricultural, light vegetation
     #  0.6 ... 1.0 :  deep vegetation
-    # 
     # NDBI:
     # -1.0 ... 0.0 : water
     #  0.0 ... 1.0 : built up 
@@ -313,7 +310,7 @@ def lstFromFile_OSM(pathToFile, fileNameBase, aoi, osmBuildings, osmVegetation):
     # `noDataValue` must not be np.nan, because then `==` doesn't work as expected
     noDataValue = -9999
 
-    metaData                = readMetaData(base + "MTL.json")
+    metaData = readMetaData(base + "MTL.json")
 
     qaPixelFh               = readTif(base + "QA_PIXEL.TIF")
     toaRadiance10Fh         = readTif(base + "B10.TIF")
@@ -321,9 +318,9 @@ def lstFromFile_OSM(pathToFile, fileNameBase, aoi, osmBuildings, osmVegetation):
     assert(qaPixelFh.res == toaRadiance10Fh.res)
     assert(toaRadiance10Fh.res == toaRadiance11Fh.res)
 
-    qaPixelAOI              = tifGetBbox(qaPixelFh, aoi)[0]
-    toaRadiance10AOI        = tifGetBbox(toaRadiance10Fh, aoi)[0]
-    toaRadiance11AOI        = tifGetBbox(toaRadiance11Fh, aoi)[0]
+    qaPixelAOI        = tifGetBbox(qaPixelFh, aoi)[0]
+    toaRadiance10AOI  = tifGetBbox(toaRadiance10Fh, aoi)[0]
+    toaRadiance11AOI  = tifGetBbox(toaRadiance11Fh, aoi)[0]
 
     toaRadiance10NoClouds = extractClouds(toaRadiance10AOI, qaPixelAOI, noDataValue)
     toaRadiance11NoClouds = extractClouds(toaRadiance11AOI, qaPixelAOI, noDataValue)

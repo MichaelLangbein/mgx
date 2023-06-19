@@ -102,9 +102,21 @@ def bt2lstSplitWindow(toaBT10, toaBT11, emissivity10, emissivity11, cwv = None):
     b0, b1, b2, b3, b4, b5, b6, b7 = getCoeffsForCWV(cwv)
 
     term0 = b0
-    term1 = (b1 + b2 * ((1 - emissivityMean) / emissivityMean)  + b3 * (emissivityDelta / np.power(emissivityMean, 2))) * ((toaBT10 + toaBT11) / 2)
-    term2 = (b4 + b5 * ((1 - emissivityMean) / emissivityMean)  + b6 * (emissivityDelta / np.power(emissivityMean, 2))) * ((toaBT10 + toaBT11) / 2)
+
+    term1 = (
+            b1 
+          + b2 * (1 - emissivityMean) / emissivityMean 
+          + b3 * emissivityDelta / np.power(emissivityMean, 2)
+        ) * (toaBT10 + toaBT11) / 2
+    
+    term2 = (
+            b4 
+          + b5 * (1 - emissivityMean) / emissivityMean
+          + b6 * emissivityDelta / np.power(emissivityMean, 2)
+        ) * (toaBT10 - toaBT11) / 2
+    
     term3 = b7 * np.power(toaBT10 - toaBT11, 2)
+    
     lst = term0 + term1 + term2 + term3
     return lst
 
@@ -372,7 +384,7 @@ if __name__ == "__main__":
 
     fig, axes = plt.subplots(1, 2)
     axes[0].imshow(lst)
-    axes[1].hist(lst.flatten())
+    axes[1].hist(lst.flatten() - 273)
     
 
 # %%

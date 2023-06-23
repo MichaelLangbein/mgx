@@ -93,14 +93,38 @@ def black_body_irradiance(temperature):
 # - atmosphere aborbs some thermal, so only a few specific bands can be measured
 # - but atmospheric *scattering* is minimal, so need not account for that
 # - thermal sensors are cooled to close to absolute zero, so they don't radiate themselves
-# - thermal resolution is often broader than optical, because waves have less energy
+# - thermal resolution is often worse than optical, because waves have less energy
 # - mirrors reflect lots of visible light, but not much thermal
-# - Aluminum foil reflects thermal. You can place such foil behind your radiator
-# - Snow is, too: that's why it doesn't melt until long in the summer (it also reflects visible, which is why it's white)
+# - Aluminum foil reflects thermal (emissivity: 0.08). You can place such foil behind your radiator
+# - Snow does, too: that's why it doesn't melt until long in the summer (it also reflects visible, which is why it's white)
+# - Stainless steel does, too (emissivity: 0.16).
+# - Distilled water doesnt: emissivity 0.99. In fact, water absorbs almost all incident energy and reflects very little. Thus its high emissivity.
 # - Thermal does not go through glass, but easily through plastic. Alluminum is a very good IR reflector: https://www.youtube.com/watch?v=baJtBDJDQDQ
 # - 
 # For now my suspicion is that there is no material on the outside of buildings that reflects heat very strongly... so we can ignore this for now.
+#
+# https://www.isprs.org/proceedings/xxxiii/congress/part1/239_xxxiii-part1.pdf
+# - 3-35 micro-meter is commonly called TIR
+# - 8-14 micro-meter is barely absorbed in atmosphere
+#     - especially 10-12 is good, because avoids ozone-absorption peak at 9.6
+#     - below 10 absorbed by water vapor, above 12 absorbed by CO2
+# - 3-5 and 17-25 are still ok
+# - but 3-5 overlaps with solar reflection during day and 17-25 is not well investigated
+# - pre-dawn pictures are preferred, because minimal effect of solar heating
+# - pretty hard to co-register thermal, because of its poor resolution
 
+# https://eo4society.esa.int/wp-content/uploads/2021/04/2017Land_D2T3-P_Cartalis_Thermal.pdf
+# - only radiative heat-transfer travels through space, so satellites can only observe that. We can ignore convection and conduction.
+# - thermal capacity c [cal / gram / °C]: ability of material to store heat. meassured as calories to heat one gram by one degree.
+# - thermal conductivity K [cal / cm / sec]: rate of heat transfer. meassured as calories passing through 1cm distance in a second between two surfaces with 1°C difference
+# - thermal intertia P [cal / cm² / sqrt(sec) / °C]: P = sqrt(K * c * density)
+# - NIR & SWIR behaves almost like VIS in that it is mostly reflected sunlight
+# - TIR is heat energy which is not reflected (except on aluminum), but radiated because of objects' own heat
+# - Forrest fires are very hot, so their dominant wavelength is low and NIR or SWIR are appropriate bands
+# - Ambient buildings are not, so TIR is a better band
+# - Distilled water: emissivity 0.99. In fact, water absorbs almost all incident energy and reflects very little. Thus its high emissivity.
+# - Sheet metal roofs reflect a lot and absorb little. Thus, metal objects as cars, planes, and metal roofs look very cold (dark) on thermal images.
+# - 
 
 
 #%%

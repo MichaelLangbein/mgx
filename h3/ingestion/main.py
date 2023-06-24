@@ -14,8 +14,8 @@ import numpy as np
 #%%
 dirPath = os.path.dirname(os.path.realpath(__file__))
 aoi = { "lonMin": 11.214, "latMin": 48.064, "lonMax": 11.338, "latMax": 48.117 }
-startDate = "2020-11-01"
-endDate = "2021-03-01"
+startDate = "2019-11-01"
+endDate = "2022-11-01"
 
 #%%
 # helpers
@@ -44,7 +44,7 @@ def calcBbox(points):
     return {"lonMin": lonMin, "latMin": latMin, "lonMax": lonMax, "latMax": latMax}
 
 
-# get osm data
+#%% get osm data
 osmData = {}
 try:
     osmData = {
@@ -56,7 +56,7 @@ except:
     osmData = downloadAndSaveOSM(aoi, saveToDirPath=f"{dirPath}/osm", getBuildings=True, getTrees=True, getWater=True)
 
 
-# get ls8 data
+#%% get ls8 data
 ls8files = [os.path.abspath(os.path.join(f"{dirPath}/ls8", f)) for f in os.listdir(f"{dirPath}/ls8") if f.endswith(".tar")]
 if len(ls8files) == 0:
     ls8files = downloadLandsat(aoi, startDate, endDate, 50, outputDir=f"{dirPath}/ls8")

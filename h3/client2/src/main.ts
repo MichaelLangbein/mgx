@@ -1,19 +1,22 @@
 import './style.css';
+import 'chartjs-adapter-moment';
 import 'ol/ol.css';
-import TileLayer from 'ol/layer/Tile';
+import { Chart } from 'chart.js/auto';
+import { colorScale } from './graph';
+import { FeatureLike } from 'ol/Feature';
+import { fromLonLat } from 'ol/proj';
 import { Map, Overlay, View } from 'ol';
+import data from './buildings_analyzed.geo.json';
+import Fill from 'ol/style/Fill';
+import GeoJSON from 'ol/format/GeoJSON';
 import OSM from 'ol/source/OSM';
+import Style from 'ol/style/Style';
+import TileLayer from 'ol/layer/Tile';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
-import GeoJSON from 'ol/format/GeoJSON';
-import data from './buildings_analyzed.geo.json';
-import { Chart } from 'chart.js/auto';
-import 'chartjs-adapter-moment';
-import { FeatureLike } from 'ol/Feature';
-import Style from 'ol/style/Style';
-import Fill from 'ol/style/Fill';
-import { fromLonLat } from 'ol/proj';
-import { colorScale } from './graph';
+import WMTS, { optionsFromCapabilities } from 'ol/source/WMTS';
+import WMTSTileGrid from 'ol/tilegrid/WMTS';
+import WMTSCapabilitiesParser from 'ol/format/WMTSCapabilities';
 
 const mapProjection = 'EPSG:3857';
 
@@ -44,7 +47,21 @@ function greyscale(context: any) {
 
 baseLayer.on('postrender', (event) => {
   greyscale(event.context);
-})
+});
+
+
+const wmtsCapabilitiesResponse = await fetch("http://localhost:8080/geoserver/gwc/service/wmts?service=WMTS&version=1.1.1&request=GetCapabilities");
+const wmtsCapabilitiesXml = await wmtsCapabilitiesResponse.text();
+const parser = new WMTSCapabilitiesParser();
+const parsedWMTSCapabilities = parser.read(wmtsCapabilitiesXml);
+const wmtsOptions = optionsFromCapabilities(parsedWMTSCapabilities, {
+  layer: "thermal:LC09_L1TP_193026_20230424_20230424_02_T1_B10",
+  matrixSet: "EPSG:900913"
+})!;
+
+const band10Layer = new TileLayer({
+  source: new WMTS(wmtsOptions)
+});
 
 const dataLayer = new VectorLayer({
   source: new VectorSource({
@@ -63,7 +80,7 @@ const dataLayer = new VectorLayer({
   }
 });
 
-const layers = [baseLayer, dataLayer];
+const layers = [band10Layer, dataLayer];
 
 
 const view = new View({

@@ -1,8 +1,8 @@
 <GeoServerTileLayer>
-  <id>LayerInfoImpl--32ff52b6:188f1c770ac:-7ffc</id>
+  <id>LayerInfoImpl-7c72522f:188f3623f94:-7fe6</id>
   <enabled>true</enabled>
   <inMemoryCached>true</inMemoryCached>
-  <name>ls8:20230424_B10</name>
+  <name>ls8:lst-2021-12-14</name>
   <mimeFormats>
     <string>image/png</string>
     <string>image/jpeg</string>

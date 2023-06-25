@@ -14,11 +14,13 @@
 
 #timeSlider {
   position: absolute;
-  bottom: 5rem;
-  left: 25%;
+  top: 3%;
+  right: 3%;
   background: var(--ol-background-color);
   border-color: var(--ol-accent-background-color);
-  width: 30%;
+  width: 10%;
   padding: 1rem;
   border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
 }

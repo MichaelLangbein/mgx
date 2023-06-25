@@ -116,7 +116,7 @@ function createPlot(element: HTMLElement, feature: FeatureLike) {
     data: {
       datasets: [{
         label: 'Temperature',
-        data: timeSeries.map(e => ({x: e.date.toISOString(), y: e.value})),
+        data: timeSeries.map(e => ({x: e.date, y: e.value})),
         borderWidth: 1
       }]
     },
@@ -155,6 +155,19 @@ function getTimeSeries(feature: FeatureLike) {
   
   return timeSeries;
 }
+
+
+
+const timeSlider = document.getElementById("timeSlider")!;
+for (const timeStep of timeSteps) {
+  const node = document.createElement("a");
+  node.innerHTML = timeStep;
+  node.addEventListener("click", () => {
+    newTimestep(timeStep);
+  });
+  timeSlider.appendChild(node);
+}
+
 
 function newTimestep(newTimeStep: string) {
   if (!timeSteps.includes(newTimeStep)) throw Error(`invalid timestep: ${newTimeStep}`);

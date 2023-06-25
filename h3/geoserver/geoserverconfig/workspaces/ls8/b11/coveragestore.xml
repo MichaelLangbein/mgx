@@ -1,0 +1,14 @@
+<coverageStore>
+  <id>CoverageStoreInfoImpl--32ff52b6:188f1c770ac:-7ffb</id>
+  <name>b11</name>
+  <description>b11</description>
+  <type>GeoTIFF</type>
+  <enabled>true</enabled>
+  <workspace>
+    <id>WorkspaceInfoImpl--32ff52b6:188f1c770ac:-8000</id>
+  </workspace>
+  <__default>false</__default>
+  <dateCreated>2023-06-25 09:06:08.864 UTC</dateCreated>
+  <disableOnConnFailure>false</disableOnConnFailure>
+  <url>file:data/LC09_L1TP_193026_20230424_20230424_02_T1_B11.TIF</url>
+</coverageStore>

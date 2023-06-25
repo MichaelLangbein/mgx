@@ -16,15 +16,12 @@ import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
 import Layer from 'ol/layer/Layer';
 import TileWMS from 'ol/source/TileWMS';
-import TileSource from 'ol/source/Tile';
+
+
+// import TileSource from 'ol/source/Tile';
 // import VectorTileLayer from 'ol/layer/VectorTile';
 // import VectorTile from 'ol/source/VectorTile';
 // import TopoJSON from 'ol/format/TopoJSON';
-
-
-const mapProjection = 'EPSG:3857';
-
-
 // const baseLayer = new VectorTileLayer({
 //   source: new VectorTile({
 //     // url: "http://localhost:5173/public/vectorTiles/basic.json",
@@ -34,68 +31,38 @@ const mapProjection = 'EPSG:3857';
 //   style: 
 // });
 
+
+const mapProjection = 'EPSG:3857';
+
+const timeSteps = ["2020-11-17", "2020-12-03", "2020-12-19", "2021-01-04", "2021-01-20", "2021-02-05", "2021-02-21", "2021-11-20", "2021-12-14", "2021-12-21", "2021-12-22", "2022-01-07", "2022-01-15", "2022-01-23", "2022-02-24", "2022-08-03", "2022-10-06", "2022-08-03"];
+
 const baseLayer = new TileLayer({
   source: new OSM()
 });
 
-// function greyscale(context: any) {
-//   var canvas = context.canvas;
-//   var width = canvas.width;
-//   var height = canvas.height;var imageData = context.getImageData(0, 0, width, height);
-//   var data = imageData.data;
-//   for(let i=0; i<data.length; i += 4){
-//    var r = data[i];
-//    var g = data[i + 1];
-//    var b = data[i + 2];
-//    // CIE luminance for the RGB
-//    var v = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-//    // Show white color instead of black color while loading new tiles:
-//    if(v === 0.0) v=255.0;  
-//    data[i+0] = v; // Red
-//    data[i+1] = v; // Green
-//    data[i+2] = v; // Blue
-//    data[i+3] = 125; // Alpha
-//   }
-//   context.putImageData(imageData,0,0);
-// }
-
-// baseLayer.on('postrender', (event) => {
-//   greyscale(event.context);
-// });
 
 
-
-const layerNames = ["ls8:lst-2020-11-17", "ls8:lst-2020-12-03", "ls8:lst-2020-12-19", "ls8:lst-2021-01-04", "ls8:lst-2021-01-20", "ls8:lst-2021-02-05", "ls8:lst-2021-02-21", "ls8:lst-2021-11-20", "ls8:lst-2021-12-14", "ls8:lst-2021-12-21", "ls8:lst-2021-12-22", "ls8:lst-2022-01-07", "ls8:lst-2022-01-15", "ls8:lst-2022-01-23", "ls8:lst-2022-02-24", "ls8:lst-2022-08-03", "ls8:lst-2022-10-06", "ls8:lst_2022-08-03"];
 const rasterLayers: Layer[] = [];
-for (const layerName of layerNames) {
-  rasterLayers.push(new TileLayer({
+for (const timeStep of timeSteps) {
+  const layer = new TileLayer({
     source: new TileWMS({
       url: "http://localhost:8080/geoserver/ls8/wms",
       params: {
-        "LAYERS": layerName,
+        "LAYERS": `ls8:lst-${timeStep}`,
         "STYLES": "thermal"
       },
       serverType: 'geoserver'
     })
-  }))
+  });
+  layer.set("timeStep", timeStep);
+  rasterLayers.push(layer);
 }
 
 
 const vectorData = new VectorLayer({
   source: new VectorSource({
     features: new GeoJSON({ featureProjection: mapProjection }).readFeatures(data),
-  }),
-  style: (feature) => {
-    const timeSeries = getTimeSeries(feature);
-
-    const {r, g, b} = colorScale(timeSeries);
-
-    return new Style({
-      fill: new Fill({
-        color: `rgb(${r}, ${g}, ${b})`
-      })
-    })
-  }
+  })
 });
 
 const layers = [baseLayer, ...rasterLayers, vectorData];
@@ -120,6 +87,8 @@ const map = new Map({
   layers, target, view, overlays
 });
 
+
+newTimestep(timeSteps[0]);
 
 map.on("click", (event) => {
   const coords = event.coordinate;
@@ -174,11 +143,11 @@ function getTimeSeries(feature: FeatureLike) {
   const timeSeriesData = props["timeseries"];
   if (!timeSeriesData) return [];
   
-  const timeSeries: {date: Date, value: number}[] = [];
+  const timeSeries: {date: string, value: number}[] = [];
   for (const [key, value] of Object.entries(timeSeriesData)) {
     if (value !== -9999) {
       timeSeries.push({
-        date: new Date(`${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`),
+        date: `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`, // new Date(`${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`),
         value: +(value as string)
       })
     }
@@ -187,3 +156,30 @@ function getTimeSeries(feature: FeatureLike) {
   return timeSeries;
 }
 
+function newTimestep(newTimeStep: string) {
+  if (!timeSteps.includes(newTimeStep)) throw Error(`invalid timestep: ${newTimeStep}`);
+
+  for (const layer of rasterLayers) {
+    const timeStep = layer.get("timeStep");
+    if (newTimeStep === timeStep) layer.setOpacity(1.0);
+    else layer.setOpacity(0.0);    
+  }
+
+  vectorData.setStyle((feature) => {
+    const timeSeries = getTimeSeries(feature);
+    const currentValue = timeSeries.find(d => d.date === newTimeStep);
+
+    let color = `rgb(125, 125, 125)`;
+    if (currentValue) {
+      const {r, g, b} = colorScale(currentValue!.value);
+      color = `rgb(${r}, ${g}, ${b})`;
+    }
+
+    return new Style({
+      fill: new Fill({
+        color
+      })
+    })
+  })
+
+}

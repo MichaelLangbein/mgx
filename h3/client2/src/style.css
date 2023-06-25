@@ -6,7 +6,19 @@
 }
 
 #popup {
-  background: white;
+  background: var(--ol-background-color);
+  border-color: var(--ol-accent-background-color);
   padding: 1rem;
   border-radius: 0.25rem;
+}
+
+#timeSlider {
+  position: absolute;
+  bottom: 5rem;
+  left: 25%;
+  background: var(--ol-background-color);
+  border-color: var(--ol-accent-background-color);
+  width: 30%;
+  padding: 1rem;
+  border-radius: 0.5rem;
 }

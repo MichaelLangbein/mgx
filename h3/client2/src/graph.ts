@@ -2,17 +2,10 @@ import * as d3color from 'd3-color';
 
 
 
-export function colorScale(timeSeries: { date: Date; value: number; }[]): { r: any; g: any; b: any; } {
-  
-    const meanTemperature = timeSeries
-        .map(d => d.value)
-        .reduce((carry, current) => carry + current, 0)
-        / timeSeries.length;
-  
-    const [r, g, b] = greenVioletRangeStepwise(0, 50, meanTemperature);
-  
+export function colorScale(value: number, min: number = -10.0, max: number = 50.0): { r: any; g: any; b: any; } {  
+    const [r, g, b] = greenVioletRangeStepwise(min, max, value);
     return {r, g, b};
-  }
+}
   
   
   

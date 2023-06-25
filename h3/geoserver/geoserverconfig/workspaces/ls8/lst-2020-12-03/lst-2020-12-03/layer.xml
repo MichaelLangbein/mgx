@@ -1,0 +1,16 @@
+<layer>
+  <name>lst-2020-12-03</name>
+  <id>LayerInfoImpl-7c72522f:188f3623f94:-7ffb</id>
+  <type>RASTER</type>
+  <defaultStyle>
+    <id>StyleInfoImpl--570ae188:124761b8d78:-7fe2</id>
+  </defaultStyle>
+  <resource class="coverage">
+    <id>CoverageInfoImpl-7c72522f:188f3623f94:-7ffc</id>
+  </resource>
+  <attribution>
+    <logoWidth>0</logoWidth>
+    <logoHeight>0</logoHeight>
+  </attribution>
+  <dateCreated>2023-06-25 16:28:46.473 UTC</dateCreated>
+</layer>

@@ -1,0 +1,16 @@
+<layer>
+  <name>lst-2022-10-06</name>
+  <id>LayerInfoImpl-7c72522f:188f3623f94:-7fce</id>
+  <type>RASTER</type>
+  <defaultStyle>
+    <id>StyleInfoImpl--570ae188:124761b8d78:-7fe2</id>
+  </defaultStyle>
+  <resource class="coverage">
+    <id>CoverageInfoImpl-7c72522f:188f3623f94:-7fcf</id>
+  </resource>
+  <attribution>
+    <logoWidth>0</logoWidth>
+    <logoHeight>0</logoHeight>
+  </attribution>
+  <dateCreated>2023-06-25 16:38:38.12 UTC</dateCreated>
+</layer>

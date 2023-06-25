@@ -1,0 +1,14 @@
+<coverageStore>
+  <id>CoverageStoreInfoImpl-7c72522f:188f3623f94:-7fd3</id>
+  <name>lst-2022-08-03</name>
+  <description>lst-2022-08-03</description>
+  <type>GeoTIFF</type>
+  <enabled>true</enabled>
+  <workspace>
+    <id>WorkspaceInfoImpl--32ff52b6:188f1c770ac:-8000</id>
+  </workspace>
+  <__default>false</__default>
+  <dateCreated>2023-06-25 16:37:52.646 UTC</dateCreated>
+  <disableOnConnFailure>false</disableOnConnFailure>
+  <url>file:data/lst-2022-08-03.tif</url>
+</coverageStore>

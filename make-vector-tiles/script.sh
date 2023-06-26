@@ -6,6 +6,7 @@ set -o pipefail  # don't hide errors within pipes
 
 
 # making sure glibc 2.32 - 2.34 is installed
+OS="mac"
 
 
 # creating required directories
@@ -20,10 +21,17 @@ mkdir -p ./processing/shapefiles/landcover/ne_10m_glaciated_areas
 
 # getting tilemaker binary
 if [ ! -f ./processing/tilemaker ]; then
-    # wget https://github.com/systemed/tilemaker/releases/download/v2.3.0/tilemaker-ubuntu-22.04.zip <-- requires glibc 2.32
-    wget https://github.com/systemed/tilemaker/releases/download/v2.2.0/tilemaker-ubuntu-18.04.zip
-    unzip tilemaker-ubuntu-18.04.zip
-    rm tilemaker-ubuntu-18.04.zip 
+    if [[ $OS == "linux" ]]; then 
+        # wget https://github.com/systemed/tilemaker/releases/download/v2.3.0/tilemaker-ubuntu-22.04.zip <-- requires glibc 2.32
+        wget https://github.com/systemed/tilemaker/releases/download/v2.2.0/tilemaker-ubuntu-18.04.zip
+        unzip tilemaker-ubuntu-18.04.zip
+        rm tilemaker-ubuntu-18.04.zip 
+    fi
+    if [[ $OS == "mac" ]]; then 
+        wget https://github.com/systemed/tilemaker/releases/download/v2.4.0/tilemaker-macos-10.15.zip
+        unzip tilemaker-macos-10.15.zip
+        rm tilemaker-macos-10.15.zip
+    fi
     rm -r resources
     mv build/tilemaker ./processing/
     chmod +x ./processing/tilemaker

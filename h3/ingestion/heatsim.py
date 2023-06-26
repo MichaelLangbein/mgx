@@ -27,15 +27,20 @@ import matplotlib.pyplot as plt
 
 
 Distance = 0.5 # [m]
-Time = 1 # [s]
+Time = 3 * 24 * 60 * 60 # [s]
 timeSteps = 1000000
 spaceSteps = 100
 dx = Distance / spaceSteps
 dt = Time / timeSteps
+xs = np.arange(0, Distance, dx)
+ts = np.arange(0, Time, dt)
 
 tRoom = 20 + 273 # [°K]
 def tOutside(time):   #  = 10 + 273 # [°K]
-    return 5 * np.sin(time * 3) + 10 + 273
+    amplitude = 2.5
+    meanTemp = 10 + 273
+    cyclesPerSecond = 2.0 * np.pi / (24 * 60 * 60)
+    return amplitude * np.sin(time * cyclesPerSecond) + meanTemp
 
 wallStart = int(0.3 * spaceSteps)
 wallEnd = int(0.7 * spaceSteps)
@@ -46,22 +51,37 @@ temp0[wallStart:wallEnd] = tOutside(0)
 temp0[wallEnd:] = tOutside(0)
 
 
+# constants
+thermalConductivityAir      = 0.026  # W / m °K
+thermalConductivityWater    = 0.609
+thermalConductivityConcrete = 0.92
+densityAir      = 1.2   # kg / m^3   (assumes room temperature)
+densityConcrete = 2400
+specHeatCapacityAir      = 1000   # J / kg °K
+specHeatCapacityWater    = 4184
+specHeatCapacityConcrete = 1000
+emissivityConcrete = 0.9
+sBoltzmann = 5.670e-8     # W / m^2 K^4
+
 # alpha: thermal diffusivity
 # alpha = k / c / p
 # k: thermal conductivity
 # p: density
 # c: specific heat capacity
-alpha = np.zeros((spaceSteps))
-alpha[:wallStart] = 1
-alpha[wallStart:wallEnd] = 0.1
-alpha[wallEnd:] = 1
+alpha                    = np.zeros((spaceSteps))
+alphaAir                 = thermalConductivityAir / (densityAir * specHeatCapacityAir)
+alphaConcrete            = thermalConductivityConcrete / (densityConcrete * specHeatCapacityConcrete)
+alpha[:wallStart]        = alphaAir
+alpha[wallStart:wallEnd] = alphaConcrete
+alpha[wallEnd:]          = alphaAir
 
 # beta: radiative loss
 # only at wall's outer surface (but maybe also in air?)
 # beta = mu / c / p
 # mu: depends on S.Boltzmann and emissivity
 beta = np.zeros((spaceSteps))
-beta[wallEnd] = 0.0000005
+betaWallSurface = emissivityConcrete * sBoltzmann / (densityConcrete * specHeatCapacityConcrete * dx)
+beta[wallEnd] = betaWallSurface
 
 
 def dTempdt(tempBefore, time):
@@ -82,7 +102,9 @@ def dTempdt(tempBefore, time):
     return dTdt
 
 
-
+print(f"alpha air: {alphaAir}")
+print(f"alpha concrete: {alphaConcrete}")
+print(f"beta wall: {betaWallSurface}")
 
 #%%
 temps = [temp0]
@@ -112,7 +134,6 @@ for step in range(1, timeSteps):
 
 
 # %%
-xs = np.arange(0, Distance, dx)
 plt.plot(xs, temps[0] - 273, label="t=0")
 plt.plot(xs, temps[1000] - 273, label="t=1000")
 plt.plot(xs, temps[10000] - 273, label="t=10000")
@@ -120,7 +141,6 @@ plt.plot(xs, temps[100000] - 273, label="t=100000")
 plt.axvline(x = wallStart * dx)
 plt.axvline(x = wallEnd *dx)
 plt.legend()
-# <-- has numerical instability. Try
 
 # %%
 from matplotlib.animation import FuncAnimation
@@ -140,7 +160,7 @@ def update(frame):
     return ln,
 
 ani = FuncAnimation(fig, update, init_func=init, blit=True, frames=np.arange(0, timeSteps, 10000))
-ani.save("movie.mp4")
+ani.save("movie.gif")
 plt.show()
 
 # %%

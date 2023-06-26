@@ -1,6 +1,7 @@
 #%%
 """
 https://en.wikipedia.org/wiki/Heat_equation
+    especially at subsection "Accounting for radiative loss"
 https://en.wikipedia.org/wiki/Finite_difference
 https://de.wikipedia.org/wiki/Runge-Kutta-Verfahren
 
@@ -44,10 +45,23 @@ temp0[:wallStart] = tRoom
 temp0[wallStart:wallEnd] = tOutside(0)
 temp0[wallEnd:] = tOutside(0)
 
+
+# alpha: thermal diffusivity
+# alpha = k / c / p
+# k: thermal conductivity
+# p: density
+# c: specific heat capacity
 alpha = np.zeros((spaceSteps))
 alpha[:wallStart] = 1
 alpha[wallStart:wallEnd] = 0.1
 alpha[wallEnd:] = 1
+
+# beta: radiative loss
+# only at wall's outer surface (but maybe also in air?)
+# beta = mu / c / p
+# mu: depends on S.Boltzmann and emissivity
+beta = np.zeros((spaceSteps))
+beta[wallEnd] = 0.0000005
 
 
 def dTempdt(tempBefore, time):
@@ -61,6 +75,9 @@ def dTempdt(tempBefore, time):
     tempShiftL[-1]  = tOutside(time)
 
     dTdt = alpha * (tempShiftL - 2 * tempBefore + tempShiftR) / (dx**2)
+
+    # accounting for radiation
+    dTdt -= beta * np.power(tempBefore, 4)
 
     return dTdt
 
@@ -96,9 +113,13 @@ for step in range(1, timeSteps):
 
 # %%
 xs = np.arange(0, Distance, dx)
-plt.plot(xs, temps[2] - 273)
+plt.plot(xs, temps[0] - 273, label="t=0")
+plt.plot(xs, temps[1000] - 273, label="t=1000")
+plt.plot(xs, temps[10000] - 273, label="t=10000")
+plt.plot(xs, temps[100000] - 273, label="t=100000")
 plt.axvline(x = wallStart * dx)
 plt.axvline(x = wallEnd *dx)
+plt.legend()
 # <-- has numerical instability. Try
 
 # %%

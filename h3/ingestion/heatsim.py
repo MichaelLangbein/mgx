@@ -33,15 +33,16 @@ dx = Distance / spaceSteps
 dt = Time / timeSteps
 
 tRoom = 20 + 273 # [°K]
-tOutside = 10 + 273 # [°K]
+def tOutside(time):   #  = 10 + 273 # [°K]
+    return 5 * np.sin(time * 3) + 10 + 273
 
 wallStart = int(0.3 * spaceSteps)
 wallEnd = int(0.7 * spaceSteps)
 
 temp0 = np.zeros((spaceSteps))
 temp0[:wallStart] = tRoom
-temp0[wallStart:wallEnd] = tOutside
-temp0[wallEnd:] = tOutside
+temp0[wallStart:wallEnd] = tOutside(0)
+temp0[wallEnd:] = tOutside(0)
 
 alpha = np.zeros((spaceSteps))
 alpha[:wallStart] = 1
@@ -57,7 +58,7 @@ def dTempdt(tempBefore, time):
 
     tempShiftL      = np.zeros(tempBefore.shape)
     tempShiftL[:-1] = tempBefore[1:]
-    tempShiftL[-1]  = tOutside
+    tempShiftL[-1]  = tOutside(time)
 
     dTdt = alpha * (tempShiftL - 2 * tempBefore + tempShiftR) / (dx**2)
 

@@ -19,6 +19,7 @@ body {
     --dark-dark: #1c1c1d;
     --light-light: #f0f0f9;
     --light-medium: #e8e8ee;
+    --primary-medium: #699eaa;
     font-family: Nunito, Arial, Helvetica, sans-serif;
     box-sizing: border-box;
     margin: 0;

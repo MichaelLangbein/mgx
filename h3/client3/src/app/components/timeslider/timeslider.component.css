@@ -1,4 +1,15 @@
 .timeslider {
     background-color: var(--light-medium);
     border-radius: 0.25rem;
+
+    display: flex;
+    flex-direction: row;
+}
+
+.timeslider .timeStep {
+
+}
+
+.timeslider .timeStep.active {
+    border: 1px solid var(--primary-medium);
 }

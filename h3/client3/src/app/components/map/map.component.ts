@@ -1,6 +1,7 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, NgZone, ViewChild, ViewContainerRef } from '@angular/core';
 import { Map, Overlay, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
+import { fromLonLat } from 'ol/proj';
 import OSM from 'ol/source/OSM';
 import { StateService } from 'src/app/services/state.service';
 
@@ -30,8 +31,8 @@ export class MapComponent implements AfterViewInit {
       this.map = new Map({
         layers: this.baseLayers,
         view: new View({
-          projection: 'EPSG:4326',
-          center: [11.3, 48.08],
+          projection: 'EPSG:3857',
+          center: fromLonLat([11.3, 48.08], 'EPSG:3857'),
           zoom: 13
         }),
         controls: [],

@@ -57,7 +57,7 @@ export class MapComponent implements AfterViewInit {
 
       // no need to run this outside of zone
       this.map = new Map({
-        layers: [this.layers.osm],
+        layers: [this.layers.osm, this.layers.raster, this.layers.vector],
         view: new View({
           projection: this.mapProjection,
           center: fromLonLat([11.3, 48.08], this.mapProjection),

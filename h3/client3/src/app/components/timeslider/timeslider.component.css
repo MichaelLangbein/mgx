@@ -1,20 +1,44 @@
-.timeslider {
+.control {
     background-color: var(--light-medium);
     border-radius: 0.25rem;
+}
 
+.control .timeslider {
     display: flex;
     flex-direction: row;
+    justify-content: center;
+    align-items: center;
 }
 
-.timeslider .timeStep {
-
+.control .timeslider .timeStep {
+    padding: .5rem;
+    border: 1px solid var(--light-medium);
 }
 
-.timeslider .timeStep.active {
+.control .timeslider .timeStep.active {
     border: 1px solid var(--primary-medium);
+    color: var(--primary-dark);
 }
 
-.timeslider .timeStep.active:hover {
+.control .timeslider .timeStep.active:hover {
+    cursor: pointer;
+    background-color: var(--light-light);
+    border: 1px solid var(--primary-light);
+}
+
+
+.control .layers {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.control .layers .layer {
+    border: 1px solid var(--light-medium);
+}
+
+.control .layers .layer:hover {
     cursor: pointer;
     background-color: var(--light-light);
     border: 1px solid var(--primary-light);

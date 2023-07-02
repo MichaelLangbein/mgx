@@ -21,9 +21,9 @@
 }
 
 .app .main .timeslider {
-    position: relative;
-    width: 50%;
+    position: absolute;
+    width: 200px;
     height: 5%;
-    bottom: 3rem;
-    left: 25%;
+    bottom: 5rem;
+    left: calc((100vw - 200px) / 2);
 }

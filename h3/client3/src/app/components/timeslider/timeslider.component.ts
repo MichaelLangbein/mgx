@@ -9,13 +9,17 @@ import { AvailableTimes, State, StateService } from 'src/app/services/state.serv
 })
 export class TimesliderComponent {
 
-  // public availableTimes$: Observable<AvailableTimes[]>;
-  // public currentTime$: Observable<AvailableTimes>;
-  public state$: Observable<State>;
+  public state$ = this.stateSvc.state().pipe(map(s => {
+    return {
+      ...s,
+      next: undefined,
+      previous: undefined,
+    }
+  }));
 
-  constructor(private stateSvc: StateService) {
-    // this.availableTimes$ = this.stateSvc.state().pipe(map(s => s.availableTimes));
-    // this.currentTime$ = this.stateSvc.state().pipe(map(s => s.currentTime));
-    this.state$ = this.stateSvc.state();
+  constructor(private stateSvc: StateService) {}
+
+  stepClicked(time: AvailableTimes) {
+    this.stateSvc.handleAction({ type: 'time picked', payload: { time } });
   }
 }

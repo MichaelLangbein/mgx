@@ -13,3 +13,9 @@
 .timeslider .timeStep.active {
     border: 1px solid var(--primary-medium);
 }
+
+.timeslider .timeStep.active:hover {
+    cursor: pointer;
+    background-color: var(--light-light);
+    border: 1px solid var(--primary-light);
+}

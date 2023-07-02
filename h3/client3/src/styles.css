@@ -19,8 +19,9 @@ body {
     --dark-dark: #1c1c1d;
     --light-light: #f0f0f9;
     --light-medium: #e8e8ee;
+    --primary-light: #7abbc9;
     --primary-medium: #699eaa;
-    font-family: Nunito, Arial, Helvetica, sans-serif;
+    font-family: Nunito;
     box-sizing: border-box;
     margin: 0;
 }
@@ -32,4 +33,9 @@ div {
 
 h1,  h2, h3, h4 {
     margin: 0;
+    font-family: Roboto;
+}
+
+p {
+    font-size: .8rem;
 }

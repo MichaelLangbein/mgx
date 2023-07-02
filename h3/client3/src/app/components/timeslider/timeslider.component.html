@@ -1,7 +1,13 @@
 <div class="timeslider">
     <ng-container *ngIf="state$ | async as state">
-        <div *ngFor="let time of state.availableTimes" class="timeStep" [class.active]="time === state.currentTime">
-            <p>{{ time | date: 'dd-MM-yyyy' }}</p>
+        <div [class.active]="state.previous" class="timeStep" click="stepClicked(state.previous)">
+            <<
+        </div>
+        <div class="timeStep">
+            <p>{{ state.currentTime | date: 'dd-MM-yyyy' }}</p>
+        </div>
+        <div [class.active]="state.next" class="timeStep" click="stepClicked(state.next)">
+            >>
         </div>
     </ng-container>
 </div>

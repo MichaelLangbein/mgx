@@ -65,7 +65,7 @@ export class MapComponent implements AfterViewInit {
           zoom: 13
         }),
         controls: [],
-        overlays: []    
+        overlays: [this.overlay]    
       });
 
       this.map.on('click', (evt) => {
@@ -74,13 +74,14 @@ export class MapComponent implements AfterViewInit {
         const pixel = this.map.getPixelFromCoordinate(coordinate);
 
         let feature = undefined;
-        this.layers.vector.getSource()?.forEachFeatureAtCoordinateDirect(coordinate, (f) => {
+        this.map.forEachFeatureAtPixel(pixel, (f) => {
           feature = f;
           return true;
         });
 
         if (feature) {
           const timeSeries = getTimeSeries(feature);
+          this.popup.nativeElement.innerHTML = "";
           createBarchart(this.popup.nativeElement, timeSeries, 'date', 'temperature', 400, 300);
           this.overlay.setPosition(coordinate);
         }

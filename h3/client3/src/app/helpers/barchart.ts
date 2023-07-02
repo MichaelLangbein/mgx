@@ -1,9 +1,10 @@
 import { select, pointer } from 'd3-selection';
 import { scaleBand, scaleLinear, scaleOrdinal } from 'd3-scale';
 import { axisBottom, axisLeft } from 'd3-axis';
+import { colorScale as gvColorScale } from './graph';
 
 
-function createBarchart(container: HTMLElement, timeSeries: { date: string, value: number }[], xLabel: string, yLabel: string, widthTotal: number, heightTotal: number) {
+export function createBarchart(container: HTMLElement, timeSeries: { date: string, value: number }[], xLabel: string, yLabel: string, widthTotal: number, heightTotal: number) {
 
 
     /**
@@ -77,14 +78,14 @@ function createBarchart(container: HTMLElement, timeSeries: { date: string, valu
             .attr('text-anchor', 'start')
             .attr('transform', (datum, index, elements) => {
                 const element = elements[index];
-                const deltaX = xScale(datum);
+                const deltaX = xScale(datum as string);
                 const rotation = 60;
                 const transform = `translate(${letterSize / 2}, ${letterSize / 2}) rotate(${rotation})`;
                 return transform;
             })
     }
-    const xAxis = graph.select('.xAxis');
-    const xAxisSize = xAxis.node().getBBox();
+    const xAxis = graph.select<SVGGElement>('.xAxis');
+    const xAxisSize = xAxis.node()!.getBBox();
 
 
     // y-axis
@@ -100,8 +101,8 @@ function createBarchart(container: HTMLElement, timeSeries: { date: string, valu
     graph.append('g')
         .attr('class', 'yAxis')
         .call(yAxisGenerator);
-    const yAxis = graph.select('.yAxis');
-    const yAxisSize = yAxis.node().getBBox();
+    const yAxis = graph.select<SVGGElement>('.yAxis');
+    const yAxisSize = yAxis.node()!.getBBox();
 
     xAxis.attr('transform', `translate(${yAxisSize.width}, ${height - xAxisSize.height})`);
     yAxis.attr('transform', `translate(${yAxisSize.width}, 0)`);
@@ -120,7 +121,7 @@ function createBarchart(container: HTMLElement, timeSeries: { date: string, valu
 
 
 
-    const barColors: string[] = timeSeries.map(d => getColor(d.value));
+    const barColors: string[] = timeSeries.map(d => gvColorScale(d.value)).map(v => `rgb(${v.r}, ${v.g}, ${v.b})`);
     const colorScale = scaleOrdinal()
         .domain(barNames)
         .range(barColors);
@@ -138,7 +139,10 @@ function createBarchart(container: HTMLElement, timeSeries: { date: string, valu
         .attr('width', xScale.step())
         .attr('height', d => centerHeight - yScale(d.value))
         .attr('y', d => yScale(d.value))
-        .attr('fill', d => colorScale(d.label));
+        .attr('fill', d => {
+            const v = gvColorScale(d.value);
+            return `rgb(${v.r}, ${v.g}, ${v.b})`;
+        });
 
 
 
@@ -160,10 +164,10 @@ function createBarchart(container: HTMLElement, timeSeries: { date: string, valu
 
     bars.on('mouseenter', (evt, datum) => {
         infobox.style('visibility', 'visible');
-        const text = datum.hoverText ? datum.hoverText : `${yLabel}: ${datum.value}`;
+        const text = `${yLabel}: ${datum.value}`;
         infoboxP.html(text);
-        const positionInsideSvg = pointer(evt, svg.node());  // doesnt seem to work in popup
-        const positionInLayer = [evt.layerX, evt.layerY];    // doesnt seem to work in raw html
+        const positionInsideSvg = pointer(evt, svg.node());  // doesn't seem to work in popup
+        const positionInLayer = [evt.layerX, evt.layerY];    // doesn't seem to work in raw html
         let x = Math.min(positionInsideSvg[0], positionInLayer[0]);
         if (x > centerWidth / 2) {
             x -= maxWidthHoverText;
@@ -173,15 +177,20 @@ function createBarchart(container: HTMLElement, timeSeries: { date: string, valu
             .style('left', `${x}px`)
             .style('top', `${y}px`);
 
+        const rgb = gvColorScale(datum.value);
+        const fillColor = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
         bars.select('rect').attr('fill', 'lightgray');
-        select(evt.target).select('rect').attr('fill', colorScale(datum.label));
+        select(evt.target).select('rect').attr('fill', fillColor);
         xAxis.selectAll('text').attr('color', 'lightgray');
-        const n = xAxis.selectAll('text').nodes().find(n => n.innerHTML === datum.label);
+        const n = xAxis.selectAll('text').nodes()!.find((n: any) => n.innerHTML === datum.date)!;
         select(n).attr('color', 'black');
     })
-        .on('mouseleave', (evt, datum) => {
-            infobox.style('visibility', 'hidden');
-            bars.selectAll('rect').attr('fill', d => colorScale(d.label));
-            xAxis.selectAll('text').attr('color', 'currentColor'); // 'hsl(198deg, 0%, 40%)'); // = --clr-global-font-color
+    .on('mouseleave', (evt, datum) => {
+        infobox.style('visibility', 'hidden');
+        bars.selectAll('rect').attr('fill', (d: any) => {
+            const v = gvColorScale(d.value);
+            return `rgb(${v.r}, ${v.g}, ${v.b})`;
         });
+        xAxis.selectAll('text').attr('color', 'currentColor');
+    });
 }

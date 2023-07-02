@@ -17,6 +17,7 @@ import {
 } from '@angular/core';
 
 import * as data from '../../data/buildings_analyzed.geo.json';
+import { createBarchart } from 'src/app/helpers/barchart';
 
 
 @Component({
@@ -65,6 +66,28 @@ export class MapComponent implements AfterViewInit {
         }),
         controls: [],
         overlays: []    
+      });
+
+      this.map.on('click', (evt) => {
+
+        const coordinate = evt.coordinate;
+        const pixel = this.map.getPixelFromCoordinate(coordinate);
+
+        let feature = undefined;
+        this.layers.vector.getSource()?.forEachFeatureAtCoordinateDirect(coordinate, (f) => {
+          feature = f;
+          return true;
+        });
+
+        if (feature) {
+          const timeSeries = getTimeSeries(feature);
+          createBarchart(this.popup.nativeElement, timeSeries, 'date', 'temperature', 400, 300);
+          this.overlay.setPosition(coordinate);
+        }
+        else {
+          this.overlay.setPosition(undefined);
+        }
+
       });
   }
 

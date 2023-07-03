@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 
 
 Distance = 0.5 # [m]
-Time = 3 * 24 * 60 * 60 # [s]
+Time = 5 * 60 * 60 # [s]
 timeSteps = 1000000
 spaceSteps = 100
 dx = Distance / spaceSteps
@@ -37,17 +37,18 @@ ts = np.arange(0, Time, dt)
 
 tRoom = 20 + 273 # [°K]
 def tOutside(time):   #  = 10 + 273 # [°K]
-    amplitude = 2.5
-    meanTemp = 10 + 273
-    cyclesPerSecond = 2.0 * np.pi / (24 * 60 * 60)
-    return amplitude * np.sin(time * cyclesPerSecond) + meanTemp
+    return 0 + 273
+    # amplitude = 2.5
+    # meanTemp = 10 + 273
+    # cyclesPerSecond = 2.0 * np.pi / (24 * 60 * 60)
+    # return amplitude * np.sin(time * cyclesPerSecond) + meanTemp
 
 wallStart = int(0.3 * spaceSteps)
 wallEnd = int(0.7 * spaceSteps)
 
 temp0 = np.zeros((spaceSteps))
 temp0[:wallStart] = tRoom
-temp0[wallStart:wallEnd] = tOutside(0)
+temp0[wallStart:wallEnd] = np.linspace(tRoom, tOutside(0), wallEnd - wallStart)
 temp0[wallEnd:] = tOutside(0)
 
 
@@ -96,7 +97,7 @@ def dTempdt(tempBefore, time):
 
     dTdt = alpha * (tempShiftL - 2 * tempBefore + tempShiftR) / (dx**2)
 
-    # accounting for radiation
+    # accounting for radiation @TODO: how about *in*coming radiation? Probably stronger than outgoing.
     dTdt -= beta * np.power(tempBefore, 4)
 
     return dTdt
@@ -164,4 +165,24 @@ ani.save("movie.gif")
 plt.show()
 
 # %%
+hours = Time * ts / timeSteps / 60
+tWallInside  = [temp[wallStart] - 273 for temp in temps]
+tWallOutside = [temp[wallEnd] - 273 for temp in temps]
+deltaT = np.round(tWallInside[-1] - (tRoom-273), 2)
+plt.plot(hours[:-1], tWallInside, label="T_{inside}",   color=(0.5, 0.125, 0.125))
+plt.plot(hours[:-1], tWallOutside, label="T_{outside}", color=(0.125, 0.125, 0.5))
+plt.xlabel("time [h]")
+plt.ylabel("temperature [°C]")
+plt.suptitle(f"Conductivity = {thermalConductivityConcrete}, \delta T = {deltaT}")
+plt.legend()
+
+# %%
+# deltaT = np.round(tWallInside[-1] - (tRoom-273), 2)
+# plt.plot(hours[:-1], tWallInside, label="cond 0.05")
+# plt.plot(hours[:-1], tWallInside1, label="cond 0.1")
+# plt.plot(hours[:-1], tWallInside0, label="cond 0.92")
+# plt.xlabel("time [h]")
+# plt.ylabel("temperature [°C]")
+# plt.suptitle("Temperature wall inside")
+# plt.legend()
 # %%

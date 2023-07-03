@@ -24,7 +24,7 @@ pixelData = pixelDataTif.read(1)
 plt.imshow(pixelData)
 
 # %%
-buildings = readGeoJson("../client3/src/app/data/buildings_analyzed.geo.json")
+buildings = readGeoJson("../client2/src/buildings_analyzed.geo.json")
 
 
 # %%

@@ -101,6 +101,9 @@ def tifGetPixels(fh, r0, r1, c0, c1, channels=None):
     subset = fh.read(channels, window=window)
     return subset
 
+def tifGetPixelSize(fh):
+    pass
+
 def rasterizeGeojson(geojson, bbox, imgShape):
 
     if len(geojson["features"]) == 0:

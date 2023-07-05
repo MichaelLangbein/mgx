@@ -62,7 +62,13 @@ for building in osmData["buildings"]:
     percentages = getLandCoverPercentages(osmData, bbox, pixelData[0].shape)
     lsts = estimateLst(pixelData, percentages)
 
-    lstInside  = getMeanInside(lsts, outline, percentages["buildings"])
-    lstOutside = getMeanOutside(lsts, outline, 1 - percentages["buildings"])
-    deltaT = lstInside - lstOutside
+    lstsInside  = [
+        getInside(lst, outline) * percentages["buildings"] 
+        for lst in lsts
+    ]
+    lstsOutside = [
+        getOutside(lst, outline) * (1 - percentages["buildings"]) 
+        for lst in lsts
+    ]
+    deltaT = mean(lstInside - lstOutside)
 

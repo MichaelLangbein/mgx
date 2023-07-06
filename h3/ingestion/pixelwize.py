@@ -69,30 +69,46 @@ for dir in os.listdir(pathToLs8Data):
 distance = 2 * getMaxPixelSize(scenes[0]["b10"])
 
 
+i = 0
+deltaTsGlobal = {}
 for building in osmData:
+    print(f"Building {i}...")
+    i += 1
 
-    shp      = shape(building["geometry"])
-    outline  = shp.exterior
-    boutline = shp.buffer(distance)
-    bbox     = boutline.bounds
+    try:
+        buildingGeometry = building["geometry"]
+        shp              = shape(buildingGeometry)
+        outline          = shp.exterior
+        boutline         = shp.buffer(distance)
+        bbox             = boutline.bounds
 
-    neighboringBuildings = [building for building in osmData.filter(bbox=bbox)]
-    neighborGeometries = [b["geometry"] for b in neighboringBuildings]
+        neighboringBuildings = [building for building in osmData.filter(bbox=bbox)]
+        neighborGeometries   = [b["geometry"] for b in neighboringBuildings]
 
-    deltaTs = []
-    for scene in scenes:
-        meta                  = readJson(scene["meta"])
-        b10                   = getPixelData(scene["b10"], bbox)[0]
-        qa                    = getPixelData(scene["qa"], bbox)[0]
-        buildingFraction      = pixelizeCoverageFraction(neighborGeometries, bbox, b10.shape)
-        lst                   = estimateLst(b10, qa, meta, buildingFraction)
-        lstInside, lstOutside = splitAlong(lst, bbox, shp)
-        deltaT                = np.nanmean(lstInside) - np.nanmean(lstOutside)
-        deltaTs.append(deltaT)
+        deltaTs = {}
+        for scene in scenes:
+            meta                  = readJson(scene["meta"])
+            b10                   = getPixelData(scene["b10"], bbox)[0]
+            qa                    = getPixelData(scene["qa"], bbox)[0]
+            
+            neighborhoodFraction  = pixelizeCoverageFraction(neighborGeometries, bbox, b10.shape)
+            lst                   = estimateLst(b10, qa, meta, neighborhoodFraction)
+            
+            buildingFraction      = pixelizeCoverageFraction([buildingGeometry], bbox, b10.shape)
+            buildingFractionNorm  = buildingFraction / np.sum(buildingFraction)
+            nrHouses              = 1
+            nrNonHouses           = buildingFractionNorm.size - nrHouses
+            tMeanInside           = np.sum(lst * buildingFractionNorm) / nrHouses
+            tMeanOutside          = np.sum(lst * (1.0 - buildingFractionNorm)) / nrNonHouses
+            deltaT                = tMeanInside - tMeanOutside
 
+            if deltaT != np.nan:
+                deltaTs[meta["LANDSAT_METADATA_FILE"]["PRODUCT_CONTENTS"]["LANDSAT_PRODUCT_ID"]] = deltaT
 
-    break
+        deltaTsGlobal[building.id] = deltaTs
 
+    except Exception as e:
+        print(e)
 
-plt.plot(np.mean(deltaT))
-# %%
+#%%
+

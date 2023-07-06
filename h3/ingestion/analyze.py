@@ -120,6 +120,7 @@ def bt2lstSplitWindow(toaBT10, toaBT11, emissivity10, emissivity11, cwv = None):
     lst = term0 + term1 + term2 + term3
     return lst
 
+
 def emissivityFromNDVI(valuesNIR, valuesRed):
     # NDVI:
     # -1.0 ... 0.0 :  water

@@ -28,7 +28,7 @@ Micro
 Radio
 """
 
-# Top: high wavelength, low endergy
+# Top: high wavelength, low energy
 lambda_radio_start = 1000000
 lambda_radio_end   = 1  # [m]
 lambda_micro_start = lambda_radio_end

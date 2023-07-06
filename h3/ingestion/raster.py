@@ -101,8 +101,14 @@ def tifGetPixels(fh, r0, r1, c0, c1, channels=None):
     subset = fh.read(channels, window=window)
     return subset
 
-def tifGetPixelSize(fh):
-    pass
+def tifGetPixelSizeDegrees(fh):
+    # return fh.res <-- always returns in units of own coordinate system, which here would be meters
+    (lonMin, latMin, lonMax, latMax) = tifGetGeoExtent(fh)
+    (height, width) = tifGetPixelRowsCols(fh)
+    sizeW = (lonMax - lonMin) / width
+    sizeH = (latMax - latMin) / height
+    return sizeH, sizeW
+
 
 def rasterizeGeojson(geojson, bbox, imgShape):
 

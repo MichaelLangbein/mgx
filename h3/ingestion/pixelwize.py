@@ -35,16 +35,17 @@ def pixelizeCoverageFraction(geometries, bbox, shape):
     percentage = rasterizePercentage(geometries, dbox, shape)
     return percentage / 100
 
-def estimateLst(b10, qa, meta, buildingFraction):
+def estimateLst(b10, qa, meta, buildingFraction, roadFraction):
     noDataValue = -9999
     vegetationEmissivity = 0.973
-    buildingEmissivity   = 0.979  # guestimate ;)
+    buildingEmissivity   = 0.932  # https://pure.tudelft.nl/ws/files/95823567/1_s2.0_S221209552100167X_main.pdf
+    roadEmissivity       = 0.945
 
     b10NoClouds = extractClouds(b10, qa, noDataValue)
     toaRadiance = scaleBandData(b10NoClouds, 10, meta)
     noDataMask = (toaRadiance == noDataValue)
     toaBT = radiance2BrightnessTemperature(toaRadiance, meta)
-    emissivity = buildingFraction * buildingEmissivity + (1 - buildingFraction) * vegetationEmissivity
+    emissivity = buildingFraction * buildingEmissivity + roadsFraction * roadEmissivity + (1 - buildingFraction - roadsFraction) * vegetationEmissivity
     lst = bt2lstSingleWindow(toaBT - 273, emissivity)
     lst = np.where(noDataMask, np.nan, lst)
     return lst
@@ -58,11 +59,13 @@ def splitAlong(data, bbox, outline):
 
 
 
-pathToLs8Data = "./ls8"
+pathToLs8Data          = "./ls8"
 pathToOsmDataBuildings = "./osm/buildings.geo.json"
+pathToOsmDataRoads     = "./osm/roads.geo.json"
 
 
-osmData = fiona.open(pathToOsmDataBuildings)
+buildingData = fiona.open(pathToOsmDataBuildings)
+roadData = fiona.open(pathToOsmDataRoads)
 scenes = []
 for dir in os.listdir(pathToLs8Data):
     if dir[-3:] != "tar":
@@ -74,54 +77,53 @@ for dir in os.listdir(pathToLs8Data):
 distance = 2 * getMaxPixelSize(scenes[0]["b10"])
 
 
-deltaTsGlobal = {}
-buildings = [bld for bld in osmData]
-for i, building in enumerate(buildings):
-    print(f"... {100 * i / len(buildings)}% ...")
-
-    buildingGeometry = building["geometry"]
-    shp              = shape(buildingGeometry)
-    outline          = shp.exterior
-    boutline         = shp.buffer(distance)
-    bbox             = boutline.bounds
-
-    neighboringBuildings = [b for b in osmData.filter(bbox=bbox)]
-    neighborGeometries   = [b["geometry"] for b in neighboringBuildings]
-
-    data = {}
-    for scene in scenes:
-        meta                  = readJson(scene["meta"])
-        b10                   = getPixelData(scene["b10"], bbox)[0]
-        qa                    = getPixelData(scene["qa"], bbox)[0]
-        
-        # @TODO: for emissivity, also account for roads; not only just other buildings
-        neighborhoodFraction  = pixelizeCoverageFraction(neighborGeometries, bbox, b10.shape)
-        lst                   = estimateLst(b10, qa, meta, neighborhoodFraction)
-        
-        buildingFraction      = pixelizeCoverageFraction([buildingGeometry], bbox, b10.shape)
-        buildingFractionNorm  = buildingFraction / np.sum(buildingFraction)
-        nrHouses              = 1
-        nrNonHouses           = buildingFractionNorm.size - nrHouses
-        tMeanInside           = np.sum(lst * buildingFractionNorm) / nrHouses
-        tMeanOutside          = np.sum(lst * (1.0 - buildingFractionNorm)) / nrNonHouses
-        deltaT                = tMeanInside - tMeanOutside
-
-        if not np.isnan(deltaT):
-            data[meta["LANDSAT_METADATA_FILE"]["PRODUCT_CONTENTS"]["LANDSAT_PRODUCT_ID"]] = deltaT
-
-    deltaTsGlobal[building.id] = data
-
-
-print("Done!")
-#%%
 with open("deltaTs.csv", "w") as dest:
     fields = ["buildingId"] + [p for p in os.listdir(pathToLs8Data) if p[-3:] != "tar"]
     writer = csv.DictWriter(dest, fieldnames=fields)
     writer.writeheader()
-    for bId in deltaTsGlobal:
-        data = deltaTsGlobal[bId]
-        data["buildingId"] = bId
+
+    buildings = [bld for bld in buildingData]
+    for i, building in enumerate(buildings):
+        print(f"... {100 * i / len(buildings)}% ...")
+        if i > 2:
+            break
+
+        buildingGeometry = building["geometry"]
+        shp              = shape(buildingGeometry)
+        outline          = shp.exterior
+        boutline         = shp.buffer(distance)
+        bbox             = boutline.bounds
+
+        neighboringBuildings = [b for b in buildingData.filter(bbox=bbox)]
+        neighborGeometries   = [b["geometry"] for b in neighboringBuildings]
+        neighborRoads        = [shape(r["geometry"]).buffer(0.06 * distance) for r in roadData.filter(bbox=bbox)]
+
+        data = {}
+        for scene in scenes:
+            meta                  = readJson(scene["meta"])
+            b10                   = getPixelData(scene["b10"], bbox)[0]
+            qa                    = getPixelData(scene["qa"], bbox)[0]
+            
+            # @TODO: for emissivity, also account for roads; not only just other buildings
+            neighborhoodFraction  = pixelizeCoverageFraction(neighborGeometries, bbox, b10.shape)
+            roadsFraction         = pixelizeCoverageFraction(neighborRoads, bbox, b10.shape)
+            lst                   = estimateLst(b10, qa, meta, neighborhoodFraction, roadsFraction)
+            
+            buildingFraction      = pixelizeCoverageFraction([buildingGeometry], bbox, b10.shape)
+            buildingFractionNorm  = buildingFraction / np.sum(buildingFraction)
+            nrHouses              = 1
+            nrNonHouses           = buildingFractionNorm.size - nrHouses
+            tMeanInside           = np.sum(lst * buildingFractionNorm) / nrHouses
+            tMeanOutside          = np.sum(lst * (1.0 - buildingFractionNorm)) / nrNonHouses
+            deltaT                = tMeanInside - tMeanOutside
+
+            if not np.isnan(deltaT):
+                data[meta["LANDSAT_METADATA_FILE"]["PRODUCT_CONTENTS"]["LANDSAT_PRODUCT_ID"]] = deltaT
+
+        data["buildingId"] = building.id
         writer.writerow(data)
 
+
+print("Done!")
 
 # %%

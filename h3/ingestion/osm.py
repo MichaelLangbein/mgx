@@ -31,13 +31,33 @@ def nodeToPoly(node):
         "properties" : properties,
     }
 
-def osmToGeojson(data, saveFreeNodes=False):
+def nodeToLineString(way):
+    coordinates = [[e["lon"], e["lat"]] for e in way["geometry"]]
+    properties = way["tags"] if "tags" in way else {}
+    properties["id"] = way["id"]
+    return {
+        "type": "Feature",
+        "geometry" : {
+            "type": "LineString",
+            "coordinates": coordinates,
+            },
+        "properties" : properties,
+    }
+
+
+def osmToGeojson(data, format="polygon", saveFreeNodes=False):
     elements = data["elements"]
 
     try: 
         ways =  [e for e in elements if e["type"] == "way"]
-        polygons = [nodeToPoly(n) for n in ways]
-        features = polygons
+        if format == "polygon":
+            polygons = [nodeToPoly(way) for way in ways]
+            features = polygons
+        elif format == "linestring":
+            lineStrings = [nodeToLineString(way) for way in ways]
+            features = lineStrings
+        else:
+            raise Exception(f"Unknown format: {format}")
     except Exception as e:
         print(e)
 
@@ -61,7 +81,8 @@ def osmToGeojson(data, saveFreeNodes=False):
     }
     return json
 
-def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=True, getWater=True):
+
+def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=True, getWater=True, getRoads=True):
     overpass_url = "http://overpass-api.de/api/interpreter"
 
     lonMin = bbox["lonMin"]
@@ -98,6 +119,12 @@ def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=Tru
             relation[natural=water]( {stringifiedBbox} );
         );
         (._;>;);
+        out geom;
+    """
+
+    roadQuery = f"""
+        [out:json];
+        way["highway"]( {stringifiedBbox} );
         out geom;
     """
 
@@ -139,6 +166,17 @@ def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=Tru
             with open(filePath, 'w') as fh:
                 json.dump(geojson, fh, indent=4)
 
+    if getRoads:
+        response = req.get(overpass_url, params={'data': roadQuery})
+        data = response.json()
+        geojson = osmToGeojson(data, "linestring")
+        fullData["roads"] = geojson
+
+        if saveToDirPath is not None:
+            filePath = os.path.join(saveToDirPath, 'roads.geo.json')
+            with open(filePath, 'w') as fh:
+                json.dump(geojson, fh, indent=4)
+
     return fullData
 
 
@@ -148,5 +186,4 @@ def downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=Tru
 
 if __name__ == "__main__":
     bbox = { "lonMin": 11.214, "latMin": 48.064, "lonMax": 11.338, "latMax": 48.117 }
-    data = downloadAndSaveOSM(bbox, saveToDirPath=None, getBuildings=True, getTrees=False, getWater=False)
-    buildings = data["buildings"]
+    data = downloadAndSaveOSM(bbox, saveToDirPath="./", getBuildings=False, getTrees=False, getWater=False, getRoads=True)

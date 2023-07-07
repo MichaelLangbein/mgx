@@ -127,10 +127,15 @@ with open("deltaTs.csv", "w") as dest:
 print("Done!")
 
 # %%
+import json
+import csv
+
 f = open("./osm/buildings.geo.json")
 jsondata = json.load(f)
-f = open("./deltaTs.csv")
+f = open("./outputs/deltaTs.csv")
 reader = csv.DictReader(f)
+
+newData = {"type": "FeatureCollection", "features": []}
 
 def find(arr, func):
     for el in arr:
@@ -139,12 +144,13 @@ def find(arr, func):
 
 for row in reader:
     id = row["buildingId"]
-    feature = find(jsondata["features"], lambda f: f["properties"]["id"] == id)
+    feature = find(jsondata["features"], lambda f: f["properties"]["id"] == int(id))
     if feature:
         feature["properties"]["deltaTs"] = row
+        newData["features"].append(feature)
 
 
 f = open("./buildings.geojson", "w")
-json.dump(jsondata, f)
+json.dump(newData, f, indent=4)
     
 # %%

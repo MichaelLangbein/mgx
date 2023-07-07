@@ -75,6 +75,7 @@ for dir in os.listdir(pathToLs8Data):
             "meta":  f"{pathToLs8Data}/{dir}/{dir}_MTL.json"
         })
 distance = 2 * getMaxPixelSize(scenes[0]["b10"])
+roadSize = 0.01 * distance
 
 
 with open("deltaTs.csv", "w") as dest:
@@ -85,7 +86,7 @@ with open("deltaTs.csv", "w") as dest:
     buildings = [bld for bld in buildingData]
     for i, building in enumerate(buildings):
         print(f"... {100 * i / len(buildings)}% ...")
-        if i > 2:
+        if i > 500:
             break
 
         buildingGeometry = building["geometry"]
@@ -96,7 +97,7 @@ with open("deltaTs.csv", "w") as dest:
 
         neighboringBuildings = [b for b in buildingData.filter(bbox=bbox)]
         neighborGeometries   = [b["geometry"] for b in neighboringBuildings]
-        neighborRoads        = [shape(r["geometry"]).buffer(0.06 * distance) for r in roadData.filter(bbox=bbox)]
+        neighborRoads        = [shape(r["geometry"]).buffer(roadSize) for r in roadData.filter(bbox=bbox)]
 
         data = {}
         for scene in scenes:
@@ -104,10 +105,9 @@ with open("deltaTs.csv", "w") as dest:
             b10                   = getPixelData(scene["b10"], bbox)[0]
             qa                    = getPixelData(scene["qa"], bbox)[0]
             
-            # @TODO: for emissivity, also account for roads; not only just other buildings
-            neighborhoodFraction  = pixelizeCoverageFraction(neighborGeometries, bbox, b10.shape)
+            housesFraction        = pixelizeCoverageFraction(neighborGeometries, bbox, b10.shape)
             roadsFraction         = pixelizeCoverageFraction(neighborRoads, bbox, b10.shape)
-            lst                   = estimateLst(b10, qa, meta, neighborhoodFraction, roadsFraction)
+            lst                   = estimateLst(b10, qa, meta, housesFraction, roadsFraction)
             
             buildingFraction      = pixelizeCoverageFraction([buildingGeometry], bbox, b10.shape)
             buildingFractionNorm  = buildingFraction / np.sum(buildingFraction)

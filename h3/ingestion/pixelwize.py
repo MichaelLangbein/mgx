@@ -1,6 +1,7 @@
 #%%
 import os
 import json
+import csv
 import numpy as np
 import fiona
 from shapely.geometry import shape
@@ -9,6 +10,8 @@ import matplotlib.pyplot as plt
 from raster import readTif, tifGetPixelSizeDegrees, tifGetBbox
 from vectorAndRaster import rasterizePercentage
 from analyze import extractClouds, scaleBandData, radiance2BrightnessTemperature, bt2lstSingleWindow
+
+np.seterr(all="ignore")
 
 
 def readJson(path):
@@ -53,6 +56,8 @@ def splitAlong(data, bbox, outline):
     return inside, outside 
 
 
+
+
 pathToLs8Data = "./ls8"
 pathToOsmDataBuildings = "./osm/buildings.geo.json"
 
@@ -69,46 +74,54 @@ for dir in os.listdir(pathToLs8Data):
 distance = 2 * getMaxPixelSize(scenes[0]["b10"])
 
 
-i = 0
 deltaTsGlobal = {}
-for building in osmData:
-    print(f"Building {i}...")
-    i += 1
+buildings = [bld for bld in osmData]
+for i, building in enumerate(buildings):
+    print(f"... {100 * i / len(buildings)}% ...")
 
-    try:
-        buildingGeometry = building["geometry"]
-        shp              = shape(buildingGeometry)
-        outline          = shp.exterior
-        boutline         = shp.buffer(distance)
-        bbox             = boutline.bounds
+    buildingGeometry = building["geometry"]
+    shp              = shape(buildingGeometry)
+    outline          = shp.exterior
+    boutline         = shp.buffer(distance)
+    bbox             = boutline.bounds
 
-        neighboringBuildings = [building for building in osmData.filter(bbox=bbox)]
-        neighborGeometries   = [b["geometry"] for b in neighboringBuildings]
+    neighboringBuildings = [b for b in osmData.filter(bbox=bbox)]
+    neighborGeometries   = [b["geometry"] for b in neighboringBuildings]
 
-        deltaTs = {}
-        for scene in scenes:
-            meta                  = readJson(scene["meta"])
-            b10                   = getPixelData(scene["b10"], bbox)[0]
-            qa                    = getPixelData(scene["qa"], bbox)[0]
-            
-            neighborhoodFraction  = pixelizeCoverageFraction(neighborGeometries, bbox, b10.shape)
-            lst                   = estimateLst(b10, qa, meta, neighborhoodFraction)
-            
-            buildingFraction      = pixelizeCoverageFraction([buildingGeometry], bbox, b10.shape)
-            buildingFractionNorm  = buildingFraction / np.sum(buildingFraction)
-            nrHouses              = 1
-            nrNonHouses           = buildingFractionNorm.size - nrHouses
-            tMeanInside           = np.sum(lst * buildingFractionNorm) / nrHouses
-            tMeanOutside          = np.sum(lst * (1.0 - buildingFractionNorm)) / nrNonHouses
-            deltaT                = tMeanInside - tMeanOutside
+    data = {}
+    for scene in scenes:
+        meta                  = readJson(scene["meta"])
+        b10                   = getPixelData(scene["b10"], bbox)[0]
+        qa                    = getPixelData(scene["qa"], bbox)[0]
+        
+        # @TODO: for emissivity, also account for roads; not only just other buildings
+        neighborhoodFraction  = pixelizeCoverageFraction(neighborGeometries, bbox, b10.shape)
+        lst                   = estimateLst(b10, qa, meta, neighborhoodFraction)
+        
+        buildingFraction      = pixelizeCoverageFraction([buildingGeometry], bbox, b10.shape)
+        buildingFractionNorm  = buildingFraction / np.sum(buildingFraction)
+        nrHouses              = 1
+        nrNonHouses           = buildingFractionNorm.size - nrHouses
+        tMeanInside           = np.sum(lst * buildingFractionNorm) / nrHouses
+        tMeanOutside          = np.sum(lst * (1.0 - buildingFractionNorm)) / nrNonHouses
+        deltaT                = tMeanInside - tMeanOutside
 
-            if deltaT != np.nan:
-                deltaTs[meta["LANDSAT_METADATA_FILE"]["PRODUCT_CONTENTS"]["LANDSAT_PRODUCT_ID"]] = deltaT
+        if not np.isnan(deltaT):
+            data[meta["LANDSAT_METADATA_FILE"]["PRODUCT_CONTENTS"]["LANDSAT_PRODUCT_ID"]] = deltaT
 
-        deltaTsGlobal[building.id] = deltaTs
+    deltaTsGlobal[building.id] = data
 
-    except Exception as e:
-        print(e)
 
+print("Done!")
 #%%
+with open("deltaTs.csv", "w") as dest:
+    fields = ["buildingId"] + [p for p in os.listdir(pathToLs8Data) if p[-3:] != "tar"]
+    writer = csv.DictWriter(dest, fieldnames=fields)
+    writer.writeheader()
+    for bId in deltaTsGlobal:
+        data = deltaTsGlobal[bId]
+        data["buildingId"] = bId
+        writer.writerow(data)
 
+
+# %%

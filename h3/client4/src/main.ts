@@ -32,6 +32,7 @@ const cogLayer = new WGLTileLayer({
     sources: [{ url: "/public/lst_2020-11-17%2010:04:26.7534760Z.tif" }]
   }),
   style: {
+    // https://openlayers.org/workshop/en/cog/ndvi.html
     color: [
       'interpolate',
       ['linear'],
@@ -41,7 +42,8 @@ const cogLayer = new WGLTileLayer({
       0.05,  [256, 256, 256]
     ]
   },
-  // visible: false
+  opacity: 0.6,
+  visible: false
 })
 
 

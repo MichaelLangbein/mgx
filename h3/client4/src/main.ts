@@ -2,15 +2,16 @@ import './style.css';
 import 'ol/ol.css';
 import { Map, Overlay, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
+import WGLTileLayer from 'ol/layer/WebGLTile';
 import OSM from 'ol/source/OSM';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
-import data from './buildings.geo.json';
 import Style from 'ol/style/Style';
 import Fill from 'ol/style/Fill';
 import { FeatureLike } from 'ol/Feature';
-
+import { GeoTIFF } from 'ol/source';
+import vectorData from './buildings_temperature.geo.json';
 
 
 const appDiv = document.getElementById("app") as HTMLDivElement;
@@ -19,14 +20,36 @@ const popupDiv = document.getElementById("popup") as HTMLDivElement;
 
 
 const baseLayer = new TileLayer({
-  source: new OSM()
+  source: new OSM({
+    // url: "https://tile-{a-c}.openstreetmap.fr/hot/{z}/{x}/{y}.png"
+  }),
+  className: 'bw',
+  opacity: 0.7
 });
+
+const cogLayer = new WGLTileLayer({
+  source: new GeoTIFF({
+    sources: [{ url: "/public/lst_2020-11-17%2010:04:26.7534760Z.tif" }]
+  }),
+  style: {
+    color: [
+      'interpolate',
+      ['linear'],
+      ['band', 1],
+      -0.05,  [0, 0, 0],
+      0.0,  [125, 125, 125],
+      0.05,  [256, 256, 256]
+    ]
+  },
+  // visible: false
+})
+
 
 const vectorLayer = new VectorLayer({
   source: new VectorSource({
-    features: new GeoJSON().readFeatures(data)
+    features: new GeoJSON().readFeatures(vectorData)
   }),
-  style: (feature, resoltion) => {
+  style: (feature, resolution) => {
     const mean = featureMeanDeltaT(feature);
 
     const maxVal = 2.0;
@@ -41,7 +64,7 @@ const vectorLayer = new VectorLayer({
   }
 })
 
-const layers = [baseLayer, vectorLayer];
+const layers = [baseLayer, cogLayer, vectorLayer];
 
 const view = new View({
   center: [11.3, 48.08],
@@ -78,15 +101,18 @@ map.on("click", (evt) => {
 
 function featureMeanDeltaT(feature: FeatureLike) {
   const props = feature.getProperties();
-  const deltaTs = props["deltaTs"];
+  const deltaTs = props["temperature"];
   let sum = 0;
   let count = 0;
-  for (const [key, value] of Object.entries(deltaTs)) {
-    if (value && value !== "") {
-      const val = parseFloat(value as string);
+  for (const [time, values] of Object.entries(deltaTs)) {
+      const tMeanInside = (values as any)["tMeanInside"];
+      const tMeanOutside = (values as any)["tMeanOutside"];
+      if (tMeanInside === "NaN" || tMeanOutside === "NaN") continue;
+      const tIn = parseFloat(tMeanInside as string);
+      const tOut = parseFloat(tMeanOutside as string);
+      const val = tIn - tOut;
       sum += val;
       count += 1;
-    }
   }
   const mean = sum / count;
   return mean;

@@ -112,8 +112,13 @@ else:
     saveRaster("./results/roads.tif", roadsFraction, bbox, {})
 
 #%%
-buildingData = {}
+
+sceneNr = 0
+buildingTemperatureData = {}
 for scene in scenes:
+    print(f"Scene {sceneNr} ...")
+    sceneNr += 1
+
     meta      = readJson(scene["meta"])
     dateTime  = getDateTime(meta)
     b10       = getPixelData(scene["b10"], bbox)[0]
@@ -121,29 +126,39 @@ for scene in scenes:
     lst       = estimateLst(b10, qa, meta, housesFraction, roadsFraction)
     lstTif    = saveRaster(f"./results/lst_{dateTime}.tif", lst, bbox, {"dateTime": dateTime})    
 
+    buildingNr = 0
     for building in buildingData:
-        buildingId        = building.id
-        buildingGeometry  = building["geometry"]
-        shp               = shape(buildingGeometry)
-        outline           = shp.exterior
-        boutline          = shp.buffer(distance)
-        buildingBbox      = boutline.bounds
-        lstAroundBuilding = tifGetBbox(lstTif, buildingBbox)
+        print(f" ... scene {sceneNr}: building {buildingNr} ...")
+        buildingNr += 1
 
-        buildingFraction      = pixelizeCoverageFraction([buildingGeometry], buildingBbox, b10.shape)
-        buildingFractionNorm  = buildingFraction / np.sum(buildingFraction)
-        nrHouses              = 1
-        nrNonHouses           = buildingFractionNorm.size - nrHouses
-        tMeanInside           = np.sum(lstAroundBuilding * buildingFractionNorm) / nrHouses
-        tMeanOutside          = np.sum(lstAroundBuilding * (1.0 - buildingFractionNorm)) / nrNonHouses
-        
-        if buildingId not in buildingData:
-            buildingData[buildingId] = {}
-        buildingData[buildingId][dateTime] = {
-            "tMeanInside": tMeanInside,
-            "tMeanOutside": tMeanOutside
-        }
+        try:    
 
+            buildingId          = building.id
+            buildingGeometry    = building["geometry"]
+            shp                 = shape(buildingGeometry)
+            outline             = shp.exterior
+            boutline            = shp.buffer(distance)
+            loMn,laMn,loMx,laMx = boutline.bounds
+            buildingBbox        = {"lonMin": loMn, "latMin": laMn, "lonMax": loMx, "latMax": laMx}
+            lstAroundBuilding   = tifGetBbox(lstTif, buildingBbox)[0]
+
+            # @TODO: there's probably a more efficient thing than `pixelize`
+            buildingFraction      = pixelizeCoverageFraction([buildingGeometry], buildingBbox, lstAroundBuilding.shape)
+            buildingFractionNorm  = buildingFraction / np.sum(buildingFraction)
+            nrHouses              = 1
+            nrNonHouses           = buildingFractionNorm.size - nrHouses
+            tMeanInside           = np.sum(lstAroundBuilding * buildingFractionNorm) / nrHouses
+            tMeanOutside          = np.sum(lstAroundBuilding * (1.0 - buildingFractionNorm)) / nrNonHouses
+            
+            if buildingId not in buildingTemperatureData:
+                buildingTemperatureData[buildingId] = {}
+            buildingTemperatureData[buildingId][dateTime] = {
+                "tMeanInside": tMeanInside,
+                "tMeanOutside": tMeanOutside
+            }
+
+        except Exception as e:
+            print(e)
 
 
 
@@ -157,12 +172,13 @@ def find(arr, func):
         if func(el):
             return el
 
-for buildingId in buildingData:
+for buildingId in buildingTemperatureData:
     originalFeature = find(originalBuildings["features"], lambda f: f["properties"]["id"] == int(buildingId))
     if originalFeature:
-        originalFeature["properties"]["temperature"] = buildingData[buildingId]
+        originalFeature["properties"]["temperature"] = buildingTemperatureData[buildingId]
         newDataBuildings["features"].append(originalFeature)
 
-f = open("./buildings_temperature.geojson", "w")
-json.dump(newDataBuildings, f, indent=4)
 
+with open("./results/buildings_temperature.geojson", "w") as f:
+    json.dump(newDataBuildings, f, indent=4)
+# %%

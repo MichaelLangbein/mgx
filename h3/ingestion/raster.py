@@ -69,7 +69,7 @@ def saveToTif(targetFilePath: str, data: np.ndarray, crs: str, transform, noData
     with rio.open(targetFilePath, 'w', **options) as dst:
         dst.write(data, 1)
         if extraProps:
-            dst.update_tags(*extraProps)
+            dst.update_tags(**extraProps)
 
 
 def saveToCOG(targetFilePath: str, data: np.ndarray, crs: str, transform, noDataVal, mode="copy", extraProps=None):
@@ -103,7 +103,7 @@ def saveToCOG(targetFilePath: str, data: np.ndarray, crs: str, transform, noData
             dst.write(data, 1)
             dst.build_overviews([2, 4, 8], rio.enums.Resampling.nearest)
             if extraProps:
-                dst.update_tags(*extraProps)
+                dst.update_tags(**extraProps)
     
     else:
         raise Exception(f"Unknown save-mode: '{mode}'. Only know 'copy' and 'direct'.")

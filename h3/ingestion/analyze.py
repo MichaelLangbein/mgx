@@ -1,7 +1,8 @@
 #%%
 import numpy as np
 import json
-from raster import readTif, tifGetBbox, saveToTif, makeTransform, rasterizeGeojson
+from raster import readTif, tifGetBbox, saveToTif, makeTransform
+from vectorAndRaster import rasterizeGeojson
 from rasterio import CRS
 from inspect import getsourcefile
 from os.path import abspath, dirname

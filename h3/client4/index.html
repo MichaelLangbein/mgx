@@ -10,12 +10,26 @@
     <div id="app"></div>
     <div id="popup"></div>
     <div id="control">
-      <div class="modeselect">
-        <input type="radio"> <p>mean</p>
+
+      <div id="modeSelectMean" class="active">
+        <div class="modeselect">
+          <input id="meanModeSelectInput" type="radio">
+          <p>mean</p>
+        </div>
       </div>
-      <div class="modeselect">
-        <input type="radio"> <p>time</p>
+      
+      <div id="modeSelectTime" class="inactive">
+        <div class="modeselect">
+          <input id="timeModeSelectInput" type="radio"> 
+          <p>time</p>
+        </div>
+        <div id="timeControl">
+          <div id="timeControlBack"><p> back </p></div>
+          <div id="timeControlCurrentTime"> time </div>
+          <div id="timeControlForward"><p> forward </p></div>
+        </div>
       </div>
+
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

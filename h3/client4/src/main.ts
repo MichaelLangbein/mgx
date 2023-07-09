@@ -1,6 +1,6 @@
 import './style.css';
 import 'ol/ol.css';
-import { Map, Overlay, View } from 'ol';
+import { Map, MapBrowserEvent, Overlay, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
 import WGLTileLayer from 'ol/layer/WebGLTile';
 import OSM from 'ol/source/OSM';
@@ -14,9 +14,26 @@ import { GeoTIFF } from 'ol/source';
 import vectorData from './buildings_temperature.geo.json';
 
 
-const appDiv = document.getElementById("app") as HTMLDivElement;
-const popupDiv = document.getElementById("popup") as HTMLDivElement;
+/**********************************************
+ *   INTERACTIVE COMPONENTS
+ *********************************************/
 
+
+const appDiv          = document.getElementById("app") as HTMLDivElement;
+const popupDiv        = document.getElementById("popup") as HTMLDivElement;
+const meanDiv         = document.getElementById("modeSelectMean") as HTMLDivElement;
+const timeDiv         = document.getElementById("modeSelectTime") as HTMLDivElement;
+const meanModeSelectInput   = document.getElementById("meanModeSelectInput") as HTMLInputElement;
+const timeModeSelectInput   = document.getElementById("timeModeSelectInput") as HTMLInputElement;
+const timeControlDiv  = document.getElementById("timeControl") as HTMLDivElement;
+const timeControlBackDiv        = document.getElementById("timeControlBack") as HTMLDivElement;
+const timeControlCurrentTimeDiv = document.getElementById("timeControlCurrentTime") as HTMLDivElement;
+const timeControlForwardDiv     = document.getElementById("timeControlForward") as HTMLDivElement;
+
+
+/**********************************************
+ *   SETUP
+ *********************************************/
 
 
 const baseLayer = new TileLayer({
@@ -44,7 +61,7 @@ const cogLayer = new WGLTileLayer({
   },
   opacity: 0.6,
   visible: false
-})
+});
 
 
 const vectorLayer = new VectorLayer({
@@ -64,7 +81,7 @@ const vectorLayer = new VectorLayer({
       })
     })
   }
-})
+});
 
 const layers = [baseLayer, cogLayer, vectorLayer];
 
@@ -85,9 +102,93 @@ const map = new Map({
 });
 
 
-map.on("click", (evt) => {
+/**********************************************
+ *   STATE
+ *********************************************/
 
+interface State {
+  mode: 'mean' | 'time',
+  currentTime: string,
+  availableTimes: string[]
+}
+
+const state: State = {
+  mode: 'mean',
+  currentTime: '2020-11-17 10:04:26.7534760Z',
+  availableTimes: [
+    "2020-11-17 10:04:26.7534760Z",
+    "2020-12-03 10:04:30.0526110Z",
+    "2020-12-19 10:04:29.0548320Z",
+    "2021-01-04 10:04:24.4138260Z",
+    "2021-01-20 10:04:17.4570379Z",
+    "2021-02-05 10:04:15.9847940Z",
+    "2021-02-21 10:03:47.5687389Z",
+    "2021-02-21 10:04:11.4555430Z",
+    "2021-11-20 10:04:29.0843560Z",
+    "2021-12-14 10:04:26.7646900Z",
+    "2021-12-22 10:04:03.7751530Z",
+    "2021-12-22 10:04:27.6577210Z",
+    "2022-01-07 10:04:23.4671659Z",
+    "2022-01-15 10:04:23.2404300Z",
+    "2022-01-23 10:04:19.2682800Z",
+    "2022-02-24 10:03:46.7479169Z",
+    "2022-02-24 10:04:10.6220130Z",
+    "2022-08-03 10:04:11.7338470Z",
+    "2022-08-03 10:04:35.6121790Z",
+    "2022-10-06 10:04:44.6235710Z",
+  ]
+};
+
+
+/**********************************************
+ *   EVENTS
+ *********************************************/
+
+
+map.on("click", evt => handleMapClick(evt));
+meanDiv.addEventListener('click', evt => activateMeanView());
+timeDiv.addEventListener('click', evt => activateTimeView());
+timeControlBackDiv.addEventListener('click', evt => timeBack());
+timeControlForwardDiv.addEventListener('click', evt => timeForward());
+
+
+/**********************************************
+ *   REACT TO ACTIONS
+ *********************************************/
+
+
+function timeBack() {
   
+}
+
+function timeForward() {
+
+}
+
+function activateTimeView() {
+  state.mode = "time";
+  meanDiv.classList.replace('active', 'inactive');
+  timeDiv.classList.replace('inactive', 'active');
+  timeModeSelectInput.checked = true;
+  meanModeSelectInput.checked = false;
+
+  // update layer style
+  // update popup
+}
+
+function activateMeanView() {
+  state.mode = "mean";
+  meanDiv.classList.replace('inactive', 'active');
+  timeDiv.classList.replace('active', 'inactive');
+  timeModeSelectInput.checked = false;
+  meanModeSelectInput.checked = true;
+
+  // update layer style 
+    // update popup
+}
+
+
+function handleMapClick(evt: MapBrowserEvent<any>) {
   const location = evt.coordinate;
   const features = vectorLayer.getSource()?.getFeaturesAtCoordinate(location);
 
@@ -98,7 +199,15 @@ map.on("click", (evt) => {
   } else {
     popupOverlay.setPosition(undefined);
   }
-});
+}
+
+
+
+
+
+/**********************************************
+ *   HELPERS
+ *********************************************/
 
 
 function featureMeanDeltaT(feature: FeatureLike) {

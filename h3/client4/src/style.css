@@ -37,4 +37,19 @@ body {
 #control .modeselect {
   display: flex;
   flex-direction: row;
+  align-items: center;
+}
+
+#control .active {
+
+}
+
+#control .inactive {
+  color: rgb(198, 198, 198);
+}
+
+#timeControl {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 }

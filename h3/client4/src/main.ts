@@ -15,94 +15,6 @@ import vectorData from './buildings_temperature.geo.json';
 
 
 /**********************************************
- *   INTERACTIVE COMPONENTS
- *********************************************/
-
-
-const appDiv          = document.getElementById("app") as HTMLDivElement;
-const popupDiv        = document.getElementById("popup") as HTMLDivElement;
-const meanDiv         = document.getElementById("modeSelectMean") as HTMLDivElement;
-const timeDiv         = document.getElementById("modeSelectTime") as HTMLDivElement;
-const meanModeSelectInput   = document.getElementById("meanModeSelectInput") as HTMLInputElement;
-const timeModeSelectInput   = document.getElementById("timeModeSelectInput") as HTMLInputElement;
-const timeControlDiv  = document.getElementById("timeControl") as HTMLDivElement;
-const timeControlBackDiv        = document.getElementById("timeControlBack") as HTMLDivElement;
-const timeControlCurrentTimeDiv = document.getElementById("timeControlCurrentTime") as HTMLDivElement;
-const timeControlForwardDiv     = document.getElementById("timeControlForward") as HTMLDivElement;
-
-
-/**********************************************
- *   SETUP
- *********************************************/
-
-
-const baseLayer = new TileLayer({
-  source: new OSM({
-    // url: "https://tile-{a-c}.openstreetmap.fr/hot/{z}/{x}/{y}.png"
-  }),
-  className: 'bw',
-  opacity: 0.7
-});
-
-const cogLayer = new WGLTileLayer({
-  source: new GeoTIFF({
-    sources: [{ url: "/public/lst_2020-11-17%2010:04:26.7534760Z.tif" }]
-  }),
-  style: {
-    // https://openlayers.org/workshop/en/cog/ndvi.html
-    color: [
-      'interpolate',
-      ['linear'],
-      ['band', 1],
-      -0.05,  [0, 0, 0],
-      0.0,  [125, 125, 125],
-      0.05,  [256, 256, 256]
-    ]
-  },
-  opacity: 0.6,
-  visible: false
-});
-
-
-const vectorLayer = new VectorLayer({
-  source: new VectorSource({
-    features: new GeoJSON().readFeatures(vectorData)
-  }),
-  style: (feature, resolution) => {
-    const mean = featureMeanDeltaT(feature);
-
-    const maxVal = 2.0;
-    const minVal = -2.0;
-    const frac = (mean - minVal) / (maxVal - minVal);
-
-    return new Style({
-      fill: new Fill({
-        color: `rgb(${256 * frac}, ${256 * (1-frac)}, 0.1)`
-      })
-    })
-  }
-});
-
-const layers = [baseLayer, cogLayer, vectorLayer];
-
-const view = new View({
-  center: [11.3, 48.08],
-  zoom: 14,
-  projection: 'EPSG:4326'
-});
-
-const popupOverlay = new Overlay({
-  element: popupDiv
-});
-
-const overlays = [popupOverlay];
-
-const map = new Map({
-  view, layers, overlays, target: appDiv
-});
-
-
-/**********************************************
  *   STATE
  *********************************************/
 
@@ -139,6 +51,109 @@ const state: State = {
   ]
 };
 
+/**********************************************
+ *   INTERACTIVE COMPONENTS
+ *********************************************/
+
+
+const appDiv                    = document.getElementById("app") as HTMLDivElement;
+const popupDiv                  = document.getElementById("popup") as HTMLDivElement;
+const meanDiv                   = document.getElementById("modeSelectMean") as HTMLDivElement;
+const timeDiv                   = document.getElementById("modeSelectTime") as HTMLDivElement;
+const meanModeSelectInput       = document.getElementById("meanModeSelectInput") as HTMLInputElement;
+const timeModeSelectInput       = document.getElementById("timeModeSelectInput") as HTMLInputElement;
+const timeControlBackDiv        = document.getElementById("timeControlBack") as HTMLDivElement;
+const timeControlCurrentTimeDiv = document.getElementById("timeControlCurrentTime") as HTMLDivElement;
+const timeControlForwardDiv     = document.getElementById("timeControlForward") as HTMLDivElement;
+
+
+/**********************************************
+ *   SETUP
+ *********************************************/
+
+
+const baseLayer = new TileLayer({
+  source: new OSM({
+    // url: "https://tile-{a-c}.openstreetmap.fr/hot/{z}/{x}/{y}.png"
+  }),
+  className: 'bw',
+  opacity: 0.7
+});
+
+const cogLayer = new WGLTileLayer({
+  source: new GeoTIFF({
+    sources: [{ url: `/public/lst_${state.currentTime}.tif` }]
+  }),
+  style: {
+    // https://openlayers.org/workshop/en/cog/ndvi.html
+    color: [
+      'interpolate',
+      ['linear'],
+      ['band', 1],
+      -0.05,  [0, 0, 0],
+      0.0,  [125, 125, 125],
+      0.05,  [256, 256, 256]
+    ]
+  },
+  opacity: 0.6,
+  visible: false
+});
+
+function meanLayerStyle(feature: FeatureLike) {
+  const mean = featureMeanDeltaT(feature);
+
+  const maxVal = 2.0;
+  const minVal = -2.0;
+  const frac = (mean - minVal) / (maxVal - minVal);
+
+  return new Style({
+    fill: new Fill({
+      color: `rgb(${256 * frac}, ${256 * (1-frac)}, 0.1)`
+    })
+  })
+}
+
+function createTimeLayerStyle(time: string) {
+  return (feature: FeatureLike) => {
+    const delta = featureDeltaTatTime(feature, time);
+  
+    const maxVal = 2.0;
+    const minVal = -2.0;
+    const frac = (delta - minVal) / (maxVal - minVal);
+  
+    return new Style({
+      fill: new Fill({
+        color: `rgb(${256 * frac}, ${256 * (1-frac)}, 0.1)`
+      })
+    })
+  }
+}
+
+
+const vectorLayer = new VectorLayer({
+  source: new VectorSource({
+    features: new GeoJSON().readFeatures(vectorData)
+  }),
+  style: meanLayerStyle
+});
+
+const view = new View({
+  center: [11.3, 48.08],
+  zoom: 14,
+  projection: 'EPSG:4326'
+});
+
+const popupOverlay = new Overlay({
+  element: popupDiv
+});
+
+const map = new Map({
+  view, layers: [baseLayer, cogLayer, vectorLayer], overlays: [popupOverlay], target: appDiv
+});
+
+
+
+
 
 /**********************************************
  *   EVENTS
@@ -146,10 +161,10 @@ const state: State = {
 
 
 map.on("click", evt => handleMapClick(evt));
-meanDiv.addEventListener('click', evt => activateMeanView());
-timeDiv.addEventListener('click', evt => activateTimeView());
-timeControlBackDiv.addEventListener('click', evt => timeBack());
-timeControlForwardDiv.addEventListener('click', evt => timeForward());
+meanDiv.addEventListener('click', activateMeanView);
+timeDiv.addEventListener('click', activateTimeView);
+timeControlBackDiv.addEventListener('click', timeBack);
+timeControlForwardDiv.addEventListener('click', timeForward);
 
 
 /**********************************************
@@ -158,12 +173,31 @@ timeControlForwardDiv.addEventListener('click', evt => timeForward());
 
 
 function timeBack() {
-  
+  if (state.mode === "mean") return;
+  const indexCurrent = state.availableTimes.indexOf(state.currentTime);
+  if (indexCurrent <= 0) return;
+  const newTime = state.availableTimes[indexCurrent - 1];
+  state.currentTime = newTime;
+  vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
+  // update popup
+  cogLayer.setVisible(true);
+  cogLayer.setSource(new GeoTIFF({
+    sources: [{ url: `/public/lst_${state.currentTime}.tif` }]
+  }));
 }
 
 function timeForward() {
-
-}
+  if (state.mode === "mean") return;
+  const indexCurrent = state.availableTimes.indexOf(state.currentTime);
+  if (indexCurrent >= state.availableTimes.length) return;
+  const newTime = state.availableTimes[indexCurrent + 1];
+  state.currentTime = newTime;
+  vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
+  // update popup
+  cogLayer.setVisible(true);
+  cogLayer.setSource(new GeoTIFF({
+    sources: [{ url: `/public/lst_${state.currentTime}.tif` }]
+  }));}
 
 function activateTimeView() {
   state.mode = "time";
@@ -171,9 +205,10 @@ function activateTimeView() {
   timeDiv.classList.replace('inactive', 'active');
   timeModeSelectInput.checked = true;
   meanModeSelectInput.checked = false;
-
-  // update layer style
+  timeControlCurrentTimeDiv.innerHTML = state.currentTime.slice(0, 10);
+  vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
   // update popup
+  cogLayer.setVisible(true);
 }
 
 function activateMeanView() {
@@ -182,9 +217,10 @@ function activateMeanView() {
   timeDiv.classList.replace('active', 'inactive');
   timeModeSelectInput.checked = false;
   meanModeSelectInput.checked = true;
-
-  // update layer style 
-    // update popup
+  timeControlCurrentTimeDiv.innerHTML = "";
+  vectorLayer.setStyle(meanLayerStyle);
+  // update popup
+  cogLayer.setVisible(false);
 }
 
 
@@ -227,4 +263,17 @@ function featureMeanDeltaT(feature: FeatureLike) {
   }
   const mean = sum / count;
   return mean;
+}
+
+function featureDeltaTatTime(feature: FeatureLike, time: string) {
+  const props = feature.getProperties();
+  const deltaTs = props["temperature"];
+  const values = deltaTs[time];
+  const tMeanInside = (values as any)["tMeanInside"];
+  const tMeanOutside = (values as any)["tMeanOutside"];
+  if (tMeanInside === "NaN" || tMeanOutside === "NaN") return "NaN";
+  const tIn = parseFloat(tMeanInside as string);
+  const tOut = parseFloat(tMeanOutside as string);
+  const val = tIn - tOut;
+  return val;
 }

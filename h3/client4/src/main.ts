@@ -21,7 +21,8 @@ import vectorData from './buildings_temperature.geo.json';
 interface State {
   mode: 'mean' | 'time',
   currentTime: string,
-  availableTimes: string[]
+  availableTimes: string[],
+  clickedFeature: FeatureLike | undefined
 }
 
 const state: State = {
@@ -29,26 +30,27 @@ const state: State = {
   currentTime: '2020-11-17 10:04:26.7534760Z',
   availableTimes: [
     "2020-11-17 10:04:26.7534760Z",
-    "2020-12-03 10:04:30.0526110Z",
+    // "2020-12-03 10:04:30.0526110Z",
     "2020-12-19 10:04:29.0548320Z",
     "2021-01-04 10:04:24.4138260Z",
-    "2021-01-20 10:04:17.4570379Z",
-    "2021-02-05 10:04:15.9847940Z",
+    // "2021-01-20 10:04:17.4570379Z",
+    // "2021-02-05 10:04:15.9847940Z",
     "2021-02-21 10:03:47.5687389Z",
     "2021-02-21 10:04:11.4555430Z",
-    "2021-11-20 10:04:29.0843560Z",
-    "2021-12-14 10:04:26.7646900Z",
-    "2021-12-22 10:04:03.7751530Z",
-    "2021-12-22 10:04:27.6577210Z",
-    "2022-01-07 10:04:23.4671659Z",
+    // "2021-11-20 10:04:29.0843560Z",
+    // "2021-12-14 10:04:26.7646900Z",
+    // "2021-12-22 10:04:03.7751530Z",
+    // "2021-12-22 10:04:27.6577210Z",
+    // "2022-01-07 10:04:23.4671659Z",
     "2022-01-15 10:04:23.2404300Z",
-    "2022-01-23 10:04:19.2682800Z",
-    "2022-02-24 10:03:46.7479169Z",
-    "2022-02-24 10:04:10.6220130Z",
+    // "2022-01-23 10:04:19.2682800Z",
+    // "2022-02-24 10:03:46.7479169Z",
+    // "2022-02-24 10:04:10.6220130Z",
     "2022-08-03 10:04:11.7338470Z",
     "2022-08-03 10:04:35.6121790Z",
     "2022-10-06 10:04:44.6235710Z",
-  ]
+  ],
+  clickedFeature: undefined
 };
 
 /**********************************************
@@ -179,7 +181,7 @@ function timeBack() {
   const newTime = state.availableTimes[indexCurrent - 1];
   state.currentTime = newTime;
   vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
-  // update popup
+  popupDiv.innerHTML = popupContent(state);
   cogLayer.setVisible(true);
   cogLayer.setSource(new GeoTIFF({
     sources: [{ url: `/public/lst_${state.currentTime}.tif` }]
@@ -189,11 +191,11 @@ function timeBack() {
 function timeForward() {
   if (state.mode === "mean") return;
   const indexCurrent = state.availableTimes.indexOf(state.currentTime);
-  if (indexCurrent >= state.availableTimes.length) return;
+  if (indexCurrent >= (state.availableTimes.length - 1)) return;
   const newTime = state.availableTimes[indexCurrent + 1];
   state.currentTime = newTime;
   vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
-  // update popup
+  popupDiv.innerHTML = popupContent(state);
   cogLayer.setVisible(true);
   cogLayer.setSource(new GeoTIFF({
     sources: [{ url: `/public/lst_${state.currentTime}.tif` }]
@@ -207,7 +209,7 @@ function activateTimeView() {
   meanModeSelectInput.checked = false;
   timeControlCurrentTimeDiv.innerHTML = state.currentTime.slice(0, 10);
   vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
-  // update popup
+  popupDiv.innerHTML = popupContent(state);
   cogLayer.setVisible(true);
 }
 
@@ -219,7 +221,7 @@ function activateMeanView() {
   meanModeSelectInput.checked = true;
   timeControlCurrentTimeDiv.innerHTML = "";
   vectorLayer.setStyle(meanLayerStyle);
-  // update popup
+  popupDiv.innerHTML = popupContent(state);
   cogLayer.setVisible(false);
 }
 
@@ -229,15 +231,33 @@ function handleMapClick(evt: MapBrowserEvent<any>) {
   const features = vectorLayer.getSource()?.getFeaturesAtCoordinate(location);
 
   if (features && features?.length > 0) {
-    const mean = featureMeanDeltaT(features[0]);
+    state.clickedFeature = features[0];
+    popupDiv.innerHTML = popupContent(state);
     popupOverlay.setPosition(location);
-    popupDiv.innerHTML = `<div><p>Delta T (mean): ${mean.toFixed(2)} °C</p></div>`;
   } else {
+    state.clickedFeature = undefined;
     popupOverlay.setPosition(undefined);
   }
 }
 
+function popupContent(state: State): string {
+  const feature = state.clickedFeature;
+  if (!feature) return "";
 
+  const mean = featureMeanDeltaT(feature);
+  if (state.mode === "mean") {
+    return `<div><p>Delta T (mean): ${mean.toFixed(2)} °C</p></div>`;
+  } else {
+    const dt = featureDeltaTatTime(feature, state.currentTime);
+    return `
+    <div>
+      <p>Delta T (mean): ${mean.toFixed(2)} °C</p>
+      <p>Delta T (time): ${dt === "NaN" ? dt : dt.toFixed(2)} °C</p>
+    </div>
+    `;
+  }
+
+}
 
 
 

@@ -118,6 +118,13 @@ function meanLayerStyle(feature: FeatureLike) {
 function createTimeLayerStyle(time: string) {
   return (feature: FeatureLike) => {
     const delta = featureDeltaTatTime(feature, time);
+    if (delta === "NaN") {
+      return new Style({
+        fill: new Fill({
+          color: `rgb(50, 50, 50)`
+        })
+      });
+    }
   
     const maxVal = 2.0;
     const minVal = -2.0;

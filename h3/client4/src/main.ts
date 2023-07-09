@@ -12,6 +12,7 @@ import Fill from 'ol/style/Fill';
 import { FeatureLike } from 'ol/Feature';
 import { GeoTIFF } from 'ol/source';
 import vectorData from './buildings_temperature.geo.json';
+import { colorScale } from './graph';
 
 
 /**********************************************
@@ -35,7 +36,7 @@ const state: State = {
     "2021-01-04 10:04:24.4138260Z",
     // "2021-01-20 10:04:17.4570379Z",
     // "2021-02-05 10:04:15.9847940Z",
-    "2021-02-21 10:03:47.5687389Z",
+    // "2021-02-21 10:03:47.5687389Z",
     "2021-02-21 10:04:11.4555430Z",
     // "2021-11-20 10:04:29.0843560Z",
     // "2021-12-14 10:04:26.7646900Z",
@@ -46,7 +47,7 @@ const state: State = {
     // "2022-01-23 10:04:19.2682800Z",
     // "2022-02-24 10:03:46.7479169Z",
     // "2022-02-24 10:04:10.6220130Z",
-    "2022-08-03 10:04:11.7338470Z",
+    // "2022-08-03 10:04:11.7338470Z",
     "2022-08-03 10:04:35.6121790Z",
     "2022-10-06 10:04:44.6235710Z",
   ],
@@ -103,21 +104,21 @@ const cogLayer = new WGLTileLayer({
 
 function meanLayerStyle(feature: FeatureLike) {
   const mean = featureMeanDeltaT(feature);
-
   const maxVal = 2.0;
   const minVal = -2.0;
-  const frac = (mean - minVal) / (maxVal - minVal);
+  const {r, g, b} = colorScale(mean, minVal, maxVal);
 
   return new Style({
     fill: new Fill({
-      color: `rgb(${256 * frac}, ${256 * (1-frac)}, 0.1)`
+      color: `rgb(${r}, ${g}, ${b})`
     })
-  })
+  });
 }
 
 function createTimeLayerStyle(time: string) {
   return (feature: FeatureLike) => {
     const delta = featureDeltaTatTime(feature, time);
+  
     if (delta === "NaN") {
       return new Style({
         fill: new Fill({
@@ -128,13 +129,13 @@ function createTimeLayerStyle(time: string) {
   
     const maxVal = 2.0;
     const minVal = -2.0;
-    const frac = (delta - minVal) / (maxVal - minVal);
+    const {r, g, b} = colorScale(delta, minVal, maxVal);
   
     return new Style({
       fill: new Fill({
-        color: `rgb(${256 * frac}, ${256 * (1-frac)}, 0.1)`
+        color: `rgb(${r}, ${g}, ${b})`
       })
-    })
+    });
   }
 }
 
@@ -184,14 +185,9 @@ timeControlForwardDiv.addEventListener('click', timeForward);
 function timeBack() {
   if (state.mode === "mean") return;
   const indexCurrent = state.availableTimes.indexOf(state.currentTime);
-  if (indexCurrent <= 0) {
-    timeControlBackDiv.classList.replace("active", "inactive");
-    return;
-  } else {
-    timeControlBackDiv.classList.replace("inactive", "active");
-  }
   const newTime = state.availableTimes[indexCurrent - 1];
   state.currentTime = newTime;
+  updateTimeButtons(state);
   vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
   popupDiv.innerHTML = popupContent(state);
   cogLayer.setVisible(true);
@@ -203,14 +199,9 @@ function timeBack() {
 function timeForward() {
   if (state.mode === "mean") return;
   const indexCurrent = state.availableTimes.indexOf(state.currentTime);
-  if (indexCurrent >= (state.availableTimes.length - 1)) {
-    timeControlForwardDiv.classList.replace("active", "inactive");
-    return;
-  } else {
-    timeControlForwardDiv.classList.replace("inactive", "active");
-  }
   const newTime = state.availableTimes[indexCurrent + 1];
   state.currentTime = newTime;
+  updateTimeButtons(state);
   vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
   popupDiv.innerHTML = popupContent(state);
   cogLayer.setVisible(true);
@@ -274,6 +265,23 @@ function popupContent(state: State): string {
     `;
   }
 
+}
+
+
+function updateTimeButtons(state: State) {
+  const indexCurrent = state.availableTimes.indexOf(state.currentTime);
+  if (indexCurrent <= 0) {
+    timeControlBackDiv.classList.replace("active", "inactive");
+    return;
+  } else {
+    timeControlBackDiv.classList.replace("inactive", "active");
+  }
+  if (indexCurrent >= (state.availableTimes.length - 1)) {
+    timeControlForwardDiv.classList.replace("active", "inactive");
+    return;
+  } else {
+    timeControlForwardDiv.classList.replace("inactive", "active");
+  }
 }
 
 

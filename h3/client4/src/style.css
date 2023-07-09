@@ -53,3 +53,7 @@ body {
   flex-direction: row;
   align-items: center;
 }
+
+#timeControl .inactive button {
+  color:  rgb(198, 198, 198);
+}

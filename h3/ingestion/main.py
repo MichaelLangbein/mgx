@@ -142,6 +142,7 @@ for scene in scenes:
             buildingBbox        = {"lonMin": loMn, "latMin": laMn, "lonMax": loMx, "latMax": laMx}
             lstAroundBuilding   = tifGetBbox(lstTif, buildingBbox)[0]
 
+            # Method 1: temp house - temp surroundings
             # @TODO: there's probably a more efficient thing than `pixelize`
             buildingFraction      = pixelizeCoverageFraction([buildingGeometry], buildingBbox, lstAroundBuilding.shape)
             buildingFractionNorm  = buildingFraction / np.sum(buildingFraction)
@@ -149,12 +150,18 @@ for scene in scenes:
             nrNonHouses           = buildingFractionNorm.size - nrHouses
             tMeanInside           = np.sum(lstAroundBuilding * buildingFractionNorm) / nrHouses
             tMeanOutside          = np.sum(lstAroundBuilding * (1.0 - buildingFractionNorm)) / nrNonHouses
+
+            # Method 2: temp house - temp (surroundings - buildings)
+            buildingsFractionNbh = tifGetBbox(housesFraction, buildingBbox)
+            natureFractionNbh    = 1.0 - buildingsFractionNbh
+            tMeanOutsideNature   = lstAroundBuilding * natureFractionNbh / np.sum(natureFractionNbh)
             
             if buildingId not in buildingTemperatureData:
                 buildingTemperatureData[buildingId] = {}
             buildingTemperatureData[buildingId][dateTime] = {
                 "tMeanInside": tMeanInside,
-                "tMeanOutside": tMeanOutside
+                "tMeanOutside": tMeanOutside,
+                "tMeanOutsideNature": tMeanOutsideNature
             }
 
         except Exception as e:

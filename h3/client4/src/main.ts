@@ -184,7 +184,12 @@ timeControlForwardDiv.addEventListener('click', timeForward);
 function timeBack() {
   if (state.mode === "mean") return;
   const indexCurrent = state.availableTimes.indexOf(state.currentTime);
-  if (indexCurrent <= 0) return;
+  if (indexCurrent <= 0) {
+    timeControlBackDiv.classList.replace("active", "inactive");
+    return;
+  } else {
+    timeControlBackDiv.classList.replace("inactive", "active");
+  }
   const newTime = state.availableTimes[indexCurrent - 1];
   state.currentTime = newTime;
   vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
@@ -198,7 +203,12 @@ function timeBack() {
 function timeForward() {
   if (state.mode === "mean") return;
   const indexCurrent = state.availableTimes.indexOf(state.currentTime);
-  if (indexCurrent >= (state.availableTimes.length - 1)) return;
+  if (indexCurrent >= (state.availableTimes.length - 1)) {
+    timeControlForwardDiv.classList.replace("active", "inactive");
+    return;
+  } else {
+    timeControlForwardDiv.classList.replace("inactive", "active");
+  }
   const newTime = state.availableTimes[indexCurrent + 1];
   state.currentTime = newTime;
   vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));

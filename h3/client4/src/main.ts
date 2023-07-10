@@ -118,9 +118,9 @@ function meanLayerStyle(feature: FeatureLike) {
   const deltaTs = props["temperature"];
   const timeSeries: Datum[] = [];
   for (const [time, values] of Object.entries(deltaTs)) {
-    const {tMeanInside, tMeanOutside} = values as any;
-    if (tMeanInside === "NaN" || tMeanOutside === "NaN") continue;
-    timeSeries.push({ label: time.slice(0, 10), value: tMeanInside - tMeanOutside });
+    const {tMeanInside, tMeanOutside, tMeanOutsideNature} = values as any;
+    if (tMeanInside === "NaN" || tMeanOutsideNature === "NaN") continue;
+    timeSeries.push({ label: time.slice(0, 10), value: tMeanInside - tMeanOutsideNature });
   }
   const mean = timeSeries.reduce((prev, current) => prev + current.value, 0) / timeSeries.length;
   if (Number.isNaN(mean)) return new Style({
@@ -282,9 +282,9 @@ function updatePopup(state: State) {
   const deltaTs = props["temperature"];
   const timeSeries: Datum[] = [];
   for (const [time, values] of Object.entries(deltaTs)) {
-    const {tMeanInside, tMeanOutside} = values as any;
-    if (tMeanInside === "NaN" || tMeanOutside === "NaN") continue;
-    timeSeries.push({ label: time.slice(0, 10), value: tMeanInside - tMeanOutside });
+    const {tMeanInside, tMeanOutside, tMeanOutsideNature} = values as any;
+    if (tMeanInside === "NaN" || tMeanOutsideNature === "NaN") continue;
+    timeSeries.push({ label: time.slice(0, 10), value: tMeanInside - tMeanOutsideNature });
   }
   timeSeries.sort((a, b) => a.label < b.label ? -1 : 1);
   const vMean = timeSeries.reduce((prev, current) => prev + current.value, 0) / timeSeries.length;
@@ -351,7 +351,7 @@ function featureMeanDeltaT(feature: FeatureLike) {
   let count = 0;
   for (const [time, values] of Object.entries(deltaTs)) {
       const tMeanInside = (values as any)["tMeanInside"];
-      const tMeanOutside = (values as any)["tMeanOutside"];
+      const tMeanOutside = (values as any)["tMeanOutsideNature"];
       if (tMeanInside === "NaN" || tMeanOutside === "NaN") continue;
       const tIn = parseFloat(tMeanInside as string);
       const tOut = parseFloat(tMeanOutside as string);
@@ -368,7 +368,7 @@ function featureDeltaTatTime(feature: FeatureLike, time: string) {
   const deltaTs = props["temperature"];
   const values = deltaTs[time];
   const tMeanInside = (values as any)["tMeanInside"];
-  const tMeanOutside = (values as any)["tMeanOutside"];
+  const tMeanOutside = (values as any)["tMeanOutsideNature"];
   if (tMeanInside === "NaN" || tMeanOutside === "NaN") return "NaN";
   const tIn = parseFloat(tMeanInside as string);
   const tOut = parseFloat(tMeanOutside as string);

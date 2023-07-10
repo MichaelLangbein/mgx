@@ -101,15 +101,17 @@ roadGeometries     = [shape(r.geometry).buffer(roadSize) for r in roadData]
 
 #%%
 if os.path.exists("./results/houses.tif"):
-    housesFraction = readTif("./results/houses.tif").read(1)
+    housesFractionFh = readTif("./results/houses.tif")
+    housesFraction   = housesFractionFh.read(1)
 else:
-    housesFraction = pixelizeCoverageFraction(buildingGeometries, bbox, sceneShape)
-    saveRaster("./results/houses.tif", housesFraction, bbox, {})
+    housesFraction   = pixelizeCoverageFraction(buildingGeometries, bbox, sceneShape)
+    housesFractionFh = saveRaster("./results/houses.tif", housesFraction, bbox, {})
 if os.path.exists("./results/roads.tif"):
-    roadsFraction = readTif("./results/roads.tif").read(1)
+    roadsFractionFh = readTif("./results/roads.tif")
+    roadsFraction   = housesFractionFh.read(1)
 else:
-    roadsFraction  = pixelizeCoverageFraction(roadGeometries, bbox, sceneShape)
-    saveRaster("./results/roads.tif", roadsFraction, bbox, {})
+    roadsFraction   = pixelizeCoverageFraction(roadGeometries, bbox, sceneShape)
+    roadsFractionFh = saveRaster("./results/roads.tif", roadsFraction, bbox, {})
 
 #%%
 
@@ -152,16 +154,16 @@ for scene in scenes:
             tMeanOutside          = np.sum(lstAroundBuilding * (1.0 - buildingFractionNorm)) / nrNonHouses
 
             # Method 2: temp house - temp (surroundings - buildings)
-            buildingsFractionNbh = tifGetBbox(housesFraction, buildingBbox)
-            natureFractionNbh    = 1.0 - buildingsFractionNbh
-            tMeanOutsideNature   = lstAroundBuilding * natureFractionNbh / np.sum(natureFractionNbh)
+            buildingsFractionNbh  = tifGetBbox(housesFractionFh, buildingBbox)[0]
+            nonHouseFractionNbh   = 1.0 - buildingsFractionNbh
+            tMeanOutsideNonHouses = np.sum(lstAroundBuilding * nonHouseFractionNbh / np.sum(nonHouseFractionNbh))
             
             if buildingId not in buildingTemperatureData:
                 buildingTemperatureData[buildingId] = {}
             buildingTemperatureData[buildingId][dateTime] = {
                 "tMeanInside": tMeanInside,
                 "tMeanOutside": tMeanOutside,
-                "tMeanOutsideNature": tMeanOutsideNature
+                "tMeanOutsideNonHouses": tMeanOutsideNonHouses
             }
 
         except Exception as e:

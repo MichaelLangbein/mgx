@@ -123,14 +123,6 @@ export function makeBarchart(container: HTMLDivElement, data: Datum[], xLabel: s
         .attr('height', centerHeight);
 
 
-
-    const barColors: string[] = data
-            .map(d => gvColorScale(d.value, -10, 20))
-            .map(v => `rgb(${v.r}, ${v.g}, ${v.b})`);
-    const colorScale = scaleOrdinal()
-            .domain(barNames)
-            .range(barColors);
-
     // bars
     const bars = center.selectAll('.bar')
         .data(data)
@@ -145,7 +137,7 @@ export function makeBarchart(container: HTMLDivElement, data: Datum[], xLabel: s
         .attr('height', (d: Datum) => d.value < 0 ? yScale(d.value) - yScale(0) : yScale(0) - yScale(d.value))
         .attr('y', (d: Datum) => d.value > 0 ? yScale(d.value) : yScale(0))
         .attr('fill', (d: Datum) => {
-            const v = gvColorScale(d.value);
+            const v = gvColorScale(d.value, -2, 2);
             return `rgb(${v.r}, ${v.g}, ${v.b})`;
         });
 
@@ -199,7 +191,7 @@ export function makeBarchart(container: HTMLDivElement, data: Datum[], xLabel: s
             .style('left', `${x}px`)
             .style('top', `${y}px`);
 
-        const rgb = gvColorScale(datum.value);
+        const rgb = gvColorScale(datum.value, -2, 2);
         const fillColor = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
         bars.select('rect').attr('fill', 'lightgray');
         select(evt.target).select('rect').attr('fill', fillColor);
@@ -210,7 +202,7 @@ export function makeBarchart(container: HTMLDivElement, data: Datum[], xLabel: s
     .on('mouseleave', (evt: any, datum: Datum) => {
         infobox.style('visibility', 'hidden');
         bars.selectAll('rect').attr('fill', (d: any) => {
-            const v = gvColorScale(d.value);
+            const v = gvColorScale(d.value, -2, 2);
             return `rgb(${v.r}, ${v.g}, ${v.b})`;
         });
         xAxis.selectAll('text').attr('color', 'currentColor');

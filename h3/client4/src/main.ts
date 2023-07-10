@@ -114,15 +114,7 @@ const cogLayer = new WGLTileLayer({
 });
 
 function meanLayerStyle(feature: FeatureLike) {
-  const props = feature.getProperties();
-  const deltaTs = props["temperature"];
-  const timeSeries: Datum[] = [];
-  for (const [time, values] of Object.entries(deltaTs)) {
-    const {tMeanInside, tMeanOutside, tMeanOutsideNature} = values as any;
-    if (tMeanInside === "NaN" || tMeanOutsideNature === "NaN") continue;
-    timeSeries.push({ label: time.slice(0, 10), value: tMeanInside - tMeanOutsideNature });
-  }
-  const mean = timeSeries.reduce((prev, current) => prev + current.value, 0) / timeSeries.length;
+  const mean = featureMeanDeltaT(feature);
   if (Number.isNaN(mean)) return new Style({
     fill: new Fill({
       color: `rgb(125, 125, 125)`
@@ -169,7 +161,8 @@ const vectorLayer = new VectorLayer({
   source: new VectorSource({
     features: new GeoJSON().readFeatures(vectorData)
   }),
-  style: meanLayerStyle
+  style: meanLayerStyle,
+  opacity: 0.8
 });
 
 const view = new View({
@@ -210,6 +203,7 @@ timeControlForwardDiv.addEventListener('click', timeForward);
 function timeBack() {
   if (state.mode === "mean") return;
   const indexCurrent = state.availableTimes.indexOf(state.currentTime);
+  if (indexCurrent <= 0) return;
   const newTime = state.availableTimes[indexCurrent - 1];
   state.currentTime = newTime;
   updateTimeButtons(state);
@@ -224,6 +218,7 @@ function timeBack() {
 function timeForward() {
   if (state.mode === "mean") return;
   const indexCurrent = state.availableTimes.indexOf(state.currentTime);
+  if (indexCurrent >= state.availableTimes.length - 1) return;
   const newTime = state.availableTimes[indexCurrent + 1];
   state.currentTime = newTime;
   updateTimeButtons(state);
@@ -343,23 +338,23 @@ function updateTimeButtons(state: State) {
  *   HELPERS
  *********************************************/
 
-
-function featureMeanDeltaT(feature: FeatureLike) {
+function getTimeSeries(feature: FeatureLike, func: (mInside: number, mOutside: number, mNature: number) => number) {
   const props = feature.getProperties();
   const deltaTs = props["temperature"];
-  let sum = 0;
-  let count = 0;
+  const timeSeries: Datum[] = [];
   for (const [time, values] of Object.entries(deltaTs)) {
-      const tMeanInside = (values as any)["tMeanInside"];
-      const tMeanOutside = (values as any)["tMeanOutsideNature"];
-      if (tMeanInside === "NaN" || tMeanOutside === "NaN") continue;
-      const tIn = parseFloat(tMeanInside as string);
-      const tOut = parseFloat(tMeanOutside as string);
-      const val = tIn - tOut;
-      sum += val;
-      count += 1;
+    const {tMeanInside, tMeanOutside, tMeanOutsideNature} = values as any;
+    const val = func(tMeanInside, tMeanOutside, tMeanOutsideNature);
+    if (Number.isNaN(val) || !Number.isFinite(val)) continue;
+    timeSeries.push({ label: time.slice(0, 10), value:  val });
   }
-  const mean = sum / count;
+  timeSeries.sort((a, b) => a.label < b.label ? -1 : 1);
+  return timeSeries;
+}
+
+function featureMeanDeltaT(feature: FeatureLike) {
+  const timeSeries = getTimeSeries(feature, (inside, outside, outsideNature) => inside - outsideNature);
+  const mean = timeSeries.reduce((prev, current) => current.value + prev, 0) / timeSeries.length;
   return mean;
 }
 
@@ -367,11 +362,10 @@ function featureDeltaTatTime(feature: FeatureLike, time: string) {
   const props = feature.getProperties();
   const deltaTs = props["temperature"];
   const values = deltaTs[time];
-  const tMeanInside = (values as any)["tMeanInside"];
-  const tMeanOutside = (values as any)["tMeanOutsideNature"];
-  if (tMeanInside === "NaN" || tMeanOutside === "NaN") return "NaN";
+  const {tMeanInside, tMeanOutside, tMeanOutsideNature} = values as any;
+  if (tMeanInside === "NaN" || tMeanOutsideNature === "NaN") return "NaN";
   const tIn = parseFloat(tMeanInside as string);
-  const tOut = parseFloat(tMeanOutside as string);
+  const tOut = parseFloat(tMeanOutsideNature as string);
   const val = tIn - tOut;
   return val;
 }

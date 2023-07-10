@@ -3,9 +3,16 @@ import * as d3color from 'd3-color';
 
 
 export function colorScale(value: number, min: number = -10.0, max: number = 50.0): { r: any; g: any; b: any; } {
-  const [r, g, b] = greenVioletRangeStepwise(min, max, value);
+  const [r, g, b] = blueRedScaleStepwise(min, max, value);
   return { r, g, b };
 }
+
+function blueRedScaleStepwise(startVal: number, endVal: number, currentVal: number): [number, number, number] {
+  const degree = fraction(currentVal, startVal, endVal);
+  const rgb = scaleInterpolation(blueRedScale, degree, false);
+  return rgb;
+}
+
 
 function greenVioletRangeStepwise(startVal: number, endVal: number, currentVal: number): [number, number, number] {
   const degree = fraction(currentVal, startVal, endVal);
@@ -68,3 +75,12 @@ const violetGreenScale2: Scale = {
   0.8: [230, 245, 152],
   0.9: [153, 213, 148],
 };
+
+const blueRedScale: Scale = {
+  0.1: [69,117,180],     // blue
+  0.2: [145,191,219],
+  0.4: [224,243,248],
+  0.50: [254,224,144],
+  0.75: [252,141,89],
+  0.9: [215,48,39],       // red
+}

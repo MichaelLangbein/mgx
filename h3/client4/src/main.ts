@@ -278,7 +278,7 @@ function updatePopup(state: State) {
   .width(250).height(250)
   .data(timeSeries)
   .xlabel('time').ylabel('delta T')
-  .margin({ top: 20, left: 50, bottom: 60, right: 0})
+  .margin({ top: 20, left: 50, bottom: 50, right: 10})
   .hlines([{label: "mean", value: vMean}])();
   
   const textDiv = document.createElement('div');

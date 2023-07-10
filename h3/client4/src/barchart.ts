@@ -162,18 +162,8 @@ export function makeBarchart(container: HTMLDivElement, data: Datum[], xLabel: s
         .attr('stroke-dasharray', 4)
         .attr('x1', centerLeft).attr('x2', centerLeft + centerWidth);
     hlineGroups.append('text')
-        .attr('transform', d => `translate(${centerWidth - letterSize * d.label.length}, -4)`)
+        .attr('transform', d => `translate(${centerWidth - letterSize * (d.label.length + 1)}, -4)`)
         .text(d => d.label);
-
-    // const hlinesSelection = center.selectAll('.hline')
-    //     .data(hlines)
-    //     .enter()
-    //     .append('line')
-    //     .attr('class', 'hline')
-    //     .attr('stroke', 'black')
-    //     .attr('x1', centerLeft).attr('x2', centerLeft + centerWidth)
-    //     .attr('y1', d => yScale(d.value))
-    //     .attr('y2', d => yScale(d.value));
 
 
     // bars: hover-effect

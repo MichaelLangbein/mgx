@@ -9,6 +9,10 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@types/d3-axis": "^3.0.2",
+    "@types/d3-color": "^3.1.0",
+    "@types/d3-scale": "^4.0.3",
+    "@types/d3-selection": "^3.0.5",
     "@types/geojson": "^7946.0.10",
     "typescript": "^5.0.2",
     "vite": "^4.4.0"

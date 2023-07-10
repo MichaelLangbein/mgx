@@ -13,6 +13,17 @@ import { FeatureLike } from 'ol/Feature';
 import { GeoTIFF } from 'ol/source';
 import vectorData from './buildings_temperature.geo.json';
 import { colorScale } from './graph';
+import { Datum, barchart } from './barchart';
+
+// const timeSeries: Datum[] = [
+//   { label: 'a', value: -4 },
+//   { label: 'b', value: 0.5 },
+//   { label: 'c', value: 2 }
+// ]
+// const pop = document.getElementById('pop') as HTMLDivElement;
+// barchart().container(pop).width(400).height(300).data(timeSeries).xlabel('time').ylabel('delta T').hlines([{label: '-2.1', value: -2.1}, {label: 'other', value: 1.0}])();
+
+
 
 
 /**********************************************
@@ -189,7 +200,7 @@ function timeBack() {
   state.currentTime = newTime;
   updateTimeButtons(state);
   vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
-  popupDiv.innerHTML = popupContent(state);
+  popupDiv.innerHTML = popupText(state);
   cogLayer.setVisible(true);
   cogLayer.setSource(new GeoTIFF({
     sources: [{ url: `/public/lst_${state.currentTime}.tif` }]
@@ -203,7 +214,7 @@ function timeForward() {
   state.currentTime = newTime;
   updateTimeButtons(state);
   vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
-  popupDiv.innerHTML = popupContent(state);
+  updatePopup(state);
   cogLayer.setVisible(true);
   cogLayer.setSource(new GeoTIFF({
     sources: [{ url: `/public/lst_${state.currentTime}.tif` }]
@@ -217,7 +228,7 @@ function activateTimeView() {
   meanModeSelectInput.checked = false;
   timeControlCurrentTimeDiv.innerHTML = state.currentTime.slice(0, 10);
   vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
-  popupDiv.innerHTML = popupContent(state);
+  updatePopup(state);
   cogLayer.setVisible(true);
 }
 
@@ -229,7 +240,7 @@ function activateMeanView() {
   meanModeSelectInput.checked = true;
   timeControlCurrentTimeDiv.innerHTML = "";
   vectorLayer.setStyle(meanLayerStyle);
-  popupDiv.innerHTML = popupContent(state);
+  updatePopup(state);
   cogLayer.setVisible(false);
 }
 
@@ -240,7 +251,7 @@ function handleMapClick(evt: MapBrowserEvent<any>) {
 
   if (features && features?.length > 0) {
     state.clickedFeature = features[0];
-    popupDiv.innerHTML = popupContent(state);
+    updatePopup(state);
     popupOverlay.setPosition(location);
   } else {
     state.clickedFeature = undefined;
@@ -248,7 +259,34 @@ function handleMapClick(evt: MapBrowserEvent<any>) {
   }
 }
 
-function popupContent(state: State): string {
+function updatePopup(state: State) {
+  if (!state.clickedFeature) return;
+
+  popupDiv.innerHTML = "";
+
+  const props = state.clickedFeature.getProperties();
+  const deltaTs = props["temperature"];
+  const timeSeries: Datum[] = [];
+  for (const [time, values] of Object.entries(deltaTs)) {
+    const {tMeanInside, tMeanOutside} = values as any;
+    if (tMeanInside === "NaN" || tMeanOutside === "NaN") continue;
+    timeSeries.push({ label: time.slice(0, 10), value: tMeanInside - tMeanOutside });
+  }
+  const vMean = timeSeries.reduce((prev, current) => prev + current.value, 0) / timeSeries.length;
+  barchart()
+  .container(popupDiv)
+  .width(250).height(250)
+  .data(timeSeries)
+  .xlabel('time').ylabel('delta T')
+  .margin({ top: 20, left: 50, bottom: 60, right: 0})
+  .hlines([{label: "mean", value: vMean}])();
+  
+  const textDiv = document.createElement('div');
+  textDiv.innerHTML = popupText(state);
+  popupDiv.appendChild(textDiv);
+}
+
+function popupText(state: State): string {
   const feature = state.clickedFeature;
   if (!feature) return "";
 

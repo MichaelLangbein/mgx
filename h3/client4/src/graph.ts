@@ -9,14 +9,14 @@ export function colorScale(value: number, min: number = -10.0, max: number = 50.
 
 function blueRedScaleStepwise(startVal: number, endVal: number, currentVal: number): [number, number, number] {
   const degree = fraction(currentVal, startVal, endVal);
-  const rgb = scaleInterpolation(blueRedScale, degree, false);
+  const rgb = scaleInterpolation(blueRedScale, degree);
   return rgb;
 }
 
 
 function greenVioletRangeStepwise(startVal: number, endVal: number, currentVal: number): [number, number, number] {
   const degree = fraction(currentVal, startVal, endVal);
-  const rgb = scaleInterpolation(violetGreenScale2, 1.0 - degree, false);
+  const rgb = scaleInterpolation(violetGreenScale2, 1.0 - degree);
   return rgb;
 }
 

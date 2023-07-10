@@ -114,7 +114,21 @@ const cogLayer = new WGLTileLayer({
 });
 
 function meanLayerStyle(feature: FeatureLike) {
-  const mean = featureMeanDeltaT(feature);
+  const props = feature.getProperties();
+  const deltaTs = props["temperature"];
+  const timeSeries: Datum[] = [];
+  for (const [time, values] of Object.entries(deltaTs)) {
+    const {tMeanInside, tMeanOutside} = values as any;
+    if (tMeanInside === "NaN" || tMeanOutside === "NaN") continue;
+    timeSeries.push({ label: time.slice(0, 10), value: tMeanInside - tMeanOutside });
+  }
+  const mean = timeSeries.reduce((prev, current) => prev + current.value, 0) / timeSeries.length;
+  if (Number.isNaN(mean)) return new Style({
+    fill: new Fill({
+      color: `rgb(125, 125, 125)`
+    })
+  })
+
   const maxVal = 2.0;
   const minVal = -2.0;
   const {r, g, b} = colorScale(mean, minVal, maxVal);
@@ -272,6 +286,7 @@ function updatePopup(state: State) {
     if (tMeanInside === "NaN" || tMeanOutside === "NaN") continue;
     timeSeries.push({ label: time.slice(0, 10), value: tMeanInside - tMeanOutside });
   }
+  timeSeries.sort((a, b) => a.label < b.label ? -1 : 1);
   const vMean = timeSeries.reduce((prev, current) => prev + current.value, 0) / timeSeries.length;
   barchart()
   .container(popupDiv)

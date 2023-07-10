@@ -101,12 +101,12 @@ roadGeometries     = [shape(r.geometry).buffer(roadSize) for r in roadData]
 
 #%%
 if os.path.exists("./results/houses.tif"):
-    housesFraction = readTif("./results/houses.tif")[0]
+    housesFraction = readTif("./results/houses.tif").read(1)
 else:
     housesFraction = pixelizeCoverageFraction(buildingGeometries, bbox, sceneShape)
     saveRaster("./results/houses.tif", housesFraction, bbox, {})
 if os.path.exists("./results/roads.tif"):
-    roadsFraction = readTif("./results/roads.tif")[0]
+    roadsFraction = readTif("./results/roads.tif").read(1)
 else:
     roadsFraction  = pixelizeCoverageFraction(roadGeometries, bbox, sceneShape)
     saveRaster("./results/roads.tif", roadsFraction, bbox, {})

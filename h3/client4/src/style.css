@@ -26,7 +26,7 @@ body {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
-  width: 200px;
+  width: 215px;
   /* height: 200px; */
   background-color: rgb(232, 233, 234);
   border-radius: 0.25rem;
@@ -48,10 +48,26 @@ body {
   color: rgb(198, 198, 198);
 }
 
+#modeSelectMean {
+  outline: 1px dotted rgb(198, 198, 198);
+  margin: 1px;
+  padding: 0 0.5rem 0 0.5rem;
+}
+#modeSelectTime {
+  outline: 1px dotted rgb(198, 198, 198);
+  margin: 1px;
+  padding: 0 0.5rem 0 0.5rem;
+}
+
 #timeControl {
   display: flex;
   flex-direction: row;
   align-items: center;
+  padding-bottom: 0.5rem;
+}
+
+#timeControlCurrentTime {
+  margin: 0 0.125rem 0 0.125rem;
 }
 
 #timeControl .inactive button {

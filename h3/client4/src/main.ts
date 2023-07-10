@@ -74,8 +74,6 @@ const appDiv                    = document.getElementById("app") as HTMLDivEleme
 const popupDiv                  = document.getElementById("popup") as HTMLDivElement;
 const meanDiv                   = document.getElementById("modeSelectMean") as HTMLDivElement;
 const timeDiv                   = document.getElementById("modeSelectTime") as HTMLDivElement;
-const meanModeSelectInput       = document.getElementById("meanModeSelectInput") as HTMLInputElement;
-const timeModeSelectInput       = document.getElementById("timeModeSelectInput") as HTMLInputElement;
 const timeControlBackDiv        = document.getElementById("timeControlBack") as HTMLDivElement;
 const timeControlCurrentTimeDiv = document.getElementById("timeControlCurrentTime") as HTMLDivElement;
 const timeControlForwardDiv     = document.getElementById("timeControlForward") as HTMLDivElement;
@@ -233,8 +231,6 @@ function activateTimeView() {
   state.mode = "time";
   meanDiv.classList.replace('active', 'inactive');
   timeDiv.classList.replace('inactive', 'active');
-  timeModeSelectInput.checked = true;
-  meanModeSelectInput.checked = false;
   timeControlCurrentTimeDiv.innerHTML = state.currentTime.slice(0, 10);
   vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
   updatePopup(state);
@@ -245,9 +241,7 @@ function activateMeanView() {
   state.mode = "mean";
   meanDiv.classList.replace('inactive', 'active');
   timeDiv.classList.replace('active', 'inactive');
-  timeModeSelectInput.checked = false;
-  meanModeSelectInput.checked = true;
-  timeControlCurrentTimeDiv.innerHTML = "";
+  timeControlCurrentTimeDiv.innerHTML = "time";
   vectorLayer.setStyle(meanLayerStyle);
   updatePopup(state);
   cogLayer.setVisible(false);

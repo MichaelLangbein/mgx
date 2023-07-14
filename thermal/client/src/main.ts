@@ -9,7 +9,7 @@ import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
 import Style from 'ol/style/Style';
 import Fill from 'ol/style/Fill';
-import { FeatureLike } from 'ol/Feature';
+import Feature, { FeatureLike } from 'ol/Feature';
 import { GeoTIFF } from 'ol/source';
 import vectorData from './buildings_temperature.geo.json';
 import { colorScale } from './graph';
@@ -118,55 +118,12 @@ const cogLayer = new WGLTileLayer({
   visible: false
 });
 
-function meanLayerStyle(feature: FeatureLike) {
-  const mean = featureMeanDeltaT(feature);
-  if (Number.isNaN(mean)) return new Style({
-    fill: new Fill({
-      color: `rgb(125, 125, 125)`
-    })
-  })
-
-  const maxVal = 2.0;
-  const minVal = -2.0;
-  const {r, g, b} = colorScale(mean, minVal, maxVal);
-
-  return new Style({
-    fill: new Fill({
-      color: `rgb(${r}, ${g}, ${b})`
-    })
-  });
-}
-
-function createTimeLayerStyle(time: string) {
-  return (feature: FeatureLike) => {
-    const delta = featureDeltaTatTime(feature, time);
-  
-    if (delta === "NaN") {
-      return new Style({
-        fill: new Fill({
-          color: `rgb(50, 50, 50)`
-        })
-      });
-    }
-  
-    const maxVal = 2.0;
-    const minVal = -2.0;
-    const {r, g, b} = colorScale(delta, minVal, maxVal);
-  
-    return new Style({
-      fill: new Fill({
-        color: `rgb(${r}, ${g}, ${b})`
-      })
-    });
-  }
-}
-
 
 const vectorLayer = new VectorLayer({
   source: new VectorSource({
     features: new GeoJSON().readFeatures(vectorData)
   }),
-  style: meanLayerStyle,
+  style: createVectorStyle(state),
   opacity: 0.8
 });
 
@@ -227,6 +184,7 @@ function useStatistic(statistic: State["statistic"]) {
 
   updateStatsSelector(state);
   updatePopup(state);
+  updateMap(state);
 }
 
 
@@ -276,11 +234,13 @@ function activateMeanView() {
 
 function updateMap(state: State) {
   if (state.mode === "mean") {
-    vectorLayer.setStyle(meanLayerStyle);
+    const style = createVectorStyle(state);
+    vectorLayer.setStyle(style);
     cogLayer.setVisible(false);
   }
   else if (state.mode === "time") {
-    vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
+    const style = createVectorStyle(state);
+    vectorLayer.setStyle(style);
     cogLayer.setVisible(true);
     cogLayer.setSource(new GeoTIFF({
       sources: [{ url: `/public/lst_${state.currentTime}.tif` }]
@@ -327,26 +287,25 @@ function updatePopup(state: State) {
 
   popupDiv.innerHTML = "";
 
-  const props = state.clickedFeature.getProperties();
-  const deltaTs = props["temperature"];
-  const timeSeries: Datum[] = [];
-  for (const [time, values] of Object.entries(deltaTs)) {
-    const {tMeanInside, tMeanOutside, tMeanOutsideNature} = values as any;
-    if (tMeanInside === "NaN" || tMeanOutsideNature === "NaN") continue;
-    timeSeries.push({ label: time.slice(0, 10), value: tMeanInside - tMeanOutsideNature });
-  }
-  timeSeries.sort((a, b) => a.label < b.label ? -1 : 1);
-  const vMean = timeSeries.reduce((prev, current) => prev + current.value, 0) / timeSeries.length;
+  const timeSeries = getTimeSeries(state.clickedFeature, state.statistic);
+  const vMean = timeSeriesMean(timeSeries);
+  const vCurrent = timeSeriesValueAt(timeSeries, state.currentTime);
+  const ylabel = getLabel(state.statistic);
+
   barchart()
   .container(popupDiv)
   .width(250).height(250)
   .data(timeSeries)
-  .xlabel('time').ylabel('delta T')
+  .xlabel('time').ylabel(ylabel)
   .margin({ top: 20, left: 50, bottom: 50, right: 10})
   .hlines([{label: "mean", value: vMean}])();
   
   const textDiv = document.createElement('div');
-  textDiv.innerHTML = popupText(state);
+  let popupText = `<p>${ylabel}</p>`;
+  popupText += `<p>Mean: ${vMean.toFixed(2)}</p>`;
+  if (state.mode === "time" && state.currentTime) popupText += `<p>${state.currentTime.slice(0, 10)}: ${vCurrent ? vCurrent.toFixed(2) : 'NaN'}</p>`;
+
+  textDiv.innerHTML = popupText;
   popupDiv.appendChild(textDiv);
 
   popupOverlay.setPosition(state.clickLocation);
@@ -374,53 +333,115 @@ function updateTimeButtons(state: State) {
  *   HELPERS
  *********************************************/
 
-function popupText(state: State): string {
-  const feature = state.clickedFeature;
-  if (!feature) return "";
-
-  const mean = featureMeanDeltaT(feature);
+function createVectorStyle(state: State) {
+  // state.mode, state.statistic, state.currentTime
   if (state.mode === "mean") {
-    return `<div><p>Delta T (mean): ${mean.toFixed(2)} °C</p></div>`;
-  } else {
-    const dt = featureDeltaTatTime(feature, state.currentTime);
-    return `
-    <div>
-      <p>Delta T (mean): ${mean.toFixed(2)} °C</p>
-      <p>Delta T (time): ${dt === "NaN" ? dt : dt.toFixed(2)} °C</p>
-    </div>
-    `;
+
   }
+  return (feature: FeatureLike) => {
+    const ts = getTimeSeries(feature, state.statistic);
+    let value: number | undefined;
+    if (state.mode === "mean") value = timeSeriesMean(ts);
+    if (state.mode === "time") value = timeSeriesValueAt(ts, state.currentTime);
 
-}
+    if (value === undefined) {
+      return new Style({
+        fill: new Fill({ color: `rgb(50, 50, 50)` })
+      });
+    }
 
-function getTimeSeries(feature: FeatureLike, func: (mInside: number, mOutside: number, mNature: number) => number) {
-  const props = feature.getProperties();
-  const deltaTs = props["temperature"];
-  const timeSeries: Datum[] = [];
-  for (const [time, values] of Object.entries(deltaTs)) {
-    const {tMeanInside, tMeanOutside, tMeanOutsideNature} = values as any;
-    const val = func(tMeanInside, tMeanOutside, tMeanOutsideNature);
-    if (Number.isNaN(val) || !Number.isFinite(val)) continue;
-    timeSeries.push({ label: time.slice(0, 10), value:  val });
+    const {maxVal,  minVal} = getMaxAndMin(state.statistic);
+    const {r, g, b} = colorScale(value, minVal, maxVal);
+  
+    return new Style({
+      fill: new Fill({
+        color: `rgb(${r}, ${g}, ${b})`
+      })
+    });
   }
-  timeSeries.sort((a, b) => a.label < b.label ? -1 : 1);
-  return timeSeries;
 }
 
-function featureMeanDeltaT(feature: FeatureLike) {
-  const timeSeries = getTimeSeries(feature, (inside, outside, outsideNature) => inside - outsideNature);
-  const mean = timeSeries.reduce((prev, current) => current.value + prev, 0) / timeSeries.length;
-  return mean;
+function timeSeriesValueAt(ts: Datum[], time: string) {
+  return ts.find(d => d.label === time)?.value;
 }
 
-function featureDeltaTatTime(feature: FeatureLike, time: string) {
-  const props = feature.getProperties();
-  const deltaTs = props["temperature"];
-  const values = deltaTs[time];
-  const {tMeanInside, tMeanOutside, tMeanOutsideNature} = values as any;
-  if (tMeanInside === "NaN" || tMeanOutsideNature === "NaN") return "NaN";
-  const tIn = parseFloat(tMeanInside as string);
-  const tOut = parseFloat(tMeanOutsideNature as string);
-  const val = tIn - tOut;
-  return val;
+function timeSeriesMean(ts: Datum[]) {
+  const values = ts.map(d => d.value).filter(v => Number.isFinite(v));
+  const sum = values.reduce((last, curr) => last + curr, 0);
+  return sum / values.length;
+}
+
+function getTimeSeries(feature: FeatureLike, stat: State["statistic"]) {
+    const props = feature.getProperties();
+    const deltaTs = props["temperature"];
+
+    const func = getStatisticFunction(stat);
+
+    const timeSeries: Datum[] = [];
+    for (const [time, values] of Object.entries(deltaTs)) {
+
+        const { tMeanInside, tMeanOutside, tMeanOutsideNature } = values as any;
+        const val = func(tMeanInside, tMeanOutside, tMeanOutsideNature);
+        if (Number.isNaN(val) || !Number.isFinite(val)) continue;
+        timeSeries.push({ label: time.slice(0, 10), value: val });
+
+    }
+
+    timeSeries.sort((a, b) => a.label < b.label ? -1 : 1);
+
+    return timeSeries;
+}
+
+function getStatisticFunction(stat: State["statistic"]) {
+  switch(stat) {
+    case "statisticTemp":
+      return (tMeanInside: number, tMeanOutside: number, tMeanOutsideNature: number) => tMeanInside;
+    case "statisticTinMinTout":
+      return (tMeanInside: number, tMeanOutside: number, tMeanOutsideNature: number) => tMeanInside - tMeanOutside;
+    case "statisticTinMinToutNature":
+      return (tMeanInside: number, tMeanOutside: number, tMeanOutsideNature: number) => tMeanInside - tMeanOutsideNature;
+  }
+}
+
+function getMaxAndMin(stat: State["statistic"]) {
+  switch(stat) {
+    case "statisticTemp":
+      return {minVal: -5, maxVal: 35};
+    case "statisticTinMinTout":
+    case "statisticTinMinToutNature":
+      return {minVal: -2, maxVal: 2};
+  }
+}
+
+function getLabel(stat: State["statistic"]) {
+  switch (stat) {
+    case "statisticTemp":
+      return "T [°C]"
+    case "statisticTinMinTout":
+      return "T_in - T_out [°C]"
+    case "statisticTinMinToutNature":
+      return "T_in - T_out (no buildings) [°C]"
+  }
+}
+
+
+
+
+function ___meanLayerStyle(feature: FeatureLike) {
+  const mean = featureMeanDeltaT(feature);
+  if (Number.isNaN(mean)) return new Style({
+    fill: new Fill({
+      color: `rgb(125, 125, 125)`
+    })
+  })
+
+  const maxVal = 2.0;
+  const minVal = -2.0;
+  const {r, g, b} = colorScale(mean, minVal, maxVal);
+
+  return new Style({
+    fill: new Fill({
+      color: `rgb(${r}, ${g}, ${b})`
+    })
+  });
 }

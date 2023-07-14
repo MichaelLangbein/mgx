@@ -34,7 +34,9 @@ interface State {
   mode: 'mean' | 'time',
   currentTime: string,
   availableTimes: string[],
-  clickedFeature: FeatureLike | undefined
+  clickedFeature: FeatureLike | undefined,
+  clickLocation: number[] | undefined,
+  statistic: "statisticTemp" | "statisticTinMinTout" | "statisticTinMinToutNature"
 }
 
 const state: State = {
@@ -62,7 +64,9 @@ const state: State = {
     "2022-08-03 10:04:35.6121790Z",
     "2022-10-06 10:04:44.6235710Z",
   ],
-  clickedFeature: undefined
+  clickedFeature: undefined,
+  clickLocation: undefined,
+  statistic: "statisticTemp"
 };
 
 /**********************************************
@@ -70,13 +74,16 @@ const state: State = {
  *********************************************/
 
 
-const appDiv                    = document.getElementById("app") as HTMLDivElement;
-const popupDiv                  = document.getElementById("popup") as HTMLDivElement;
-const meanDiv                   = document.getElementById("modeSelectMean") as HTMLDivElement;
-const timeDiv                   = document.getElementById("modeSelectTime") as HTMLDivElement;
-const timeControlBackDiv        = document.getElementById("timeControlBack") as HTMLDivElement;
-const timeControlCurrentTimeDiv = document.getElementById("timeControlCurrentTime") as HTMLDivElement;
-const timeControlForwardDiv     = document.getElementById("timeControlForward") as HTMLDivElement;
+const appDiv                        = document.getElementById("app") as HTMLDivElement;
+const popupDiv                      = document.getElementById("popup") as HTMLDivElement;
+const meanDiv                       = document.getElementById("modeSelectMean") as HTMLDivElement;
+const timeDiv                       = document.getElementById("modeSelectTime") as HTMLDivElement;
+const timeControlBackDiv            = document.getElementById("timeControlBack") as HTMLDivElement;
+const timeControlCurrentTimeDiv     = document.getElementById("timeControlCurrentTime") as HTMLDivElement;
+const timeControlForwardDiv         = document.getElementById("timeControlForward") as HTMLDivElement;
+const statisticTempDiv              = document.getElementById("statisticTemp") as HTMLDivElement;
+const statisticTinMinToutDiv        = document.getElementById("statisticTinMinTout") as HTMLDivElement;
+const statisticTinMinToutNatureDiv  = document.getElementById("statisticTinMinToutNature") as HTMLDivElement;
 
 
 /**********************************************
@@ -191,11 +198,36 @@ meanDiv.addEventListener('click', activateMeanView);
 timeDiv.addEventListener('click', activateTimeView);
 timeControlBackDiv.addEventListener('click', timeBack);
 timeControlForwardDiv.addEventListener('click', timeForward);
+statisticTempDiv.addEventListener('click', () => useStatistic("statisticTemp"));
+statisticTinMinToutDiv.addEventListener('click', () => useStatistic("statisticTinMinTout"));
+statisticTinMinToutNatureDiv.addEventListener('click', () => useStatistic("statisticTinMinToutNature"));
 
 
 /**********************************************
- *   REACT TO ACTIONS
+ *   ACTIONS -> STATE
  *********************************************/
+
+
+function handleMapClick(evt: MapBrowserEvent<any>) {
+  const location = evt.coordinate;
+  const features = vectorLayer.getSource()?.getFeaturesAtCoordinate(location);
+  if (features && features?.length > 0) {
+    state.clickedFeature = features[0];
+    state.clickLocation = location;
+  } else {
+    state.clickedFeature = undefined;
+    state.clickLocation = undefined;
+  }
+
+  updatePopup(state);
+}
+
+function useStatistic(statistic: State["statistic"]) {
+  state.statistic = statistic;
+
+  updateStatsSelector(state);
+  updatePopup(state);
+}
 
 
 function timeBack() {
@@ -204,13 +236,10 @@ function timeBack() {
   if (indexCurrent <= 0) return;
   const newTime = state.availableTimes[indexCurrent - 1];
   state.currentTime = newTime;
+
   updateTimeButtons(state);
-  vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
-  popupDiv.innerHTML = popupText(state);
-  cogLayer.setVisible(true);
-  cogLayer.setSource(new GeoTIFF({
-    sources: [{ url: `/public/lst_${state.currentTime}.tif` }]
-  }));
+  updatePopup(state);
+  updateMap(state);
 }
 
 function timeForward() {
@@ -219,51 +248,82 @@ function timeForward() {
   if (indexCurrent >= state.availableTimes.length - 1) return;
   const newTime = state.availableTimes[indexCurrent + 1];
   state.currentTime = newTime;
+
   updateTimeButtons(state);
-  vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
   updatePopup(state);
-  cogLayer.setVisible(true);
-  cogLayer.setSource(new GeoTIFF({
-    sources: [{ url: `/public/lst_${state.currentTime}.tif` }]
-  }));}
+  updateMap(state);
+}
 
 function activateTimeView() {
   state.mode = "time";
-  meanDiv.classList.replace('active', 'inactive');
-  timeDiv.classList.replace('inactive', 'active');
-  timeControlCurrentTimeDiv.innerHTML = state.currentTime.slice(0, 10);
-  vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
+
+  updateModeSelector(state);
   updatePopup(state);
-  cogLayer.setVisible(true);
+  updateMap(state);
 }
 
 function activateMeanView() {
   state.mode = "mean";
-  meanDiv.classList.replace('inactive', 'active');
-  timeDiv.classList.replace('active', 'inactive');
-  timeControlCurrentTimeDiv.innerHTML = "time";
-  vectorLayer.setStyle(meanLayerStyle);
+
+  updateModeSelector(state);
   updatePopup(state);
-  cogLayer.setVisible(false);
+  updateMap(state);
 }
 
+/**********************************************
+ *   STATE -> UI
+ *********************************************/
 
-function handleMapClick(evt: MapBrowserEvent<any>) {
-  const location = evt.coordinate;
-  const features = vectorLayer.getSource()?.getFeaturesAtCoordinate(location);
+function updateMap(state: State) {
+  if (state.mode === "mean") {
+    vectorLayer.setStyle(meanLayerStyle);
+    cogLayer.setVisible(false);
+  }
+  else if (state.mode === "time") {
+    vectorLayer.setStyle(createTimeLayerStyle(state.currentTime));
+    cogLayer.setVisible(true);
+    cogLayer.setSource(new GeoTIFF({
+      sources: [{ url: `/public/lst_${state.currentTime}.tif` }]
+    }));
+  }
 
-  if (features && features?.length > 0) {
-    state.clickedFeature = features[0];
-    updatePopup(state);
-    popupOverlay.setPosition(location);
-  } else {
-    state.clickedFeature = undefined;
-    popupOverlay.setPosition(undefined);
+}
+
+function updateModeSelector(state: State) {
+  if (state.mode === "mean") {
+    meanDiv.classList.replace('inactive', 'active');
+    timeDiv.classList.replace('active', 'inactive');
+    timeControlCurrentTimeDiv.innerHTML = "time";
+  } else if (state.mode === "time") {
+    meanDiv.classList.replace('active', 'inactive');
+    timeDiv.classList.replace('inactive', 'active');
+    timeControlCurrentTimeDiv.innerHTML = state.currentTime.slice(0, 10);
+  }
+}
+
+function updateStatsSelector(state: State) {
+  if (state.statistic === "statisticTemp") {
+    statisticTempDiv.classList.replace("inactive", "active");
+    statisticTinMinToutDiv.classList.replace("active", "inactive");
+    statisticTinMinToutNatureDiv.classList.replace("active", "inactive");
+  }
+  else if (state.statistic === "statisticTinMinTout") {
+    statisticTempDiv.classList.replace("active", "inactive");
+    statisticTinMinToutDiv.classList.replace("inactive", "active");
+    statisticTinMinToutNatureDiv.classList.replace("active", "inactive");  
+  }
+  else if (state.statistic === "statisticTinMinToutNature") {
+    statisticTempDiv.classList.replace("active", "inactive");
+    statisticTinMinToutDiv.classList.replace("active", "inactive");
+    statisticTinMinToutNatureDiv.classList.replace("inactive", "active");  
   }
 }
 
 function updatePopup(state: State) {
-  if (!state.clickedFeature) return;
+  if (!state.clickedFeature) {
+    popupOverlay.setPosition(undefined);
+    return;
+  }
 
   popupDiv.innerHTML = "";
 
@@ -288,27 +348,9 @@ function updatePopup(state: State) {
   const textDiv = document.createElement('div');
   textDiv.innerHTML = popupText(state);
   popupDiv.appendChild(textDiv);
+
+  popupOverlay.setPosition(state.clickLocation);
 }
-
-function popupText(state: State): string {
-  const feature = state.clickedFeature;
-  if (!feature) return "";
-
-  const mean = featureMeanDeltaT(feature);
-  if (state.mode === "mean") {
-    return `<div><p>Delta T (mean): ${mean.toFixed(2)} °C</p></div>`;
-  } else {
-    const dt = featureDeltaTatTime(feature, state.currentTime);
-    return `
-    <div>
-      <p>Delta T (mean): ${mean.toFixed(2)} °C</p>
-      <p>Delta T (time): ${dt === "NaN" ? dt : dt.toFixed(2)} °C</p>
-    </div>
-    `;
-  }
-
-}
-
 
 function updateTimeButtons(state: State) {
   const indexCurrent = state.availableTimes.indexOf(state.currentTime);
@@ -331,6 +373,25 @@ function updateTimeButtons(state: State) {
 /**********************************************
  *   HELPERS
  *********************************************/
+
+function popupText(state: State): string {
+  const feature = state.clickedFeature;
+  if (!feature) return "";
+
+  const mean = featureMeanDeltaT(feature);
+  if (state.mode === "mean") {
+    return `<div><p>Delta T (mean): ${mean.toFixed(2)} °C</p></div>`;
+  } else {
+    const dt = featureDeltaTatTime(feature, state.currentTime);
+    return `
+    <div>
+      <p>Delta T (mean): ${mean.toFixed(2)} °C</p>
+      <p>Delta T (time): ${dt === "NaN" ? dt : dt.toFixed(2)} °C</p>
+    </div>
+    `;
+  }
+
+}
 
 function getTimeSeries(feature: FeatureLike, func: (mInside: number, mOutside: number, mNature: number) => number) {
   const props = feature.getProperties();

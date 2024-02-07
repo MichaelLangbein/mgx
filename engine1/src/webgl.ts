@@ -560,7 +560,9 @@ export const createTexture = (gl: WebGLRenderingContext, image: HTMLImageElement
     const type = gl.UNSIGNED_BYTE;
 
     gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, format, type, image);  // analog to bufferData
-    gl.generateMipmap(gl.TEXTURE_2D); // mipmaps are mini-versions of the texture.
+    if (isPowerOf(image.width, 2) && isPowerOf(image.height, 2))
+        gl.generateMipmap(gl.TEXTURE_2D); // mipmaps are mini-versions of the texture.
+    else console.warn(`Not a power-of-two image: `, image);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); // when accessing texture2D(u_tex, vec2(1.2, 0.3)), this becomes  texture2D(u_tex, vec2(1.0, 0.3))
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); // when accessing texture2D(u_tex, vec2(0.2, 1.3)), this becomes  texture2D(u_tex, vec2(0.2, 1.0))
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);  // Must be NEAREST or LINEAR to accomodate NPOT textures: https://stackoverflow.com/questions/3792027/webgl-and-the-power-of-two-image-size

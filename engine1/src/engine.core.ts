@@ -275,6 +275,7 @@ export class TextureData {
         } 
         
         else if (im instanceof HTMLImageElement) {
+            if (im.src) return hash(im.src);
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             canvas.width = im.width;
